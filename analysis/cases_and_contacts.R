@@ -27,4 +27,4 @@ inf_vacc_housing %>% filter(RoomId==-2050142432, Day>"2021-10-03" & Day<"2021-10
 # how may have symptom data?
 inf_vacc_housing %>% group_by(ResidentId) %>% filter(any(!SxOnset%>%is.na())) 
 
-view(room_had_case %>% filter(case>0))
+view(room_had_case %>% filter(case>0)) 
