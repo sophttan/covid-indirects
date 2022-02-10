@@ -69,7 +69,22 @@ positives <- filter(inf_vacc_housing, !num_pos %>% is.na())
 positives$RoomCensus %>% summary()
 positives$RoomCensus %>% hist()
 
-filter(positives, QuarantineIsolation==2) %>% nrow()
+filter(positives, QuarantineIsolation==0) %>% nrow()
 filter(positives, RoomCensus <= 8) %>% nrow()
+filter(positives, RoomCensus <=1) %>% nrow()
+filter(positives, RoomCensus <=8 & RoomCensus>1) %>% nrow()
 
-# pseudo-code
+
+num_rooms_res <- inf_vacc_housing %>% summarise(num_rooms = unique(RoomId) %>% length(), num_activity = unique(ActivityCohortId) %>% length(),
+                                                num_people=mean(RoomCensus,na.rm=T))
+num_rooms_res$num_rooms %>% summary()
+
+num_rooms_res$num_people %>% summary()
+
+
+
+inf_vacc_housing <- inf_vacc_housing %>% fill(num_pos, .direction="down")
+inf_vacc_housing <- inf_vacc_housing %>% group_by(ResidentId, num_pos) %>% 
+  mutate(infectious = ifelse(!is.na(num_pos) & Day-first(Day)<=4, 1, 0)) 
+
+write_csv(inf_vacc_housing, "housing_inf_data.csv")
