@@ -21,7 +21,6 @@ inf_vacc <- inf_vacc %>% mutate(has_test = ifelse(is.na(Result), F, T),
 
 inf_vacc_housing <- inf_vacc %>% full_join(nh, c("ResidentId", "Day"="Night"))
 
-inf_vacc_housing <- inf_vacc_housing %>% filter(!is.na(RoomId))
 rm(nh, inf_vacc) # free up memory
 
 inf_vacc_housing <- inf_vacc_housing %>% arrange(ResidentId, Day) %>% select(!Month.x)
