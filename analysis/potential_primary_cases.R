@@ -51,67 +51,83 @@ labels <- infections_adjusted_more_than_1_contact %>% group_keys %>% mutate(no=1
 labels
 infections_adjusted_more_than_1_contact <- infections_adjusted_more_than_1_contact %>% left_join(labels)
 
+infections_adjusted_more_than_1_contact %>% filter(days_infectious==1) %>% 
+  group_by(RoomId, Day) %>% filter(n()>1) %>% group_by(ResidentId, num_pos)
+infections_adjusted_more_than_1_contact %>% filter(days_infectious==1) %>% 
+  group_by(RoomId, Day) %>% filter(n()==1) %>% group_by(ResidentId, num_pos)
+
 multiple_infections <- infections_adjusted_more_than_1_contact %>% filter(days_infectious %in% 1:3) %>% 
   group_by(RoomId, Day) %>% filter(n()>1 & any(days_infectious==1))
 residents_multiple <- multiple_infections$no %>% unique()
 included <- filter(infections_adjusted_more_than_1_contact, !(no %in% residents_multiple))
 
-days_quarantine_isolation <- infections_adjusted_more_than_1_contact %>% summarise(inf = max(days_infectious), q_i = sum(QuarantineIsolation!=0), no=first(no))
-all_quarantine_no <- (days_quarantine_isolation %>% filter(q_i==inf))$no
-all_quarantine <- infections_adjusted_more_than_1_contact %>% filter(no %in% all_quarantine_no) %>% select(ResidentId, Day, no, RoomCensus, RoomId, QuarantineIsolation)
-filter(included, sum(QuarantineIsolation > 0) < max(days_quarantine_isolation))
+filter(included, any(QuarantineIsolation==0,na.rm=T))
+filter(included, all(RoomCensus <= 8, na.rm=T)& any(QuarantineIsolation==0,na.rm=T))
 
-unique <- unique <- infections_adjusted_more_than_1_contact %>% 
-  summarise(Day=first(Day), RoomId=first(RoomId), no=first(no)) %>% ungroup() %>%
-  mutate(no=1:nrow(.)) %>% arrange(Day)
 
-infections_remove_neg_pcr_adjusted %>% filter(any(QuarantineIsolation > 0)) %>% select(ResidentId, Day, Result, QuarantineIsolation, RoomCensus) 
-
-included_primary <- included %>% filter(sum(QuarantineIsolation > 0) < max(days_infectious) & all(RoomCensus <= 8)) %>%
-  summarise(Day=first(Day), num_inf = max(days_infectious)) 
-
-num_included <- 0
-res <- included_primary$ResidentId %>% unique()
-d_primary <- filter(d, ResidentId %in% res)
-for (i in 1:nrow(included_primary)) {
-  print(i)
-  test <- filter(d_primary, ResidentId==included_primary$ResidentId[i] & 
-                   Day >= included_primary$Day[i]-7 & Day <= included_primary$Day[i])
-  if(any(test$Result=="Negative", na.rm=T)) {num_included <- num_included + 1}
+s
+prep_inf_spread_data <- function(d_test) {
+  d_test <- d_test %>% group_by(ResidentId, num_pos) %>% summarise(Day=first(Day), days_infectious=first(days_infectious),no=first(no))
+  d_test <- d_test %>% mutate(Day=dplyr::if_else(days_infectious>1, Day-days_infectious, Day)) %>% ungroup ()
+  d_test %>% mutate(num_pos=factor(num_pos, levels=1:4, labels=c("inf1", "inf2", "inf3", "inf4"))) %>% 
+    select(!c(no,days_infectious)) %>% 
+    spread(num_pos, Day, fill=NA, drop = F) 
 }
-num_included
 
-infections_adjusted_more_than_1_contact %>% filter(all(RoomCensus<=8)) %>% select(ResidentId, Day, Result, QuarantineIsolation, RoomCensus)
-infections_adjusted_more_than_1_contact %>% filter(any(RoomCensus>8)) %>% select(ResidentId, Day, Result, QuarantineIsolation, RoomCensus)
- 
+filter_has_negative_test_within_week <- function(res, spread) {
+  d_test <- filter(d, ResidentId %in% res)
 
-unique <- infections_adjusted_more_than_1_contact %>% 
-  summarise(Day=first(Day), RoomId=first(RoomId), potential_first=Day-2, potential_last=Day+2) %>% ungroup() %>%
-  mutate(no=1:nrow(.)) %>% arrange(Day)
-unique$counted <- 0
+  d_test <- d_test %>% left_join(spread, by="ResidentId")
+  d_test <- d_test %>% mutate(within_week = ifelse((inf1-Day<=7&inf1-Day>0)|
+                                                     (inf2-Day<=7&inf2-Day>0)|
+                                                     (inf3-Day<=7&inf3-Day>0)|
+                                                     (inf4-Day<=7&inf4-Day>0),T,NA),
+                              num_pos_adj = ifelse(within_week, num_pos+1, NA),
+                              num_pos_adj = ifelse(within_week&is.na(num_pos_adj), 1, num_pos_adj))
+  
+  d_test %>% group_by(ResidentId, num_pos_adj) %>% filter(within_week) %>% filter(any(Result=="Negative"&pcr))
+}
 
-mult_inf_room_day <- infections_adjusted_more_than_1_contact %>% group_by(RoomId, Day) %>% filter(n() > 1)
-sing_inf_room_day <- unique %>% group_by(RoomId, Day) %>% filter(n() == 1)
+prep_data_to_save <- function(included) {
+  included %>% group_keys() %>% rename("num_pos"="num_pos_adj") %>% left_join(labels, by=c("ResidentId", "num_pos"))
+}
 
-# infections_adjusted_more_than_1_contact <- infections_adjusted_more_than_1_contact %>% 
-#   left_join(unique %>% select(ResidentId, num_pos, no), c("ResidentId", "num_pos"))
-# infections_unique <- infections_adjusted_more_than_1_contact %>% summarise_all(first)
+# potential primary cases if including multiple infections
+test1 <- prep_inf_spread_data(infections_adjusted_more_than_1_contact)
+res <- test1$ResidentId %>% unique()
+clean_test1 <- filter_has_negative_test_within_week(res, test1)
+prep_data_to_save(clean_test1) %>% write_csv("potential-primary-cases/all_infections.csv")
+
+infections_adjusted_more_than_1_contact %>% filter(all(RoomCensus<=8, na.rm=T))
+test1 <- prep_inf_spread_data(infections_adjusted_more_than_1_contact %>% filter(all(RoomCensus<=8, na.rm=T)))
+res <- test1$ResidentId %>% unique()
+clean_test1 <- filter_has_negative_test_within_week(res, test1)
+prep_data_to_save(clean_test1) %>% write_csv("potential-primary-cases/all_infections_less_than_8res.csv")
+
+
+# # potential primary cases if not including multiple infections
+# test2 <- prep_inf_spread_data(included)
+# res <- test2$ResidentId %>% unique()
+# clean_test2 <- filter_has_negative_test_within_week(res, test2)
+# prep_data_to_save(clean_test2) %>% write_csv("potential-primary-cases/all_infections.csv")
 # 
-# for (i in 1:100){#nrow(unique)) {
-#   print(i)
-#   if(unique$counted[i]==1) {next}
-#   
-#   case_no <- unique$no[i]
-#   
-#   find_rooms <- filter(infections_adjusted_more_than_1_contact, no==16286)
-#   
-#   for (day in seq(unique$Day[i],unique$potential_last[i],1)) {
-#     room <- filter(find_rooms, Day==day)$RoomId[1]
-#     contacts <- filter(infections_unique, no!=16286 & Day==day & RoomId==room) 
-#     
-#     if(nrow(contacts)==0) {next}
-#     
-#     unique$counted[unique$no %in% contacts$no] <- 1
-#     unique$counted[i] <- 1
-#   }
-# }
+# infections_adjusted_more_than_1_contact %>% filter(all(RoomCensus<=8, na.rm=T))
+# test2 <- prep_inf_spread_data(infections_adjusted_more_than_1_contact %>% filter(all(RoomCensus<=8, na.rm=T)))
+# res <- test2$ResidentId %>% unique()
+# clean_test2 <- filter_has_negative_test_within_week(res, test2)
+# prep_data_to_save(clean_test2) %>% write_csv("potential-primary-cases/all_infections_less_than_8res.csv")
+
+
+# 
+# infections_adjusted_more_than_1_contact %>% filter(all(RoomCensus<=8)) %>% select(ResidentId, Day, Result, QuarantineIsolation, RoomCensus)
+# infections_adjusted_more_than_1_contact %>% filter(any(RoomCensus>8)) %>% select(ResidentId, Day, Result, QuarantineIsolation, RoomCensus)
+#  
+# 
+# unique <- infections_adjusted_more_than_1_contact %>% 
+#   summarise(Day=first(Day), RoomId=first(RoomId), potential_first=Day-2, potential_last=Day+2) %>% ungroup() %>%
+#   mutate(no=1:nrow(.)) %>% arrange(Day)
+# unique$counted <- 0
+# 
+# mult_inf_room_day <- infections_adjusted_more_than_1_contact %>% group_by(RoomId, Day) %>% filter(n() > 1)
+# sing_inf_room_day <- unique %>% group_by(RoomId, Day) %>% filter(n() == 1)
+# 
