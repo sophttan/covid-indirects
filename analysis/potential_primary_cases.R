@@ -51,6 +51,8 @@ labels <- infections_adjusted_more_than_1_contact %>% group_keys %>% mutate(no=1
 labels
 infections_adjusted_more_than_1_contact <- infections_adjusted_more_than_1_contact %>% left_join(labels)
 
+write_csv(infections_adjusted_more_than_1_contact, "infectious_periods_primary_cases.csv")
+
 infections_adjusted_more_than_1_contact %>% filter(days_infectious==1) %>% 
   group_by(RoomId, Day) %>% filter(n()>1) %>% group_by(ResidentId, num_pos)
 infections_adjusted_more_than_1_contact %>% filter(days_infectious==1) %>% 
@@ -65,7 +67,8 @@ filter(included, any(QuarantineIsolation==0,na.rm=T))
 filter(included, all(RoomCensus <= 8, na.rm=T)& any(QuarantineIsolation==0,na.rm=T))
 
 
-s
+
+
 prep_inf_spread_data <- function(d_test) {
   d_test <- d_test %>% group_by(ResidentId, num_pos) %>% summarise(Day=first(Day), days_infectious=first(days_infectious),no=first(no))
   d_test <- d_test %>% mutate(Day=dplyr::if_else(days_infectious>1, Day-days_infectious, Day)) %>% ungroup ()
