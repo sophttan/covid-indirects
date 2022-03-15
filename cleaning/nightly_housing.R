@@ -26,7 +26,7 @@ nh2_after_3_1_2020_subset <- nh2_after_3_1_2020 %>% select(ResidentId, Night, Ye
 
 unique_res_housing <- nh2_after_3_1_2020_subset$ResidentId %>% unique()
 
-inf_vacc <- read_csv("D:/code_ST/has_testing_data_aggregated_infections.csv")
+inf_vacc <- read_csv("D:/stan5/code_ST/has_testing_data_aggregated_infections.csv")
 
 
 # (inf_vacc %>% filter(num_pos==1))$Day %>% min()

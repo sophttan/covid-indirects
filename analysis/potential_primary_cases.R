@@ -3,12 +3,12 @@
 
 rm(list=ls())
 
-setwd("D:/code_ST")
+setwd("D:/stan5/code_ST")
 
 library(readr)
 library(tidyverse)
 
-d <- read_csv("D:/code_ST/housing_inf_data.csv")
+d <- read_csv("housing_inf_data.csv")
 
 d <- d %>% group_by(ResidentId, num_pos)
 

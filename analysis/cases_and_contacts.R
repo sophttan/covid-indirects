@@ -3,15 +3,15 @@
 
 rm(list=ls())
 
-setwd("D:/code_ST")
+setwd("D:/stan5/code_ST")
 
 library(readr)
 library(tidyverse)
 
-nh <- read_csv("D:/code_ST/housing_filtered.csv")
-inf_vacc <- read_csv("D:/code_ST/has_testing_data_aggregated_infections.csv")
+nh <- read_csv("housing_filtered.csv")
+inf_vacc <- read_csv("has_testing_data_aggregated_infections.csv")
 
-no_housing <- read_csv("D:/code_ST/has_testing_no_housing.csv")$ResidentId %>% unique()
+no_housing <- read_csv("has_testing_no_housing.csv")$ResidentId %>% unique()
 inf_vacc <- filter(inf_vacc, !(ResidentId %in% no_housing))
 inf_vacc <- inf_vacc %>% mutate(has_test = ifelse(is.na(Result), F, T), 
                                 antigen = ifelse(grepl("Antigen|POC", Details, ignore.case=T), T, ifelse(has_test==F, NA, F)),
@@ -86,4 +86,4 @@ inf_vacc_housing <- inf_vacc_housing %>% fill(num_pos, .direction="down")
 inf_vacc_housing <- inf_vacc_housing %>% group_by(ResidentId, num_pos) %>% 
   mutate(infectious = ifelse(!is.na(num_pos) & Day-first(Day)<=4, 1, 0)) 
 
-write_csv(inf_vacc_housing, "housing_inf_data.csv")
+write_csv(inf_vacc_housing %>% select(!c(CovidLOC,SxOnset,Hospitalization,Ili,ReceivedDate,Institution)), "housing_inf_data.csv")
