@@ -24,12 +24,15 @@ sum_vacc <- infections%>%group_by(ResidentId, num_pos) %>% summarise_all(first) 
 prim <- left_join(prim, sum_vacc, by=c("ResidentId", "num_pos")) 
 prim <- prim %>% mutate(quarantine = F, contacts=list(NULL), pos_contacts=list(NULL), neg_contacts=list(NULL), 
                         multiple_inf = list(NULL), num_possible_contacts = 0, num_no_prior_neg_test = 0, num_no_testing = 0, num_prior_inf = 0)
-prim <- prim %>% arrange(Day)
-set.seed(42)
-prim_sub <- sample(1:nrow(prim), 100)
+contact_details <- matrix(ncol=6, nrow=10000)
 
+prim <- prim %>% arrange(Day)
+# set.seed(42)
+# prim_sub <- sample(1:nrow(prim), 100)
+
+num_contact <- 1
 j <- 1
-for (p in prim_sub) {
+for (p in 1:nrow(prim)){#prim_sub) {
   print_res <- F
   if (j%%20==0){
     print_res <- T
@@ -110,6 +113,9 @@ for (p in prim_sub) {
       if(print_res) {
         print("valid contact")
       }
+      
+      contact_details[num_contact,] <- c(c, resident, first_share, contact$Day[nrow(contact)], nrow(same_room), round(mean(contact$num_dose)))
+      num_contact <- num_contact+1
       
       if(any(contact$Result=="Positive",na.rm=T)) {
         prim$pos_contacts[[p]] <- c(prim$pos_contacts[[p]], c)
