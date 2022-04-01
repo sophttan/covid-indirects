@@ -1,5 +1,5 @@
 # Sophia Tan 2/10/22
-# Test sample sizes
+# Test inclusion/exclusion criteria
 
 rm(list=ls())
 
@@ -19,7 +19,28 @@ d %>% filter(infectious==1) %>% filter(any(Result=="Negative"))%>%view()
 d %>% filter(infectious==1) %>% filter(all(Result!="Negative", na.rm=T))%>%view()
 
 infections <- d %>% filter(infectious==1) 
-neg_pcr <- infections %>% filter(any(Result=="Negative"&pcr)) %>% group_keys()
+neg_pcr <- infections %>% filter(any(Result=="Negative"&pcr)) %>% summarise(first_pos_test = first(Day))# %>% group_keys()
+
+# are there residents who test negative with pcr within 7 days prior to positive test and then test negative? 
+# 265-275 residents 
+has_infection <- d %>% group_by(ResidentId) %>% filter(any(Result == "Positive"))
+has_infection <- has_infection %>% left_join(neg_pcr, "ResidentId")
+has_neg_pcr_prev <- has_infection %>% group_by(ResidentId, num_pos.y) %>% mutate(prior_7 = ifelse(first_pos_test-Day<=7 & first_pos_test>=Day, 1, 0)) %>% 
+  filter(first_pos_test-Day<=7 & Day-first_pos_test<5) %>% filter(any(Result=="Negative"&prior_7&pcr)) # test with and without pcr test requirement
+has_neg_pcr_prev_filtered <-has_neg_pcr_prev %>% filter((has_test&pcr)|Result=="Positive") %>%  mutate(diff=Day-first_pos_test)
+has_neg_pcr_prev_filtered_pos <- has_neg_pcr_prev_filtered %>% filter(diff>0) %>% filter(diff==min(diff))
+has_neg_pcr_prev_filtered_neg <- has_neg_pcr_prev_filtered %>% filter(diff<0) %>% filter(diff==max(diff))
+has_neg_pcr_prev_filtered <- rbind(has_neg_pcr_prev_filtered_neg, has_neg_pcr_prev_filtered %>% filter(diff==0), has_neg_pcr_prev_filtered_pos) %>% group_by(ResidentId, num_pos.y)
+has_neg_pcr_prev_filtered <- has_neg_pcr_prev_filtered %>% arrange(ResidentId, Day)
+
+rm(has_neg_pcr_prev_filtered_neg, has_neg_pcr_prev_filtered_pos) 
+gc()
+
+has_neg_pcr_prev_filtered_summary <- has_neg_pcr_prev_filtered %>% summarise(days_before_pos = abs(min(diff)), days_after_pos = abs(max(diff)), time_between_neg = abs(min(diff))+max(diff))
+has_neg_pcr_prev_filtered_summary$time_between_neg %>% as.numeric() %>% hist()#%>% summary()
+(has_neg_pcr_prev_filtered %>% filter(diff==0)) %>% ggplot(aes(Day)) + geom_histogram(bins = 20)
+infections %>% filter(Day==first(Day)) %>% ggplot(aes(Day)) + geom_histogram(bins=20)
+
 infections_remove_neg_pcr <- infections %>% filter(all(!(Result=="Negative"&pcr), na.rm=T))
 
 infections_remove_neg_pcr_adjusted <- infections_remove_neg_pcr %>% 
@@ -45,6 +66,18 @@ infections_adjusted_more_than_1_contact %>% filter(any(QuarantineIsolation==0))
 
 infections_adjusted_more_than_1_contact <- infections_adjusted_more_than_1_contact %>% mutate(days_infectious = 1:n())
 infections_adjusted_more_than_1_contact <- infections_adjusted_more_than_1_contact %>% filter(!is.na(RoomId))
+
+
+# Room types of 46000 index cases
+infections_adjusted_more_than_1_contact %>% summarise(RoomType=list(unique(RoomType))) %>% group_by(ResidentId, num_pos) %>% filter(length(unlist(RoomType))==1)
+(infections_adjusted_more_than_1_contact %>% summarise(Roomnum=length(unique(RoomId))) %>% ungroup())$Roomnum %>% summary()
+rooms <- infections_adjusted_more_than_1_contact %>% summarise(RoomType=paste(unique(RoomType),collapse =""))
+rooms$RoomType %>% as.factor() %>% table() %>% barplot()
+rooms$RoomType %>% as.factor() %>% table() 
+
+approximate_first_day <- infections_adjusted_more_than_1_contact %>% summarise(first_day=first(Day))
+three_week_window <-  d %>% left_join(approximate_first_day, "ResidentId") %>% filter(first_day-Day <= 14 & Day-first_day <=7)
+(three_week_window %>% group_by(ResidentId, num_pos.y) %>% summarise(Roomnum=length(unique(RoomId))) %>% ungroup())$Roomnum %>% summary()
 
 # assign infections unique labels
 labels <- infections_adjusted_more_than_1_contact %>% group_keys %>% mutate(no=1:nrow(.))

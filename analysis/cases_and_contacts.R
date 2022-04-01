@@ -31,11 +31,11 @@ inf_vacc_housing %>% select(ResidentId, RoomId, Day, Hospitalization,
                             RoomCensus, RoomCapacity, QuarantineIsolation, LocationStatus) %>%
   filter(num_pos>=1) %>% arrange(Day) %>% view()
 
-filter(inf_vacc_housing, RoomId==-2034409552)%>% 
-  select(ResidentId, RoomId, Day, Hospitalization,
-         num_pos, Result, num_dose, max_dose, full_vacc,
-         RoomCensus, RoomCapacity, QuarantineIsolation, LocationStatus) %>% filter(Day >= "2020-04-01") %>% arrange(Day) %>% view()
-filter(inf_vacc_housing, ResidentId==1611688494) %>% view()
+# filter(inf_vacc_housing, RoomId==-2034409552)%>% 
+#   select(ResidentId, RoomId, Day, Hospitalization,
+#          num_pos, Result, num_dose, max_dose, full_vacc,
+#          RoomCensus, RoomCapacity, QuarantineIsolation, LocationStatus) %>% filter(Day >= "2020-04-01") %>% arrange(Day) %>% view()
+# filter(inf_vacc_housing, ResidentId==1611688494) %>% view()
 
 
 
@@ -86,4 +86,4 @@ inf_vacc_housing <- inf_vacc_housing %>% fill(num_pos, .direction="down")
 inf_vacc_housing <- inf_vacc_housing %>% group_by(ResidentId, num_pos) %>% 
   mutate(infectious = ifelse(!is.na(num_pos) & Day-first(Day)<=4, 1, 0)) 
 
-write_csv(inf_vacc_housing %>% select(!c(CovidLOC,SxOnset,Hospitalization,Ili,ReceivedDate,Institution)), "housing_inf_data.csv")
+write_csv(inf_vacc_housing %>% select(!c(CovidLOC,SxOnset,Hospitalization,Ili,ReceivedDate)), "housing_inf_data.csv")
