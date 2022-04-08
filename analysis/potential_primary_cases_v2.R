@@ -26,7 +26,7 @@ infections <- d %>% filter(infectious==1)
 has_infection <- d %>% group_by(ResidentId) %>% filter(any(Result == "Positive"))
 first_day <- infections %>% summarise(first_day=first(Day))
 has_neg_pcr_prev <- has_infection %>% left_join(first_day, "ResidentId") %>% group_by(ResidentId, num_pos.y) %>% 
-  filter(first_day-Day<=7 & Day-first_day<5) %>% mutate(prior_7 = ifelse(first_day-Day<=7 & first_day-Day>0, T, F)) %>%
+  filter(first_day-Day<=8 & Day-first_day<5) %>% mutate(prior_7 = ifelse(first_day-Day<=8 & first_day-Day>0, T, F)) %>%
   filter(any(Result=="Negative"&pcr&prior_7)) 
 has_neg_pcr_prev # 24135 total infections with negative pcr in 7 days prior to first positive test
 
@@ -76,5 +76,5 @@ labels <- infections_subset_adjusted_has_contacts_filter_roomtype %>% group_keys
 labels
 infections_subset_adjusted_has_contacts_filter_roomtype <- infections_subset_adjusted_has_contacts_filter_roomtype %>% left_join(labels)
 
-write_csv(infections_subset_adjusted_has_contacts_filter_roomtype, "infectious_periods_primary_cases_v2_roomtypes.csv")
+write_csv(infections_subset_adjusted_has_contacts_filter_roomtype, "potential-primary-cases/infectious_periods_primary_cases_v2_roomtypes_8days.csv")
 
