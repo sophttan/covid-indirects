@@ -9,11 +9,13 @@ library(readr)
 
 d <- read_csv("housing_inf_data_adjusted_roomtype.csv")
 d <- d %>% filter(Day >= "2020-03-01")
+gc()
 
-infections <- read_csv("infectious_periods_primary_cases_v2_roomtypes.csv")
+infections <- read_csv("potential-primary-cases/infectious_periods_primary_cases_v2_roomtypes_9days.csv")
 
-group_room <- d %>% group_by(Insitution, RoomId, Day)
+group_room <- d %>% group_by(Institution, RoomId, Day)
 group_room <- group_room %>% summarise(residents=list(unique(ResidentId)))
+gc()
 
 prim <- infections%>%group_by(ResidentId, num_pos.y) %>% summarise_all(first) %>% select(ResidentId, num_pos.y, no, Day, num_dose, max_dose, full_vacc)
 prim <- prim %>% mutate(contacts=list(NULL), pos_contacts=list(NULL), neg_contacts=list(NULL), 
@@ -27,7 +29,7 @@ prim <- prim %>% arrange(Day)
 # prim_sub <- sample(1:nrow(prim), 1000)
 
 #num_contact <- 1
-for (p in 1180:nrow(prim)) {
+for (p in 1:nrow(prim)) {
   print_res <- F
   if (p%%20==0){
     print(p)
@@ -159,8 +161,8 @@ prim_final$contacts %>% unlist() %>% length()
 prim_final$contacts %>% unlist() %>% unique() %>% length()
 
 prim_final %>% select(!multiple_inf) %>% unnest(cols = c("contacts", "pos_contacts", "neg_contacts"))
-write_csv(prim_final %>% select(!c(pos_contacts, neg_contacts, multiple_inf)) %>% unnest(contacts), "final samples/final_sample040522.csv")
-write_csv(has_multiple_inf_and_contact %>% unnest(c(contacts, pos_contacts, neg_contacts, multiple_inf)), "final samples/final_sample040522_multinf.csv")
+write_csv(prim_final %>% select(!c(pos_contacts, neg_contacts, multiple_inf)) %>% unnest(contacts), "final samples/final_sample041122_9day.csv")
+write_csv(has_multiple_inf_and_contact %>% unnest(c(contacts, pos_contacts, neg_contacts, multiple_inf)), "final samples/final_sample041122_multinf_9day.csv")
 
 test_res <- function(resident, contact=NULL) {
   inf <- infections %>% filter(ResidentId == resident)

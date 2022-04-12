@@ -3,7 +3,7 @@
 
 rm(list=ls())
 
-setwd("D:/code_ST")
+setwd("D:/stan5/code_ST")
 
 library(readr)
 library(tidyverse)
@@ -22,6 +22,7 @@ d <- d %>% group_by(ResidentId) %>% select(!Institution)
 
 # 55,426 residents were infected at least once (Similar to report by CalProtect, which includes less data (less time))
 d %>% filter(any(Result=="Positive"))
+d <- d %>% mutate(antigen_negative = ifelse(is.na(antigen_negative) & !is.na(Result), F, antigen_negative))
 
 # fill in missing vaccine dose data
 d_filled <- d %>% fill(num_dose, .direction = "down") %>% 

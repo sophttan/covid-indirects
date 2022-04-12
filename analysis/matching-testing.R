@@ -8,7 +8,7 @@ library(tidyverse)
 library(readr)
 library(MatchIt)
 
-infections <- read_csv("final samples/final_sample040522.csv")
+infections <- read_csv("final samples/final_sample041122_9day.csv")
 infections_unique <- infections %>% group_by(no) %>% summarise_all(first)
 infections_unique
 infections_unique <- infections_unique %>% mutate(treatment = ifelse(num_dose==0, 0, 1))

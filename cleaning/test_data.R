@@ -54,8 +54,12 @@ tests_clear <- tests %>% filter(Result %in% c("Positive", "Negative"))
 multiple_tests <- tests_clear %>% group_by(ResidentId, CollectionDate) %>% mutate(count=n()) %>% filter(count!=1)
 filter(tests_clear, ResidentId == multiple_tests$ResidentId[1] & CollectionDate == multiple_tests$CollectionDate[1])
 
-keep_pos_only_if_multiple <- tests_clear %>% arrange(Result) %>% group_by(ResidentId, CollectionDate) %>% 
-  summarise(Result=last(Result), ReceivedDate=last(ReceivedDate), Institution=last(Institution), 
+# 4/7/22 added column to determine if pcr positive and antigen negative
+keep_pos_only_if_multiple <- tests_clear %>% mutate(pcr = ifelse(grepl("RNA|NA|PCR", Details), T, F), 
+                                                    antigen = ifelse(grepl("POC|Antigen", Details), T, F)) %>% 
+  group_by(ResidentId, CollectionDate) %>% arrange(Result) %>% 
+  summarise(antigen_negative = ifelse(n()>1 & any(pcr) & any(antigen), T, F), 
+            Result=last(Result), ReceivedDate=last(ReceivedDate), Institution=last(Institution), 
             Details=last(Details))
 
 nrow(keep_pos_only_if_multiple)
@@ -67,12 +71,12 @@ avg_days_testing$num_testing_days %>% summary()
 ###### Complete Testing and Infection Data ######
 # join cleaned infection data and testing data - 
 tests_inf <- wide_infection %>% full_join(keep_pos_only_if_multiple, by=c("ResidentId", "Day"="CollectionDate"))
- 
+
 # all tests should match received date
 # test here have multiple tests in 1 day - if all negative, keep first received result
 filter(tests_inf, ReceivedDate != ViralTestResultDate)
 tests_inf <- tests_inf %>% mutate(ReceivedDate = if_else(ReceivedDate != ViralTestResultDate & Result == ViralTestStatus, 
-                                         ViralTestResultDate, ReceivedDate))
+                                                         ViralTestResultDate, ReceivedDate))
 
-setwd("D:/code_ST")
+setwd("D:/stan5/code_ST")
 write_csv(tests_inf %>% select(!grep("Viral", names(.))), "complete_testing_data.csv", append=F)

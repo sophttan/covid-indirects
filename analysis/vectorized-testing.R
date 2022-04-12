@@ -6,23 +6,17 @@ setwd("D:/stan5/code_ST")
 
 library(tidyverse)
 library(readr)
-# if (!require("devtools")) install.packages("devtools")
-# devtools::install_github("mkuhn/dict")
 
-d <- read_csv("housing_inf_data.csv")
+d <- read_csv("housing_inf_data_adjusted_roomtype.csv")
 d <- d %>% filter(Day >= "2020-03-01")
-#d <- d %>% select(ResidentId, Day, Result, num_dose, max_dose, full_vacc, booster_add_dose, QuarantineIsolation, RoomCensus, RoomId)
 
-prim <- read_csv("potential-primary-cases/all_infections_less_than_8res.csv") #24/100
-#prim <- read_csv("potential-primary-cases/all_infections.csv")
-infections <- read_csv("infectious_periods_primary_cases.csv")
+infections <- read_csv("infectious_periods_primary_cases_v2_roomtypes.csv")
 
-group_room <- d %>% group_by(RoomId, Day)
+group_room <- d %>% group_by(Institution, RoomId, Day)
 group_room <- group_room %>% summarise(residents=list(unique(ResidentId)))
 
 sum_vacc <- infections%>%group_by(ResidentId, num_pos) %>% summarise_all(first) %>% select(ResidentId, num_pos, Day, num_dose, max_dose, full_vacc)
-prim <- left_join(prim, sum_vacc, by=c("ResidentId", "num_pos")) 
-prim <- prim %>% arrange(Day)
+sum_vacc <- sum_vacc %>% arrange(Day)
 
 gc()
 

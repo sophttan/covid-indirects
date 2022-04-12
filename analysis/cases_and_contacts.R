@@ -2,7 +2,7 @@
 # Clean nightly housing data 1/15/22 
 
 rm(list=ls())
-
+gc()
 setwd("D:/stan5/code_ST")
 
 library(readr)
