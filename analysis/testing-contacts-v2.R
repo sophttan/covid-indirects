@@ -11,7 +11,7 @@ d <- read_csv("housing_inf_data_adjusted_roomtype.csv")
 d <- d %>% filter(Day >= "2020-03-01")
 gc()
 
-infections <- read_csv("potential-primary-cases/infectious_periods_primary_cases_v2_roomtypes_9days.csv")
+infections <- read_csv("potential-primary-cases/infectious_periods_primary_cases_v2_roomtypes-somecells.csv")
 
 group_room <- d %>% group_by(Institution, RoomId, Day)
 group_room <- group_room %>% summarise(residents=list(unique(ResidentId)))
@@ -124,12 +124,12 @@ for (p in 1:nrow(prim)) {
       }  
     }
   }
-  new_primary_case <- prim[p,]
-  print(paste0("Total of ", new_primary_case$num_possible_contacts, " possible contacts"))
-  print(paste0("There were a total of ", new_primary_case$num_prior_inf, " contacts excluded because they had prior (unresolved) infection within 90 days of first exposure"))
-  print(paste0("There were a total of ", new_primary_case$multiple_inf %>% unlist() %>% length(), " other concurrent infections"))
-  print(paste0("There were a total of ", new_primary_case$num_no_prior_neg_test, " contacts excluded because they had no testing data within +/- 2 days of primary infection"))
-  print(paste0("There were a total of ", new_primary_case$num_no_testing, " contacts excluded because they had no testing data between 3-14 days after first and last exposure"))
+  # new_primary_case <- prim[p,]
+  # print(paste0("Total of ", new_primary_case$num_possible_contacts, " possible contacts"))
+  # print(paste0("There were a total of ", new_primary_case$num_prior_inf, " contacts excluded because they had prior (unresolved) infection within 90 days of first exposure"))
+  # print(paste0("There were a total of ", new_primary_case$multiple_inf %>% unlist() %>% length(), " other concurrent infections"))
+  # print(paste0("There were a total of ", new_primary_case$num_no_prior_neg_test, " contacts excluded because they had no testing data within +/- 2 days of primary infection"))
+  # print(paste0("There were a total of ", new_primary_case$num_no_testing, " contacts excluded because they had no testing data between 3-14 days after first and last exposure"))
 } 
 
 prim_subset <- prim[prim_sub,]
@@ -161,8 +161,8 @@ prim_final$contacts %>% unlist() %>% length()
 prim_final$contacts %>% unlist() %>% unique() %>% length()
 
 prim_final %>% select(!multiple_inf) %>% unnest(cols = c("contacts", "pos_contacts", "neg_contacts"))
-write_csv(prim_final %>% select(!c(pos_contacts, neg_contacts, multiple_inf)) %>% unnest(contacts), "final samples/final_sample041122_9day.csv")
-write_csv(has_multiple_inf_and_contact %>% unnest(c(contacts, pos_contacts, neg_contacts, multiple_inf)), "final samples/final_sample041122_multinf_9day.csv")
+write_csv(prim_final %>% select(!c(pos_contacts, neg_contacts, multiple_inf)) %>% unnest(contacts), "final samples/final_sample_7day.csv")
+write_csv(has_multiple_inf_and_contact %>% unnest(c(contacts, pos_contacts, neg_contacts, multiple_inf)), "final samples/final_sample_multinf_7day.csv")
 
 test_res <- function(resident, contact=NULL) {
   inf <- infections %>% filter(ResidentId == resident)

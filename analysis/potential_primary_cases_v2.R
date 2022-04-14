@@ -18,15 +18,17 @@ d <- d %>% left_join(roomtypes, c("Institution", "RoomId"))
 d <- d %>% rename("RoomType" = "RoomType.y") %>% select(!RoomType.x)
 d <- d %>% mutate(RoomType = ifelse(Institution ==13, 1, RoomType))
 write_csv(d, "housing_inf_data_adjusted_roomtype.csv")
+gc()
 
 d <- d %>% group_by(ResidentId, num_pos)
 
 # include only if test negative pcr in the 7 days prior to first positive test
+num_days <- 5
 infections <- d %>% filter(infectious==1) 
 has_infection <- d %>% group_by(ResidentId) %>% filter(any(Result == "Positive"))
 first_day <- infections %>% summarise(first_day=first(Day))
 has_neg_pcr_prev <- has_infection %>% left_join(first_day, "ResidentId") %>% group_by(ResidentId, num_pos.y) %>% 
-  filter(first_day-Day<=8 & Day-first_day<5) %>% mutate(prior_7 = ifelse(first_day-Day<=8 & first_day-Day>0, T, F)) %>%
+  filter(first_day-Day<=num_days & Day-first_day<5) %>% mutate(prior_7 = ifelse(first_day-Day<=num_days & first_day-Day>0, T, F)) %>%
   filter(any(Result=="Negative"&pcr&prior_7)) 
 has_neg_pcr_prev # 24135 total infections with negative pcr in 7 days prior to first positive test
 
@@ -69,12 +71,13 @@ rooms$RoomType %>% as.factor() %>% table()
 
 infections_subset_adjusted %>% filter(all(RoomCensus==1))
 infections_subset_adjusted_has_contacts <- infections_subset_adjusted %>% filter(any(RoomCensus>1))
-infections_subset_adjusted_has_contacts_filter_roomtype <- infections_subset_adjusted_has_contacts %>% filter(first(RoomType %in% c(1, 2)))
+infections_subset_adjusted_has_contacts_filter_roomtype <- infections_subset_adjusted_has_contacts %>% 
+  filter(first(RoomType) %in% c(1, 2)) #| (first(RoomType)==4 & !(first(Institution) %in% c(4,5,9,10,11,12,14,15,17,18,30,32))))
 
 # assign infections unique labels
 labels <- infections_subset_adjusted_has_contacts_filter_roomtype %>% group_keys %>% mutate(no=1:nrow(.))
 labels
 infections_subset_adjusted_has_contacts_filter_roomtype <- infections_subset_adjusted_has_contacts_filter_roomtype %>% left_join(labels)
 
-write_csv(infections_subset_adjusted_has_contacts_filter_roomtype, "potential-primary-cases/infectious_periods_primary_cases_v2_roomtypes_8days.csv")
+write_csv(infections_subset_adjusted_has_contacts_filter_roomtype, "potential-primary-cases/infectious_periods_primary_cases_v2_roomtypes_5days.csv")
 

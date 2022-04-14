@@ -24,8 +24,10 @@ summary_resident_data <- covid_vacc %>% filter(Result=="Received") %>% group_by(
 
 # there are 50 residents with multiple records of vaccination on a single day (i.e. 1 dose of J&J and 1 dose of Moderna vaccine on 6/5/21)
 # collapse records but unsure which vaccine type is correct
-covid_vacc_cleaned <- covid_vacc %>% filter(Result=="Received") %>% group_by(ResidentId, Date) %>% summarise(Vaccine=paste(Vaccine, collapse = "|"), 
-                                                                                                            Month=first(Month))
+covid_vacc_cleaned <- covid_vacc %>% filter(Result=="Received") 
+covid_vacc_cleaned <- covid_vacc_cleaned %>% mutate(Date=if_else(Date<"2020-11-01", ymd(format(Date, "2021-%m-%d")), Date)) %>% select(!Month)
+covid_vacc_cleaned <- covid_vacc_cleaned %>% distinct()
+covid_vacc_cleaned <- covid_vacc_cleaned %>% group_by(ResidentId, Date) %>% summarise(Vaccine=paste(Vaccine, collapse = "|"))
 covid_vacc_cleaned <- covid_vacc_cleaned %>% arrange(Date) %>% 
   group_by(ResidentId) %>% mutate(num_dose = 1:n(), max_dose = n()) %>% arrange(ResidentId)
 
