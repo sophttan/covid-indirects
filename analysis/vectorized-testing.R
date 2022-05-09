@@ -2,25 +2,30 @@
 # Test for loop code
 
 rm(list=ls())
-setwd("D:/stan5/code_ST")
+setwd("D:/stan5/code_ST/march-data/")
 
 library(tidyverse)
 library(readr)
 
-d <- read_csv("housing_inf_data_adjusted_roomtype.csv")
-d <- d %>% filter(Day >= "2020-03-01")
+d <- read_csv("housing_inf_data_adjusted_roomtype1.csv")
+d2 <- read_csv("housing_inf_data_adjusted_roomtype2.csv")
+d <- bind_rows(d, d2)
+rm(d2)
+gc()
 
-infections <- read_csv("infectious_periods_primary_cases_v2_roomtypes.csv")
+infections <- read_csv("D:/stan5/code_ST/potential-primary-cases/march_infectious_periods_primary_cases_v2_roomtypes_8days_somecells.csv")
 
 group_room <- d %>% group_by(Institution, RoomId, Day)
 group_room <- group_room %>% summarise(residents=list(unique(ResidentId)))
+#group_room %>% unnest("residents") %>% write_csv("residents_by_room.csv")
+gc()
 
-sum_vacc <- infections%>%group_by(ResidentId, num_pos) %>% summarise_all(first) %>% select(ResidentId, num_pos, Day, num_dose, max_dose, full_vacc)
+sum_vacc <- infections%>%group_by(ResidentId, num_pos.x) %>% summarise_all(first) %>% select(ResidentId, num_pos.x, no, Day, num_dose, max_dose, full_vacc)
 sum_vacc <- sum_vacc %>% arrange(Day)
-
 gc()
 
 get_contacts <- function(inf, resident) {
+  inf <- inf %>% filter(RoomType %in% c(1,2)|(RoomType==4&!(Institution %in% c(4,5,9,10,11,12,14,15,17,18,30,32))))
   contacts <- unique(unlist(inf$residents))
   contacts <- contacts[contacts!=resident]
   contacts
@@ -43,9 +48,9 @@ valid_contact <- function(inf, contact) {
     }
   }
   
-  all_related <- contact_housing %>% filter(first_share - Day <= 2 & Day <= last_share + 14 & ResidentId==contact)
+  all_related <- contact_housing %>% filter(first_share - Day <= 8 & Day <= last_share + 14 & ResidentId==contact)
   
-  include <- all_related %>% filter(abs(Day-first_share)<=2)
+  include <- all_related %>% filter(first_share-Day<=8 & Day-first_share<=2)
   if(all(include$Result %>% is.na())){
     return(F)
   } else if (any(include$Result=="Positive",na.rm=T)) {
@@ -59,6 +64,7 @@ valid_contact <- function(inf, contact) {
     return(T)
   }
 }
+
 vectorize_valid_contact <- Vectorize(valid_contact, c("contact"))
 
 valid_contacts <- function(inf, contacts) {
@@ -68,18 +74,24 @@ valid_contacts <- function(inf, contacts) {
   return(valid[results])
 }
 
-infections <- infections %>% select(ResidentId, no, RoomId, Day) %>% left_join(group_room, by=c("RoomId", "Day"))
+infections <- infections %>% select(ResidentId, no, RoomId,RoomType, Institution, Day) %>% left_join(group_room, by=c("Institution", "RoomId", "Day"))
 
 test_primary_infection <- function(inf_no) {
-  infectious_p <- infections %>% filter(no==inf_no) %>% group_by(RoomId, Day)
+  infectious_p <- infections %>% filter(no==inf_no)
   resident <- infectious_p$ResidentId[1]
   contacts <- get_contacts(infectious_p, resident)
-  valid_contacts(infectious_p %>% group_by(Day), contacts)
+  if(contacts %>% length() == 0) {return(NULL)}
+  list(valid_contacts(infectious_p %>% group_by(Day), contacts))
 }
 
 vectorize_test_primary_infection <- Vectorize(test_primary_infection)
 
-prim <- prim %>% mutate(contacts = vectorize_test_primary_infection(no))
+sum_vacc_subset <- filter(sum_vacc, Day >= "2021-01-01") %>% group_by(no) %>% mutate(contacts = as.vector(vectorize_test_primary_infection(no)))
+has_contacts <- sum_vacc_subset %>% group_by(no) %>% filter(!unlist(contacts) %>% is.null())
+has_contacts <- has_contacts %>% mutate(contacts = ifelse(contacts[[1]] %>% is.list(), contacts[[1]], contacts)) 
+has_contacts <- has_contacts %>% unnest(contacts) %>% left_join(infections %>% select(!c(residents, RoomId)) %>% group_by(no) %>% summarise_all(first))
+has_contacts %>% write_csv("D:/stan5/code_ST/final samples/march_final_sample_8day_somecells3_8daypcrcontact.csv")
+
 gc()
 
 only_valid_contacts <- prim %>% group_by(no) %>% filter(!unlist(contacts)%>%is.null())
@@ -144,3 +156,5 @@ test_res <- function(inf_no, contact=NULL) {
     }
   }
 }
+
+final <- read_csv("D:/stan5/code_ST/final samples/march_final_sample_8day_somecells3.csv")

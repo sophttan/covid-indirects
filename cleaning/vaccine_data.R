@@ -3,13 +3,15 @@
 
 rm(list=ls())
 
-setwd("D:/CDCR Data/14 January 15 2022")
+setwd("D:/CDCR Data/15 March 25 2022/")
+# setwd("D:/CDCR Data/14 January 15 2022")
 
 library(tidyverse)
-
+library(lubridate)
 
 ###### COVID Infection Data ######
-vacc <- read.csv("Immunization_20220115.csv", sep=";")
+vacc <- read.csv("Immunization_20220325.csv", sep=";")
+#vacc <- read.csv("Immunization_20220115.csv", sep=";")
 head(vacc)
 
 covid_vacc <- vacc %>% filter(grepl("SARS", Vaccine))
@@ -25,7 +27,7 @@ summary_resident_data <- covid_vacc %>% filter(Result=="Received") %>% group_by(
 # there are 50 residents with multiple records of vaccination on a single day (i.e. 1 dose of J&J and 1 dose of Moderna vaccine on 6/5/21)
 # collapse records but unsure which vaccine type is correct
 covid_vacc_cleaned <- covid_vacc %>% filter(Result=="Received") 
-covid_vacc_cleaned <- covid_vacc_cleaned %>% mutate(Date=if_else(Date<"2020-11-01", ymd(format(Date, "2021-%m-%d")), Date)) %>% select(!Month)
+covid_vacc_cleaned <- covid_vacc_cleaned %>% mutate(Date=if_else(Date<"2020-12-01", ymd(format(Date, "2021-%m-%d")), Date)) %>% select(!Month)
 covid_vacc_cleaned <- covid_vacc_cleaned %>% distinct()
 covid_vacc_cleaned <- covid_vacc_cleaned %>% group_by(ResidentId, Date) %>% summarise(Vaccine=paste(Vaccine, collapse = "|"))
 covid_vacc_cleaned <- covid_vacc_cleaned %>% arrange(Date) %>% 
@@ -56,4 +58,9 @@ boosted <- covid_vacc_cleaned %>% filter(booster_add_dose==1)
 (boosted %>% filter(booster_add_dose_mixed==1) %>% filter(num_dose==1))$Vaccine %>% table()
 
 
-write_csv(covid_vacc_cleaned, "D:/stan5/code_ST/cleaned_vaccination_data.csv")
+# offset doses of covid vaccines to account for delay in protection 
+covid_vacc_cleaned <- covid_vacc_cleaned %>% mutate(Date_offset = Date + 14)
+
+write_csv(covid_vacc_cleaned, "D:/stan5/code_ST/march-data/cleaned_vaccination_data.csv")
+
+

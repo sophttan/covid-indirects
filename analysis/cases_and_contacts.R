@@ -3,7 +3,7 @@
 
 rm(list=ls())
 gc()
-setwd("D:/stan5/code_ST")
+setwd("D:/stan5/code_ST/march-data/")
 
 library(readr)
 library(tidyverse)
@@ -14,9 +14,9 @@ inf_vacc <- read_csv("has_testing_data_aggregated_infections.csv")
 no_housing <- read_csv("has_testing_no_housing.csv")$ResidentId %>% unique()
 inf_vacc <- filter(inf_vacc, !(ResidentId %in% no_housing))
 inf_vacc <- inf_vacc %>% mutate(has_test = ifelse(is.na(Result), F, T), 
-                                antigen = ifelse(grepl("Antigen|POC", Details, ignore.case=T), T, ifelse(has_test==F, NA, F)),
-                                pcr = ifelse(grepl("RNA|PCR", Details, ignore.case=T), T, ifelse(has_test==F, NA, F)),
-                                has_both_test = antigen & pcr,
+                                # antigen = ifelse(grepl("Antigen|POC", Details, ignore.case=T), T, ifelse(has_test==F, NA, F)),
+                                # pcr = ifelse(grepl("RNA|PCR", Details, ignore.case=T), T, ifelse(has_test==F, NA, F)),
+                                # has_both_test = antigen & pcr,
                                 unknown_test_other = has_test & !(antigen|pcr))
 
 inf_vacc_housing <- inf_vacc %>% full_join(nh, c("ResidentId", "Day"="Night"))
@@ -24,9 +24,10 @@ inf_vacc_housing <- inf_vacc %>% full_join(nh, c("ResidentId", "Day"="Night"))
 rm(nh, inf_vacc) 
 gc() # free up memory
 
-inf_vacc_housing <- inf_vacc_housing %>% arrange(ResidentId, Day) %>% select(!Month.x)
+inf_vacc_housing <- inf_vacc_housing %>% arrange(ResidentId, Day)# %>% select(!Month.x)
 inf_vacc_housing <- inf_vacc_housing %>% group_by(ResidentId) %>% 
-  fill(num_dose, max_dose, full_vacc, booster_add_dose, .direction="down")
+  fill(Date_offset, num_dose, max_dose, full_vacc, booster_add_dose, .direction="down")
+inf_vacc_housing <- inf_vacc_housing %>% mutate(num_dose_adjusted = ifelse(Day < Date_offset & num_dose > 0, num_dose-1, num_dose)) %>% select(!Date_offset)
 inf_vacc_housing %>% select(ResidentId, RoomId, Day, Hospitalization, 
                             num_pos, num_dose, max_dose, full_vacc,
                             RoomCensus, RoomCapacity, QuarantineIsolation, LocationStatus) %>%
@@ -60,7 +61,7 @@ sum(testing$has_both_test, na.rm=T)/sum(testing$has_test) # 2.6% of residents wi
 sum(testing$antigen, na.rm=T)/sum(testing$has_test) #13.6% residents over time received antigen tests
 sum(testing$pcr, na.rm=T)/sum(testing$has_test) #88.8% residents over time received PCR tests
 sum(testing$unknown_test_other,na.rm=T)/sum(testing$has_test) #0.22% 
- 
+
 room_size <- inf_vacc_housing %>% ungroup() %>% group_by(RoomId, Day) %>% summarise(num_occ = first(RoomCensus))
 room_size_avg_over_time <- room_size %>% group_by(Day) %>% summarise(avg_occ = mean(num_occ,na.rm=T))
 room_size_avg_over_time %>% ggplot(aes(Day, avg_occ)) + geom_line() + ylab("Average number of room occupants")
@@ -87,4 +88,7 @@ inf_vacc_housing <- inf_vacc_housing %>% fill(num_pos, .direction="down")
 inf_vacc_housing <- inf_vacc_housing %>% group_by(ResidentId, num_pos) %>% 
   mutate(infectious = ifelse(!is.na(num_pos) & Day-first(Day)<=4, 1, 0)) 
 
-write_csv(inf_vacc_housing %>% select(!c(CovidLOC,SxOnset,Hospitalization,Ili,ReceivedDate)), "housing_inf_data.csv")
+inf_vacc_housing <- inf_vacc_housing %>% select(!c(ReceivedDate))
+write_csv(inf_vacc_housing %>% filter(Day < "2021-01-01"), "housing_inf_data1.csv")
+write_csv(inf_vacc_housing %>% filter(Day >= "2021-01-01"), "housing_inf_data2.csv")
+#write_csv(inf_vacc_housing %>% select(!c(CovidLOC,SxOnset,Hospitalization,Ili,ReceivedDate)), "housing_inf_data.csv")

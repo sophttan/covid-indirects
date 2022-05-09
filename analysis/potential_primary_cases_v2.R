@@ -2,28 +2,46 @@
 # test different order of inclusion/exclusion criteria
 
 rm(list=ls())
+gc()
 
-setwd("D:/stan5/code_ST")
+setwd("D:/stan5/code_ST/march-data/")
 
 library(readr)
 library(tidyverse)
 
-d <- read_csv("housing_inf_data.csv")
-roomtypes <- d %>% group_by(Institution, RoomId, RoomType) %>% summarise(count=n()) %>% group_by(Institution, RoomId) 
-roomtypes %>% filter(all(RoomType%>%is.na())) # 13 rooms here have no roomtype
-roomtypes %>% filter(any(RoomType%>%is.na()) & n()>1) # 108 rooms have roomtypes that have some missingness in reporting
-roomtypes %>% filter(!any(RoomType %>% is.na()) & n()>1) # 17 rooms have two different roomtypes listed 
-roomtypes <- roomtypes %>% filter(!RoomType %>% is.na()) %>% arrange(desc(count)) %>% summarise(RoomType=first(RoomType))
-d <- d %>% left_join(roomtypes, c("Institution", "RoomId"))
-d <- d %>% rename("RoomType" = "RoomType.y") %>% select(!RoomType.x)
-d <- d %>% mutate(RoomType = ifelse(Institution ==13, 1, RoomType))
-write_csv(d, "housing_inf_data_adjusted_roomtype.csv")
+# d <- read_csv("housing_inf_data1.csv")
+# d2 <- read_csv("housing_inf_data2.csv")
+# d <- d %>% bind_rows(d2)
+# rm(d2)
+# gc()
+
+# roomtypes <- d %>% group_by(Institution, RoomId, RoomType) %>% summarise(count=n()) %>% group_by(Institution, RoomId)
+# roomtypes %>% filter(all(RoomType%>%is.na())) # 13 rooms here have no roomtype
+# roomtypes %>% filter(any(RoomType%>%is.na()) & n()>1) # 108 rooms have roomtypes that have some missingness in reporting
+# roomtypes %>% filter(!any(RoomType %>% is.na()) & n()>1) # 17 rooms have two different roomtypes listed
+# roomtypes <- roomtypes %>% filter(!RoomType %>% is.na()) %>% arrange(desc(count)) %>% summarise(RoomType=first(RoomType))
+# 
+# d <- d %>% left_join(roomtypes, c("Institution", "RoomId"))
+# d <- d %>% rename("RoomType" = "RoomType.y") %>% select(!RoomType.x)
+# d <- d %>% mutate(RoomType = ifelse(Institution ==13, 1, RoomType))
+# 
+# write_csv(d %>% filter(Day < "2021-01-01"), "housing_inf_data_adjusted_roomtype1.csv")
+# write_csv(d %>% filter(Day >= "2021-01-01"), "housing_inf_data_adjusted_roomtype2.csv")
+# # write_csv(d, "housing_inf_data_adjusted_roomtype.csv")
+# gc()
+
+d <- read_csv("housing_inf_data_adjusted_roomtype1.csv")
+d2 <- read_csv("housing_inf_data_adjusted_roomtype2.csv")
+d <- d %>% bind_rows(d2)
+rm(d2)
 gc()
 
 d <- d %>% group_by(ResidentId, num_pos)
+# d <- d %>% group_by(ResidentId, num_pos) %>% 
+#   mutate(infectious = ifelse(!is.na(num_pos) & Day-first(Day)<=9, 1, 0)) 
 
 # include only if test negative pcr in the 7 days prior to first positive test
-num_days <- 5
+num_days <- 8
 infections <- d %>% filter(infectious==1) 
 has_infection <- d %>% group_by(ResidentId) %>% filter(any(Result == "Positive"))
 first_day <- infections %>% summarise(first_day=first(Day))
@@ -69,15 +87,15 @@ rooms <- infections_subset_adjusted %>% summarise(RoomType=paste(unique(RoomType
 rooms$RoomType %>% as.factor() %>% table() %>% barplot() 
 rooms$RoomType %>% as.factor() %>% table() 
 
-infections_subset_adjusted %>% filter(all(RoomCensus==1))
-infections_subset_adjusted_has_contacts <- infections_subset_adjusted %>% filter(any(RoomCensus>1))
-infections_subset_adjusted_has_contacts_filter_roomtype <- infections_subset_adjusted_has_contacts %>% 
-  filter(first(RoomType) %in% c(1, 2)) #| (first(RoomType)==4 & !(first(Institution) %in% c(4,5,9,10,11,12,14,15,17,18,30,32))))
+#infections_subset_adjusted %>% filter(all(RoomCensus==1))
+#infections_subset_adjusted_has_contacts <- infections_subset_adjusted %>% filter(any(RoomCensus>1))
+infections_subset_adjusted_has_contacts_filter_roomtype <- infections_subset_adjusted %>% 
+  filter(first(RoomType) %in% c(1, 2) | (first(RoomType)==4 & !(first(Institution) %in% c(4,5,9,10,11,12,14,15,17,18,30,32))))
 
 # assign infections unique labels
 labels <- infections_subset_adjusted_has_contacts_filter_roomtype %>% group_keys %>% mutate(no=1:nrow(.))
 labels
 infections_subset_adjusted_has_contacts_filter_roomtype <- infections_subset_adjusted_has_contacts_filter_roomtype %>% left_join(labels)
 
-write_csv(infections_subset_adjusted_has_contacts_filter_roomtype, "potential-primary-cases/infectious_periods_primary_cases_v2_roomtypes_5days.csv")
+write_csv(infections_subset_adjusted_has_contacts_filter_roomtype, "D:/stan5/code_ST/potential-primary-cases/march_infectious_periods_primary_cases_v2_roomtypes_8days_somecells.csv")
 
