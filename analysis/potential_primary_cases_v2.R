@@ -50,7 +50,7 @@ has_neg_pcr_prev <- has_infection %>% left_join(first_day, "ResidentId") %>% gro
   filter(any(Result=="Negative"&pcr&prior_7)) 
 has_neg_pcr_prev # 24135 total infections with negative pcr in 7 days prior to first positive test
 
-infections_subset <- has_neg_pcr_prev %>% filter(infectious==1)
+infections_subset <- has_neg_pcr_prev %>% filter(infectious==1 & !prior_7)
 filter(infections_subset, any(Result=="Negative"&pcr)) 
 # 473 have a negative test prior to first positive test 
 # 287 have a negative pcr test - exclude
@@ -97,5 +97,5 @@ labels <- infections_subset_adjusted_has_contacts_filter_roomtype %>% group_keys
 labels
 infections_subset_adjusted_has_contacts_filter_roomtype <- infections_subset_adjusted_has_contacts_filter_roomtype %>% left_join(labels)
 
-write_csv(infections_subset_adjusted_has_contacts_filter_roomtype, "D:/stan5/code_ST/potential-primary-cases/march_infectious_periods_primary_cases_v2_roomtypes_8days_somecells.csv")
+write_csv(infections_subset_adjusted_has_contacts_filter_roomtype, "D:/stan5/code_ST/potential-primary-cases/march_infectious_periods_primary_cases_v2_roomtypes_8days_somecells052322.csv")
 
