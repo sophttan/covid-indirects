@@ -2,31 +2,33 @@
 # Test for loop code
 
 rm(list=ls())
-setwd("D:/stan5/code_ST/march-data/")
+# setwd("D:/stan5/code_ST/march-data/")
+setwd("/Users/sophiatan/Documents/UCSF/cleaned_data/")
 
 library(tidyverse)
 library(readr)
 
-d <- read_csv("housing_inf_data_adjusted_roomtype1.csv")
-d2 <- read_csv("housing_inf_data_adjusted_roomtype2.csv")
-d <- bind_rows(d, d2)
-rm(d2)
-gc()
+d <- read_csv("housing_inf_data.csv")
+# d <- read_csv("housing_inf_data_adjusted_roomtype1.csv")
+# d2 <- read_csv("housing_inf_data_adjusted_roomtype2.csv")
+# d <- bind_rows(d, d2)
+# rm(d2)
+# gc()
 
-infections <- read_csv("D:/stan5/code_ST/potential-primary-cases/march_infectious_periods_primary_cases_v2_roomtypes_8days_somecells052322.csv")
+infections <- read_csv("infectious_periods_primary_cases053122.csv")
+# infections <- read_csv("D:/stan5/code_ST/potential-primary-cases/march_infectious_periods_primary_cases_v2_roomtypes_8days_somecells052322.csv")
 infections <- infections %>% group_by(no) %>% filter(first(Day) >= "2021-12-15")
 
-group_room <- d %>% group_by(Institution, RoomId, Day)
+group_room <- d %>% filter(!is.na(Institution) & !is.na(RoomId)) %>% group_by(Institution, RoomId, Day)
 group_room <- group_room %>% summarise(residents=list(unique(ResidentId)))
 #group_room %>% unnest("residents") %>% write_csv("residents_by_room.csv")
 gc()
 
-prim <- infections%>%group_by(ResidentId, num_pos.y) %>% summarise_all(first) %>% select(ResidentId, num_pos.y, no, Day, num_dose, max_dose, full_vacc)
+prim <- infections%>%group_by(ResidentId, num_pos) %>% summarise_all(first) %>% select(ResidentId, num_pos, no, Day, num_dose, max_dose, full_vacc)
 prim <- prim %>% mutate(contacts=list(NULL), neg_pos_contact=list(NULL), multiple_inf = list(NULL), 
-                        num_possible_contacts = 0, num_no_prior_neg_test = 0, num_no_testing = 0, num_prior_inf = 0,
                         has_prior_inf=list(NULL), num_vacc_doses=list(NULL), num_days_in_contact=list(NULL))
 
-infections <- infections %>% select(ResidentId, no, num_pos.x, Institution, RoomId, RoomType, Day) %>% left_join(group_room, by=c("Institution", "RoomId", "Day"))
+infections <- infections %>% select(ResidentId, no, num_pos, Institution, RoomId, RoomType, Day) %>% left_join(group_room, by=c("Institution", "RoomId", "Day"))
 #contact_details <- matrix(ncol=6, nrow=10000)
 
 prim <- prim %>% arrange(Day)
@@ -45,7 +47,7 @@ for (p in 1:nrow(prim)) {
   primary_case <- prim[p,]
   resident <- primary_case$ResidentId
   inf <- infections %>% filter(no==primary_case$no) %>% group_by(RoomId, Day)
-  inf <- inf %>% filter(RoomType %in% c(1,2)|(RoomType==4&!(Institution %in% c(4,5,9,10,11,12,14,15,17,18,30,32))))
+  inf <- inf %>% filter(RoomType %in% c(1,2)|(RoomType==4&!(Institution %in% c(9,11,12,14,18,32))))
   inf <- inf %>% group_by(Day) %>% filter(length(unlist(residents))<=10)
   
   # mark if resident was in quarantine/isolation the entire infectious period
@@ -53,8 +55,7 @@ for (p in 1:nrow(prim)) {
   
   contacts <- unique(unlist(inf$residents))
   contacts <- contacts[contacts!=resident]
-  prim$num_possible_contacts[p]<-length(contacts)
-  
+
   if (length(contacts)==0) {next}
   
   if(print_res) {
@@ -81,7 +82,6 @@ for (p in 1:nrow(prim)) {
           print(sum_prev_inf)
           print("prior infection")
         }
-        prim$num_prior_inf[p] <- prim$num_prior_inf[p] + 1
         next
       }
     }
@@ -96,7 +96,6 @@ for (p in 1:nrow(prim)) {
       if(print_res) {
         print("no prior neg result")
       }
-      prim$num_no_prior_neg_test[p]<-prim$num_no_prior_neg_test[p]+1
       next
     } else if (any(include$Result=="Positive",na.rm=T)) {
       if (print_res) {
@@ -111,7 +110,6 @@ for (p in 1:nrow(prim)) {
         if(print_res) {
           print("contact with no test result")
         }
-        prim$num_no_testing[p]<-prim$num_no_testing[p]+1
         next
       }
       
@@ -156,10 +154,10 @@ prim %>% group_by(no) %>% filter(!is.null(unlist(contacts))) %>% ungroup()
 has_multiple_inf_and_contact <- prim %>% group_by(no) %>% filter(!is.null(unlist(contacts))&!is.null(unlist(multiple_inf))) %>% ungroup()
 
 
-prim_final_select_col <- prim_final %>% select(!c(multiple_inf, num_possible_contacts, num_no_prior_neg_test, num_no_testing, num_prior_inf))
+prim_final_select_col <- prim_final %>% select(!c(multiple_inf))
 final <- prim_final_select_col %>% unnest(c("contacts", "neg_pos_contact", "has_prior_inf", "num_vacc_doses", "num_days_in_contact"))
 
-write_csv(final, "D:/stan5/code_ST/final samples/march_final_sample_8day_somecells052422.csv")
+write_csv(final, "final_sample053122.csv")
 summary(lm(contacts ~ Institution, data=total%>%mutate(Institution = as.factor(Institution))))
 
 prim_final %>% group_by(num_pos.y, num_dose, full_vacc) %>% summarise(count=n())

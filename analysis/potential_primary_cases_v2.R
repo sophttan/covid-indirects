@@ -4,7 +4,8 @@
 rm(list=ls())
 gc()
 
-setwd("D:/stan5/code_ST/march-data/")
+setwd("/Users/sophiatan/Documents/UCSF/cleaned_data/")
+#setwd("D:/stan5/code_ST/march-data/")
 
 library(readr)
 library(tidyverse)
@@ -30,11 +31,12 @@ library(tidyverse)
 # # write_csv(d, "housing_inf_data_adjusted_roomtype.csv")
 # gc()
 
-d <- read_csv("housing_inf_data_adjusted_roomtype1.csv")
-d2 <- read_csv("housing_inf_data_adjusted_roomtype2.csv")
-d <- d %>% bind_rows(d2)
-rm(d2)
-gc()
+# d <- read_csv("housing_inf_data_adjusted_roomtype1.csv")
+# d2 <- read_csv("housing_inf_data_adjusted_roomtype2.csv")
+# d <- d %>% bind_rows(d2)
+# rm(d2)
+# gc()
+d <- read_csv("housing_inf_data.csv")
 
 d <- d %>% group_by(ResidentId, num_pos)
 # d <- d %>% group_by(ResidentId, num_pos) %>% 
@@ -50,12 +52,15 @@ has_neg_pcr_prev <- has_infection %>% left_join(first_day, "ResidentId") %>% gro
   filter(any(Result=="Negative"&pcr&prior_7)) 
 has_neg_pcr_prev # 24135 total infections with negative pcr in 7 days prior to first positive test
 
-infections_subset <- has_neg_pcr_prev %>% filter(infectious==1 & !prior_7)
-filter(infections_subset, any(Result=="Negative"&pcr)) 
+infections_subset <- has_neg_pcr_prev %>% filter(infectious==1 & !prior_7) %>% ungroup() %>% select(!c(num_pos.y, first_day))
+infections_subset <- infections_subset %>% distinct() %>% rename("num_pos"="num_pos.x")
+infections_subset %>% group_by(ResidentId, num_pos) %>% filter(!num_pos %>% is.na() & first(Day) >= "2021-12-15")
+filter(infections_subset %>% group_by(ResidentId, num_pos), any(Result=="Negative"&pcr)) 
 # 473 have a negative test prior to first positive test 
 # 287 have a negative pcr test - exclude
 
-infections_subset <- infections_subset %>% filter(all(!(Result=="Negative"&pcr), na.rm=T))
+infections_subset <- infections_subset %>% group_by(ResidentId, num_pos) %>% filter(all(!(Result=="Negative"&pcr), na.rm=T))
+infections_subset <- infections_subset %>% filter(first(Day) >= "2021-12-15")
 
 infections_subset_adjusted <- infections_subset %>% 
   mutate(infectious = ifelse(Result=="Negative", 0, infectious)) %>%
@@ -69,7 +74,7 @@ infections_subset_adjusted <- infections_subset_adjusted %>% filter(any(!is.na(R
 # how many infections first tested positive on a day without any housing data? (2)
 infections_subset_adjusted %>% 
   filter(first(Result)=="Positive" & is.na(first(RoomId))) %>% 
-  select(ResidentId, Day, Result, RoomId, RoomCensus, QuarantineIsolation)
+  select(ResidentId, Day, Result, RoomId)
 
 # # remove if single resident in room for entire infectious period 
 # infections_subset_adjusted %>% filter(all(RoomCensus==1, na.rm=T)) %>% 
@@ -90,12 +95,12 @@ rooms$RoomType %>% as.factor() %>% table()
 #infections_subset_adjusted %>% filter(all(RoomCensus==1))
 #infections_subset_adjusted_has_contacts <- infections_subset_adjusted %>% filter(any(RoomCensus>1))
 infections_subset_adjusted_has_contacts_filter_roomtype <- infections_subset_adjusted %>% 
-  filter(first(RoomType) %in% c(1, 2) | (first(RoomType)==4 & !(first(Institution) %in% c(4,5,9,10,11,12,14,15,17,18,30,32))))
+  filter(first(RoomType) %in% c(1, 2) | (first(RoomType)==4 & !(first(Institution) %in% c(9,11,12,14,18,32))))
 
 # assign infections unique labels
 labels <- infections_subset_adjusted_has_contacts_filter_roomtype %>% group_keys %>% mutate(no=1:nrow(.))
 labels
 infections_subset_adjusted_has_contacts_filter_roomtype <- infections_subset_adjusted_has_contacts_filter_roomtype %>% left_join(labels)
 
-write_csv(infections_subset_adjusted_has_contacts_filter_roomtype, "D:/stan5/code_ST/potential-primary-cases/march_infectious_periods_primary_cases_v2_roomtypes_8days_somecells052322.csv")
+write_csv(infections_subset_adjusted_has_contacts_filter_roomtype, "infectious_periods_primary_cases053122.csv")
 

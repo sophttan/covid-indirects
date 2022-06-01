@@ -3,14 +3,16 @@
 
 rm(list=ls())
 
-setwd("D:/CDCR Data/15 March 25 2022/")
+setwd("/Users/sophiatan/Documents/UCSF")
+#setwd("D:/CDCR Data/15 March 25 2022/")
 # setwd("D:/CDCR Data/14 January 15 2022")
 
 library(tidyverse)
 library(lubridate)
 
 ###### COVID Infection Data ######
-vacc <- read.csv("Immunization_20220325.csv", sep=";")
+vacc <- read.csv("ST files/Immunization_20220520.csv", sep=";")
+#vacc <- read.csv("Immunization_20220325.csv", sep=";")
 #vacc <- read.csv("Immunization_20220115.csv", sep=";")
 head(vacc)
 
@@ -24,8 +26,9 @@ covid_vacc <- covid_vacc %>% mutate(Date = as.Date(Date),
 summary_resident_data <- covid_vacc %>% filter(Result=="Received") %>% group_by(ResidentId) %>% summarise(num_doses=n(), num_types=length(unique(Vaccine))) %>%
   filter(num_types != 1)
 
-# there are 50 residents with multiple records of vaccination on a single day (i.e. 1 dose of J&J and 1 dose of Moderna vaccine on 6/5/21)
+# there are 31 residents with multiple records of vaccination on a single day (i.e. 1 dose of J&J and 1 dose of Moderna vaccine on 6/5/21)
 # collapse records but unsure which vaccine type is correct
+# also some who have incorrect years in the reporting
 covid_vacc_cleaned <- covid_vacc %>% filter(Result=="Received") 
 covid_vacc_cleaned <- covid_vacc_cleaned %>% mutate(Date=if_else(Date<"2020-12-01", ymd(format(Date, "2021-%m-%d")), Date)) %>% select(!Month)
 covid_vacc_cleaned <- covid_vacc_cleaned %>% distinct()
@@ -40,13 +43,13 @@ covid_vacc_cleaned <- covid_vacc_cleaned %>%
          booster_add_dose_mixed = ifelse(booster_add_dose==1 & sum(Vaccine[1]==Vaccine) != n(), 1, 0),
          incomplete = ifelse(max(num_dose)==1 & grepl("mRNA", Vaccine[1]), 1, 0))
 
-# 99128 residents received at least 1 dose of a vaccine
+# 106946 residents received at least 1 dose of a vaccine
 num_res_vacc <- covid_vacc_cleaned$ResidentId %>% unique() %>% length()
 
-# 3336 residents (3% of vaccinated residents) received only 1 dose of an mRNA vaccine
+# 3336 residents (3% of vaccinated residents) received only 1 dose of an mRNA vaccine (old #)
 covid_vacc_cleaned %>% filter(incomplete==1)
 
-# 38516 residents (38% of vaccinated residents) have completed series but no booster (not accounting for time eligibility)
+# 38516 residents (38% of vaccinated residents) have completed series but no booster (not accounting for time eligibility) (old #)
 covid_vacc_cleaned %>% filter(booster_add_dose == 0 & incomplete ==0) 
 
 ##### Examining booster doses #####
@@ -61,6 +64,7 @@ boosted <- covid_vacc_cleaned %>% filter(booster_add_dose==1)
 # offset doses of covid vaccines to account for delay in protection 
 covid_vacc_cleaned <- covid_vacc_cleaned %>% mutate(Date_offset = Date + 14)
 
-write_csv(covid_vacc_cleaned, "D:/stan5/code_ST/march-data/cleaned_vaccination_data.csv")
+write_csv(covid_vacc_cleaned, "cleaned_data/cleaned_vaccination_data.csv")
+#write_csv(covid_vacc_cleaned, "D:/stan5/code_ST/march-data/cleaned_vaccination_data.csv")
 
 

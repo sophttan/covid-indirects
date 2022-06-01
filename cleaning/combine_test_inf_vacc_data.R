@@ -3,7 +3,8 @@
 
 rm(list=ls())
 
-setwd("D:/stan5/code_ST/march-data/")
+setwd("/Users/sophiatan/Documents/UCSF/cleaned_data/")
+#setwd("D:/stan5/code_ST/march-data/")
 
 library(readr)
 library(tidyverse)
@@ -16,11 +17,11 @@ d <- test_inf %>%
   arrange(ResidentId, Day) 
 
 # 260,032 residents included over time in this dataset
-# 3 residents have vaccine records but no testing/infection data (IDs 1619718382, 1627977166, 1635328030)
+# 153 residents have vaccine records but no testing/infection data (IDs 1619718382, 1627977166, 1635328030)
 vacc[!(vacc$ResidentId %in% (test_inf$ResidentId %>% unique())),] %>% group_by(ResidentId)
 d <- d %>% group_by(ResidentId) #%>% select(!Institution)
 
-# 55,426 residents were infected at least once (Similar to report by CalProtect, which includes less data (less time))
+# 67,093 residents were infected at least once (Similar to report by CalProtect, which includes less data (less time))
 d %>% filter(any(Result=="Positive"))
 #d <- d %>% mutate(antigen_negative = ifelse(is.na(antigen_negative) & !is.na(Result), F, antigen_negative))
 
@@ -30,8 +31,7 @@ d_filled <- d %>% fill(num_dose, .direction = "down") %>%
   replace_na(list(num_dose=0, max_dose=0, full_vacc=0, booster_add_dose=0, booster_add_dose_mixed=0, incomplete=0)) 
 d_filled[1:200,] %>% view()
 
-# only 146,679 residents have been tested at some point, 113,353 have never been tested (or no record)
-tests_vacc <- d_filled %>% filter(any(!is.na(Result)))
+tests_vacc <- d_filled %>% filter(any(!is.na(Result))) # exclude 153 individuals with vaccine data only
 infections <- tests_vacc %>% filter(any(Result=="Positive"))
 
 
@@ -65,7 +65,7 @@ combined <- tests_under_90 %>% full_join(has_neg_test %>% select(!Day), by=c("Re
 combined <- combined %>% filter(neg_test == T | is.na(neg_test))
 
 # include residents and infections that meet either criteria for reinfection
-full_mult_inf <- removed_mult_tests %>% full_join(combined, c("ResidentId", "Day")) %>% mutate(num_pos=1:n()) %>%
+full_mult_inf <- removed_mult_tests %>% full_join(combined, c("ResidentId", "Day", "Result")) %>% mutate(num_pos=1:n()) %>%
   select(ResidentId, Day, num_pos, neg_test) %>% mutate(Result="Positive")
 
 # check multiple tests
@@ -80,7 +80,7 @@ unique_vacc_infections <- tests_vacc %>%
   right_join(full_mult_inf %>% select(!c(neg_test)), 
              by=c("ResidentId", "Day")) #%>% replace_na(list(Month=202201))
 total_inf_time <- unique_vacc_infections %>% group_by(Day) %>% summarise(inf=n())
-total_inf_time %>% ggplot(aes(Day, inf)) + geom_line() + ylab("Confirmed cases (monthly)") + xlab("Day")
+total_inf_time %>% ggplot(aes(Day, inf)) + geom_line() + ylab("Confirmed cases") + xlab("Day")
 
 first_inf <- filter(unique_vacc_infections, num_pos==1)
 first_inf_unvacc <- filter(first_inf, num_dose==0) # 50680 residents were infected when unvaccinated
