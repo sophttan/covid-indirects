@@ -98,7 +98,7 @@ infections <- infections %>% rename("index_id"="ResidentId",
                           "contact_id"="contacts",
                           "contact_status"="neg_pos_contact")
 infections <- infections %>% mutate(index_id = as.factor(index_id),
-  index_prior_inf = ifelse(num_pos.y==1, 0, 1),
+  index_prior_inf = ifelse(num_pos==1, 0, 1),
   index_prior_vacc = ifelse(index_prior_vacc_doses==0, 0, 1), 
   Institution = as.factor(Institution))
 infections <- infections %>% mutate(index_prior_vacc_doses=ifelse(index_prior_vacc_doses>3, 3, index_prior_vacc_doses),

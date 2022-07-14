@@ -66,5 +66,5 @@ calculate_inc <- function(institution, index_first_pos_test_date) {
   total_pop <- d_inst$ResidentId %>% unique() %>% length()
   infections_inst <- filter(infections, Institution==institution & Day <= index_first_pos_test_date & index_first_pos_test_date - Day > 7)
   total_inf <- infections_inst %>% nrow()
-  total_inf/total_pop * 100000<
+  total_inf/total_pop * 100000
 }

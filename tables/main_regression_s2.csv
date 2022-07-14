@@ -1,0 +1,8 @@
+"","",Relative % change in attack rate of infection in close contact (95% CI)
+Index case,Prior vaccination only,"-24.3 (-37.1, -8.8)"
+,Prior infection only,"-21.7 (-36.4, -3.6)"
+Close contact,Number of vaccine doses 1 dose,"1.2 (-8.1, 11.4)"
+,2 doses,"2.3 (-15.6, 24.1)"
+,≥3 doses,"3.5 (-22.5, 38.2)"
+,Prior infection only,"-16.9 (-33, 3.1)"
+Institution,SARS-CoV-2 incidence in the 7 days preceding the positive test in the index case (natural log scale),"10.6 (-3.4, 26.6)"

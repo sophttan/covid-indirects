@@ -19,6 +19,7 @@ d <- test_inf %>%
 # 260,032 residents included over time in this dataset
 # 153 residents have vaccine records but no testing/infection data (IDs 1619718382, 1627977166, 1635328030)
 vacc[!(vacc$ResidentId %in% (test_inf$ResidentId %>% unique())),] %>% group_by(ResidentId)
+test_inf[!(test_inf$ResidentId %in% (vacc$ResidentId %>% unique())),] %>% group_by(ResidentId)
 d <- d %>% group_by(ResidentId) #%>% select(!Institution)
 
 # 67,093 residents were infected at least once (Similar to report by CalProtect, which includes less data (less time))

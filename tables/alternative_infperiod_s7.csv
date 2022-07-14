@@ -1,0 +1,5 @@
+Infectious period,Index case,Relative % change in attack rate of infection in close contact (95% CI)
+"Begins 2 days prior to first positive test, duration of 5 days",index_prior_vacc,"-18.1 (-31.1, -2.5)"
+,index_prior_inf,"-15.9 (-31.8, 3.6)"
+"Begins 2 days prior to first positive test, duration of 7 days",index_prior_vacc,"-17.9 (-31.2, -2)"
+,index_prior_inf,"-14.8 (-30.7, 4.6)"

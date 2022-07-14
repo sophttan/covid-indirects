@@ -17,6 +17,9 @@ nh <- read_delim("ST files/NightlyHousing_20220520.csv", delim = ";")
 nh_after_3_1_2020 <- nh %>% filter(Night >= "2020-03-01")
 nh_after_3_1_2020_subset <- nh_after_3_1_2020 %>% select(!c(BunkId, BedLevel, FloorNumber, HousingProgram, RoomCapacity, BunkCapacity))
 
+summary_housing <- nh_after_3_1_2020_subset %>% group_by(ResidentId) %>% arrange(Night) %>% summarise(first=first(Night), last=last(Night), duration=n())
+summary_housing %>% write_csv("cleaned_data/housing_duration.csv")
+
 unique_res_housing <- nh_after_3_1_2020_subset$ResidentId %>% unique()
 
 inf_vacc <- read_csv("cleaned_data/has_testing_data_aggregated_infections.csv")
@@ -43,6 +46,7 @@ unique_res_housing[!(unique_res_housing %in% unique_res_with_testing)] %>% lengt
 merge(data.frame(ResidentId=unique_res_housing), data.frame(ResidentId=unique_res_with_testing))
 no_housing_data <- filter(inf_vacc, !(ResidentId %in% unique_res_housing))
 (!no_housing_data$num_pos%>%is.na()) %>% sum() # losing 59 infections
+ <- inf_vacc %>% filter(ResidentId %in% unique_res_housing)
 
 # save testing but no housing data
 write_csv(no_housing_data, "cleaned_data/has_testing_no_housing.csv")
