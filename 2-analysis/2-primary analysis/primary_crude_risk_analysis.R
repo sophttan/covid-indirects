@@ -4,8 +4,20 @@ rm(list=ls())
 gc()
 setwd("/Users/sophiatan/Documents/UCSF/cleaned_data/")
 
+library(readr)
+library(tidyverse)
+library(broom)
 
 d <- read_csv("matched_data.csv")
+
+binomial <- function(data) {
+  data %>%
+    rowwise %>%
+    mutate(out = list(prop.test(x, count, conf.level=.95) %>%
+                        tidy)) %>%
+    ungroup %>%
+    unnest(out) %>% select(!c(statistic, p.value, parameter, method, alternative))
+}
 
 # overall attack risk
 overall <- data.frame(count=d%>%nrow(), x=d$contact_status %>% sum())
@@ -26,12 +38,7 @@ priorvacc<-priorvacc %>% rbind(d %>% group_by(index_prior_vacc) %>%
                                  summarise(count=n(), x=sum(contact_status), risk=mean(contact_status)) %>% 
                                  mutate(index_prior_inf=-1)) #index_prior_inf == -1 if overall (not stratified by prior infection)
 
-priorvacc <- priorvacc %>%
-  rowwise %>%
-  mutate(out = list(prop.test(x, count, conf.level=.95) %>%
-                      tidy)) %>%
-  ungroup %>%
-  unnest(out)
+priorvacc <- priorvacc %>% binomial()
 priorvacc
 
 
@@ -54,12 +61,7 @@ primbooster<-primbooster %>% rbind(d %>% group_by(boosted) %>%
                                      summarise(count=n(), x=sum(contact_status), risk=mean(contact_status)) %>% 
                                      mutate(index_prior_inf=-1)) #index_prior_inf == -1 if overall (not stratified by prior infection)
 
-primbooster <- primbooster %>%
-  rowwise %>%
-  mutate(out = list(prop.test(x, count, conf.level=.95) %>%
-                      tidy)) %>%
-  ungroup %>%
-  unnest(out)
+primbooster <- primbooster %>% binomial()
 
 total <- priorvacc %>% mutate(boosted=ifelse(index_prior_vacc>0, 4, 0)) %>% select(!index_prior_vacc) %>% rbind(primbooster)
 p <- total %>% 
