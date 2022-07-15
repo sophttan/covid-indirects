@@ -14,3 +14,4 @@ Data used for this analysis is not publicly available.
   - `5-alternative regression model`: contains code for testing logistic regression model
 - `figures`: contains figure outputs (jpg)
 - `tables`: contains table outputs (csv) 
+- `archive`: contains old scripts used for testing and data exploration
