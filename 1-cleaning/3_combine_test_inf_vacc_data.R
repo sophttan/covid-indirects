@@ -66,7 +66,9 @@ combined <- tests_under_90 %>% full_join(has_neg_test %>% select(!Day), by=c("Re
 combined <- combined %>% filter(neg_test == T | is.na(neg_test))
 
 # include residents and infections that meet either criteria for reinfection
-full_mult_inf <- removed_mult_tests %>% full_join(combined, c("ResidentId", "Day", "Result")) %>% mutate(num_pos=1:n()) %>%
+full_mult_inf <- removed_mult_tests %>% full_join(combined, c("ResidentId", "Day", "Result")) %>% 
+  arrange(ResidentId, Day) %>% 
+  mutate(num_pos=1:n()) %>%
   select(ResidentId, Day, num_pos, neg_test) %>% mutate(Result="Positive")
 
 # check multiple tests
@@ -116,4 +118,4 @@ vacc_infections_removed_extra_inf <- tests_vacc %>%
   full_join(full_mult_inf %>% select(!c(neg_test, Result)), 
             by=c("ResidentId", "Day")) #%>% replace_na(list(Month=202201))
 
-write_csv(vacc_infections_removed_extra_inf, "has_testing_data_aggregated_infections.csv")
+write_csv(vacc_infections_removed_extra_inf, "has_testing_data_aggregated_infections072122.csv")

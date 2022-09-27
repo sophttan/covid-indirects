@@ -10,7 +10,7 @@ library(readr)
 library(tidyverse)
 
 # replace with different datasets with different infectious period definitions
-d <- read_csv("housing_inf_data.csv")
+d <- read_csv("housing_inf_data072122.csv")
 d <- d %>% group_by(ResidentId, num_pos)
 
 # include only if test negative pcr in the 7 days prior to first positive test
@@ -68,5 +68,5 @@ labels <- infections_subset_adjusted_has_contacts_filter_roomtype %>% group_keys
 labels
 infections_subset_adjusted_has_contacts_filter_roomtype <- infections_subset_adjusted_has_contacts_filter_roomtype %>% left_join(labels)
 
-write_csv(infections_subset_adjusted_has_contacts_filter_roomtype, "infectious_periods_primary_cases060222_nopcr.csv")
+write_csv(infections_subset_adjusted_has_contacts_filter_roomtype, "infectious_periods_primary_cases092722_nopcr.csv")
 

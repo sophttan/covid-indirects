@@ -10,7 +10,7 @@ library(readr)
 library(tidyverse)
 
 nh <- read_csv("housing_filtered_omicron.csv")
-inf_vacc <- read_csv("has_testing_data_aggregated_infections.csv")
+inf_vacc <- read_csv("has_testing_data_aggregated_infections072122.csv")
 
 # no_housing <- read_csv("has_testing_no_housing.csv")$ResidentId %>% unique()
 # inf_vacc <- filter(inf_vacc, !(ResidentId %in% no_housing))
@@ -70,7 +70,7 @@ inf_vacc_housing <- inf_vacc_housing %>% fill(num_pos, .direction="down")
 inf_vacc_housing <- inf_vacc_housing %>% group_by(ResidentId, num_pos) %>%
   mutate(infectious = ifelse(!is.na(num_pos) & Day-first(Day)<=4, 1, 0))
 inf_vacc_housing <- inf_vacc_housing %>% select(!c(ReceivedDate))
-write_csv(inf_vacc_housing, "housing_inf_data.csv")
+write_csv(inf_vacc_housing, "housing_inf_data072122.csv")
 
 adjust_inf <- inf_vacc_housing %>% group_by(ResidentId, num_pos) %>% 
   mutate(Day_inf = if_else(!is.na(num_pos), first(Day)-2, as.Date(NA))) %>% ungroup()

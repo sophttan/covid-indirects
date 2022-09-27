@@ -69,10 +69,13 @@ keep_pcr_if_multiple <- tests_clear_with_type %>%
 
 keep_pcr_if_multiple %>% filter(n()>1 & !p_a) # excluding 832 (<0.05%) tests because not all tests on the same day had a description of the test type and results were conflicting
 keep_pcr_if_multiple %>% filter(n()>1 & p_a) # excluding 1696 (<0.1%) rapid tests because of assumed false negative/false positive
+has_pcr_antigen <- keep_pcr_if_multiple %>% filter(n()>1) %>% filter(!all(pcr)&p_a)
+filter(tests_clear_with_type, ResidentId %in% (has_pcr_antigen$ResidentId %>% unique()))
 
 final_tests <- keep_pcr_if_multiple %>% filter(n()==1|(keep&p_a)) #2,932,228 tests per resident/day included
 final_tests <- final_tests %>% filter(n()==1|!all(pcr))
-final_tests %>% select(!c(Institution, keep, p_a)) %>% rename("Day"="CollectionDate") %>% write_csv("cleaned_data/complete_testing_data.csv")
+final_tests %>% select(!c(Institution, keep, p_a)) %>% rename("Day"="CollectionDate") %>% 
+  write_csv("cleaned_data/complete_testing_data.csv")
 
 # # 4/15/22 update to work on more edge cases in new 3/15/22 data
 # multiple_tests <- multiple_tests %>% mutate(pcr = ifelse(grepl("RNA|NA|PCR", Details), T, F),
