@@ -9,22 +9,22 @@ library(tidyverse)
 library(cowplot)
 library(RColorBrewer)
 
-d <- read_csv("matched_data.csv")
+d <- read_csv("matched_data_ps092922.csv")
 
 d <- d %>% mutate(Institution=as.factor(Institution),
                           index_id=as.factor(index_id))
 
 # pre-specified model
-model <- glm(contact_status ~ index_prior_vacc + index_prior_inf +
+model <- glm(contact_status ~ index_prior_vacc + index_prior_inf + num_days_in_contact +
                num_vacc_doses+has_prior_inf+incidence_log+Institution, data=d, weights=weights, family="poisson")
 summary(model)
 
 # find SE of linear combination of covariates (prior vaccination and prior infection)
-error <- c(sqrt(t(c(0,1,1,rep(0,28))) %*% vcovCR(model, cluster = d$subclass, type="CR2") %*% c(0,1,1,rep(0,28))))
+error <- c(sqrt(t(c(0,1,1,rep(0,29))) %*% vcovCR(model, cluster = d$subclass, type="CR2") %*% c(0,1,1,rep(0,29))))
 
 model <- coef_test(model, vcov = "CR2", cluster = d$subclass) %>% data.frame(row.names = NULL)
-main_results <- rbind(model[2:3,], model[4,], model[4,], model[4,], model[5:6,])
-main_results$x <- c(1,1,1,2,3,1,1)
+main_results <- rbind(model[2:4,], model[5,], model[5,], model[5,], model[6:7,])
+main_results$x <- c(1,1,1,1,2,3,1,1)
 
 # function to estimate relative risks from coefficients
 est_relative_risk <- function(data) {
@@ -43,10 +43,11 @@ main_results <- main_results %>% est_relative_risk()
 
 main_results_tbl <- main_results %>% format_table()
 main_results_tbl$Coef <- c("Prior vaccination only", "Prior infection only", 
+                           "Number of days of exposure between index case and close contact",
                             "Number of vaccine doses 1 dose", "2 doses", "\u22653 doses", 
                             "Prior infection only",
                             "SARS-CoV-2 incidence in the 7 days preceding the positive test in the index case (natural log scale)")
-main_results_tbl$group <- c("Index case", "", "Close contact", "", "", "", "Institution")
+main_results_tbl$group <- c("Index case", "", "","Close contact", "", "", "", "Institution")
 main_results_tbl <- main_results_tbl %>% select(group, Coef, risk_red)
 names(main_results_tbl) <- c("","","Relative % change in attack rate of infection in close contact (95% CI)")
 main_results_tbl %>% write_csv("/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/main_regression_s2.csv")
@@ -56,50 +57,49 @@ main_results_tbl %>% write_csv("/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/
 vacc_def_results <- main_results[1,]
 ## test other vaccine definitions for index cases and contacts
 # run with index case number of vaccine doses 
-model <- glm(contact_status ~ index_prior_vacc_doses + index_prior_inf +
-               num_vacc_doses+has_prior_inf+incidence_log+Institution, data=d, weights=weights, family="poisson")
+# reweigh matches based on different control group statuses
+# keep matches the same, create 3 different control groups where each group is weighted separately
+d <- d %>% group_by(subclass, index_prior_vacc_doses) %>% 
+  mutate(dose_weights=ifelse(treatment==1,1,1/n()))
+mean_weights <- d %>% filter(treatment==0) %>% group_by(index_prior_vacc_doses) %>% summarise(mean=mean(dose_weights))
+d <- d %>% group_by(index_prior_vacc_doses) %>% 
+  mutate(dose_weights=ifelse(treatment==1,1,dose_weights/(mean_weights)$mean[index_prior_vacc_doses]))
+
+model <- glm(contact_status ~ index_prior_vacc_doses + index_prior_inf +num_days_in_contact+
+               num_vacc_doses+has_prior_inf+incidence_log+Institution, data=d, weights=dose_weights, family="poisson")
 model <- coef_test(model, vcov = "CR2", cluster = d$subclass) %>% data.frame(row.names=NULL)
 res <- rbind(model[2,], model[2,], model[2,])
 res$x <- c(1,2,3)
 vacc_def_results <- vacc_def_results %>% rbind(res %>% est_relative_risk())
 
-# index case has either any vaccination or prior infection
-model <- glm(contact_status ~ index_has_vacc_or_inf+
-               num_vacc_doses+has_prior_inf+incidence_log+Institution, data=d, weights=weights, family="poisson")
-summary(model)
-model <- coef_test(model, vcov = "CR2", cluster = d$subclass) %>% data.frame(row.names = NULL)
-res <- model[2,]
-res$x <- 1
-vacc_def_results <- vacc_def_results %>% rbind(res %>% est_relative_risk())
-
 # contact has any vaccination
 d <- d %>% mutate(contact_has_vacc=ifelse(num_vacc_doses>0, 1, 0))
-model <- glm(contact_status ~ index_prior_vacc + index_prior_inf + 
+model <- glm(contact_status ~ index_prior_vacc + index_prior_inf + num_days_in_contact +
                contact_has_vacc+has_prior_inf+incidence_log+Institution, data=d, weights=weights, family="poisson")
 summary(model)
 model <- coef_test(model, vcov = "CR2", cluster = d$subclass) %>% data.frame(row.names=NULL)
-res <- model[4,]
+res <- model[5,]
 res$x <- 1
 vacc_def_results <- vacc_def_results %>% rbind(res %>% est_relative_risk())
 
 # add in original results (contact vaccination status by number of doses)
-vacc_def_results <- rbind(vacc_def_results, main_results[3:5,])
+vacc_def_results <- rbind(vacc_def_results, main_results[4:6,])
 
 # contact has either any vaccination or infection
 d <- d %>% mutate(contact_has_vacc_or_inf = ifelse(contact_has_vacc|has_prior_inf, 1, 0))
-model <- glm(contact_status ~ index_prior_vacc + index_prior_inf + 
+model <- glm(contact_status ~ index_prior_vacc + index_prior_inf + num_days_in_contact +
                contact_has_vacc_or_inf+incidence_log+Institution, data=d, weights=weights, family="poisson")
 summary(model)
 model <- coef_test(model, vcov = "CR2", cluster = d$subclass) %>% data.frame(row.names=NULL)
-res <- model[4,]
+res <- model[5,]
 res$x <- 1
 vacc_def_results <- vacc_def_results %>% rbind(res %>% est_relative_risk())
 
 vacc_def_results_tbl <- vacc_def_results %>% format_table()
-vacc_def_results_tbl$Coef <- rep(c("Prior vaccination only", 
-                           "Number of vaccine doses 1 dose", "2 doses", "\u22653 doses", 
-                           "Prior vaccination or infection"), 2)
-vacc_def_results_tbl$group <- c("Index case", rep("",4), "Close contact", rep("",4))
+vacc_def_results_tbl$Coef <- c(rep(c("Prior vaccination only", 
+                           "Number of vaccine doses 1 dose", "2 doses", "\u22653 doses"), 2),
+                           "Prior vaccination or infection")
+vacc_def_results_tbl$group <- c("Index case", rep("",3), "Close contact", rep("",4))
 vacc_def_results_tbl <- vacc_def_results_tbl %>% select(group, Coef, risk_red)
 names(vacc_def_results_tbl) <- c("","","Relative % change in attack rate of infection in close contact (95% CI)")
 vacc_def_results_tbl %>% write_csv("/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/vaccine_def_s3.csv")
@@ -108,11 +108,11 @@ vacc_def_results_tbl %>% write_csv("/Users/sophiatan/Documents/UCSF/CDCR-CalProt
 
 ## testing interaction between prior vaccination and infection in the index case
 model <- glm(contact_status ~ index_prior_vacc + index_prior_inf + index_prior_vacc*index_prior_inf+
-               num_vacc_doses+has_prior_inf+incidence_log+Institution, data=d, weights=weights, family="poisson")
+               num_days_in_contact + num_vacc_doses+has_prior_inf+incidence_log+factor(Institution), data=d, weights=weights, family="poisson")
 summary(model)
 model <- coef_test(model, vcov = "CR2", cluster = d$subclass) %>% as.data.frame()
 
-res <- model[c(2:3, 32),]
+res <- model[c(2:3, 33),]
 res$x <- 1
 interaction_results <- res %>% est_relative_risk()
 

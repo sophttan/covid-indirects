@@ -8,7 +8,7 @@ library(readr)
 library(tidyverse)
 library(broom)
 
-d <- read_csv("matched_data.csv")
+d <- read_csv("matched_data_ps092922.csv")
 
 binomial <- function(data) {
   data %>%
