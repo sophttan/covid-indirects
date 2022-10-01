@@ -10,8 +10,8 @@ library(scales)
 library(patchwork)
 library(reshape2)
 
-d <- read_csv("housing_inf_data.csv")
-matched <- read_csv("matched_data.csv")
+d <- read_csv("housing_inf_data072122.csv")
+matched <- read_csv("matched_data_ps092922.csv")
 
 omicron_data <- d %>% filter(Day >= "2021-12-15") %>% filter(ResidentId %in% matched$index_id | ResidentId %in% matched$contact_id) %>% 
   filter(!Result %>% is.na()) 

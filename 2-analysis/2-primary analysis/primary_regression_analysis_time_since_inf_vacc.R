@@ -11,7 +11,7 @@ library(RColorBrewer)
 
 # add in dates of most recent vaccination
 vacc <- read_csv("cleaned_vaccination_data.csv")
-d <- read_csv("matched_data.csv")
+d <- read_csv("matched_data_ps092922.csv")
 d <- d %>% left_join(vacc %>% select(ResidentId, num_dose, Date), 
                      by=c("index_id"="ResidentId", "index_prior_vacc_doses"="num_dose")) %>% rename("index_vacc_date"="Date")
 
@@ -19,7 +19,7 @@ d <- d %>% mutate(index_weeks_since_vacc = as.numeric(difftime(Day, index_vacc_d
                   index_weeks_since_vacc_log = log(index_weeks_since_vacc))
 
 # add in dates of most recent infection
-inf_data <- read_csv("housing_inf_data.csv", col_select = c(ResidentId, num_pos, Day, Institution))
+inf_data <- read_csv("housing_inf_data072122.csv", col_select = c(ResidentId, num_pos, Day, Institution))
 infections_total <- inf_data %>% filter(num_pos>=1) %>%
   group_by(ResidentId, num_pos) %>% summarise_all(first) %>%
   group_by(ResidentId, num_pos)
@@ -78,20 +78,20 @@ format_table <- function(data) {
 }
 
 # relationship between time since most recent vaccination and infection in close contact
-model <- glm(contact_status ~ index_prior_inf + index_weeks_since_vacc+
+model <- glm(contact_status ~ index_prior_inf + index_weeks_since_vacc+num_days_in_contact+
                num_vacc_doses+has_prior_inf+incidence_log+Institution, data=d, weights=weights, family="poisson")
 model <- coef_test(model, vcov = "CR2", cluster = d$subclass) %>% data.frame(row.names = NULL)
 res <- model[3,]
 
 # relationship between time since most recent infection and infection in close contact
-model <- glm(contact_status ~ index_prior_vacc + index_weeks_since_inf+
+model <- glm(contact_status ~ index_prior_vacc + index_weeks_since_inf+num_days_in_contact+
                num_vacc_doses+has_prior_inf+incidence_log+Institution, data=d, weights=weights, family="poisson")
 model <- coef_test(model, vcov = "CR2", cluster = d$subclass) %>% data.frame(row.names = NULL)
 model
 res <- rbind(res, model[3,])
 
 # relationship between time since most recent vaccination or infection and infection in close contact
-model <- glm(contact_status ~ index_weeks_since_inf_vacc+
+model <- glm(contact_status ~ index_weeks_since_inf_vacc+num_days_in_contact+
                num_vacc_doses+has_prior_inf+incidence_log+Institution, data=d, weights=weights, family="poisson")
 model <- coef_test(model, vcov = "CR2", cluster = d$subclass) %>% data.frame(row.names = NULL)
 res <- rbind(res, model[2,])

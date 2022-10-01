@@ -42,6 +42,11 @@ priorvacc <- priorvacc %>% binomial()
 priorvacc
 
 
+priorinf<-d %>% group_by(index_prior_inf) %>% 
+  summarise(count=n(), x=sum(contact_status), risk=mean(contact_status))
+priorinf <- priorinf %>% binomial()
+priorinf
+
 summary_risk <- priorvacc %>% filter(index_prior_inf != -1) %>% 
   mutate(risk=paste0(round(risk*100, 1), " (", round(conf.low*100, 1), ", ", round(conf.high*100, 1), ")"),
          index_prior_vacc=factor(index_prior_vacc, levels=c(0,1), labels=c("No prior vaccination", "Prior vaccination")),
