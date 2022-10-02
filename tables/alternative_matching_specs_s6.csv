@@ -1,4 +1,4 @@
-Matching specification,Index case,Relative % change in attack rate of infection in close contact (95% CI),
+"",Matching specification,Index case,Relative % change in attack rate of infection in close contact (95% CI)
 Varying choice of caliper,Caliper of propensity score = 0.1,Prior vaccination,"-23 (-36.3, -6.8)"
 ,Caliper of propensity score = 0.1,Prior infection,"-19.7 (-36.1, 0.8)"
 ,Caliper of days between index cases = 15,Prior vaccination,"-20.7 (-34.9, -3.5)"
