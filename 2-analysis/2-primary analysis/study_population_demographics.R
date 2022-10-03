@@ -14,13 +14,26 @@ d <- read_csv("matched_data_ps092922.csv")
 
 demo <- read_csv("demographic_data_clean.csv")
 
-cases <- d %>% select(index_id, index_prior_inf, index_prior_vacc_doses, num_days_in_contact) %>%
-  rename("ResidentId"="index_id", "prior_inf"="index_prior_inf", "num_doses"="index_prior_vacc_doses") %>%
+cases <- d %>% select(index_id, index_prior_inf, covid_risk, index_prior_vacc, index_prior_vacc_doses, num_days_in_contact) %>%
+  rename("ResidentId"="index_id", "prior_vacc"="index_prior_vacc", "prior_inf"="index_prior_inf", "num_doses"="index_prior_vacc_doses") %>%
   mutate(group="Index cases")
-contacts <- d %>% select(contact_id, has_prior_inf, num_vacc_doses, num_days_in_contact) %>% 
+contacts <- d %>% select(contact_id, has_prior_inf, num_vacc_doses, num_days_in_contact, first_contact) %>% 
+  mutate(prior_vacc=ifelse(num_vacc_doses==0, 0, 1)) %>%
   rename("ResidentId"="contact_id", "prior_inf"="has_prior_inf", "num_doses"="num_vacc_doses") %>%
-  mutate(group="Close contacts")
+  select(1,2,6,3,4,5) %>% 
+  mutate(group="Close contacts") 
 
+
+library(lubridate)
+covid_risk <- read_csv("covid_risk_score.csv")
+covid_risk_subset <- covid_risk %>% filter(ResidentId %in% contacts$ResidentId) 
+covid_risk_subset <- covid_risk_subset %>% rowwise() %>% mutate(first=interval %>% str_extract_all("[0-9]+-[0-9]+-[0-9]+"), 
+                                                                interval=interval(first[1], first[2])) %>% select(!first)
+
+contacts <- contacts %>% full_join(covid_risk_subset, by="ResidentId") %>% 
+  filter(first_contact %>% lubridate::`%within%`(interval)) %>%
+  rename("covid_risk"="Value") %>% select(!c(interval, first_contact))
+contacts
 total <- rbind(cases, contacts)
 total <- total %>% left_join(vacc, by=c("ResidentId", "num_doses"="num_dose"))
 total <- total %>% left_join(demo, by="ResidentId")
@@ -45,11 +58,11 @@ total <- total %>% mutate(status=case_when(num_doses>0&num_doses==full_vacc~"Ful
                                            num_doses==0~""), 
                           group=group %>% factor(levels=c("Index cases", "Close contacts")))
 
-prim_series <- total %>% group_by(group, prior_inf, primary_series) %>% summarise(n=n())
-prim_series <- prim_series %>% group_by(group, prior_inf) %>% summarise(primary_series=primary_series, n=n, perc=signif(n/sum(n)*100,2))
-stratified_status <- total %>% filter(primary_series != "Unvaccinated") %>% group_by(group, prior_inf, primary_series) %>% 
+prim_series <- total %>% group_by(group, prior_vacc, primary_series) %>% summarise(n=n())
+prim_series <- prim_series %>% group_by(group, prior_vacc) %>% summarise(primary_series=primary_series, n=n, perc=signif(n/sum(n)*100,2))
+stratified_status <- total %>% filter(primary_series != "Unvaccinated") %>% group_by(group, prior_vacc, primary_series) %>% 
   summarise(status=status,count=n()) %>% 
-  group_by(group, prior_inf, primary_series, status) %>% summarise(n=n(), perc=signif(n()/mean(count)*100, 2))
+  group_by(group, prior_vacc, primary_series, status) %>% summarise(n=n(), perc=signif(n()/mean(count)*100, 2))
 prim_series <- prim_series %>% mutate(status="") %>% rbind(stratified_status)
 
 prim_series <- prim_series %>% mutate(primary_series = case_when(grepl("Ad26",primary_series)~"Ad26.COV2",
@@ -60,16 +73,16 @@ prim_series <- prim_series %>% mutate(primary_series = case_when(grepl("Ad26",pr
          status = paste(primary_series, status)) 
 
 prim_series <- prim_series %>% select(!c(n, perc, primary_series)) %>% 
-  pivot_wider(names_from=c(group, prior_inf), values_from=`N (%)`, values_fill = "-") %>%
+  pivot_wider(names_from=c(group, prior_vacc), values_from=`N (%)`, values_fill = "-") %>%
   mutate(status=status %>% 
            factor(levels=c("Unvaccinated ", "Ad26.COV2 ", "Ad26.COV2 Fully vaccinated", "Ad26.COV2 Boosted",
                            "BNT162b2 ", "BNT162b2 Partially vaccinated", "BNT162b2 Fully vaccinated", "BNT162b2 Boosted",
                            "mRNA-1273 ", "mRNA-1273 Partially vaccinated", "mRNA-1273 Fully vaccinated", "mRNA-1273 Boosted"))) %>%
   arrange(status)
 
-vars <- c("Sex", "Age", "Race", "num_days_in_contact")
-catVars <- c("Sex", "Race")
-tbl1 <- CreateTableOne(vars = vars, strata = c("group","prior_inf"), data = total, factorVars = catVars)
+vars <- c("Sex", "Age", "Race", "num_days_in_contact", "prior_inf", "both_inf_vacc")
+catVars <- c("Sex", "Race", "prior_inf", "both_inf_vacc")
+tbl1 <- CreateTableOne(vars = vars, strata = c("group","prior_vacc"), data = total, factorVars = catVars)
 tbl1_matrix <- print(tbl1)
 tbl1_matrix <- tbl1_matrix[,c(1,3,2,4)]
 
