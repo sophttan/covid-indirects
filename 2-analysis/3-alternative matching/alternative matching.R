@@ -1,4 +1,4 @@
-# Sophia Tan 6/24/22
+# Sophia Tan 10/5/22
 # Matching under alternative matching specifications
 
 rm(list=ls())
@@ -11,14 +11,7 @@ library(broom)
 library(readr)
 library(MatchIt)
 
-inf_omicron_subset <- read_csv("unmatched_all_covariates092922.csv")
-
-# estimate propensity scores (age, COVID-19 risk, and prior infection history)
-ps <- glm(treatment ~ age + covid_risk + index_prior_inf, data = inf_omicron_subset, family = binomial(link='logit'))
-summary(ps)
-inf_omicron_subset <- inf_omicron_subset %>% mutate(logodds = predict.glm(ps),
-                                                    ps=exp(logodds)/(1+exp(logodds)))
-inf_omicron_subset
+inf_omicron_subset <- read_csv("unmatched_all_covariates100722.csv")
 
 # distance matrices for Day and propensity score
 distance_propensity <- dist(as.matrix(inf_omicron_subset%>%select(ps)), diag = T, upper = T) %>% as.matrix()
@@ -44,7 +37,7 @@ match <- function(propensity, day, caliper_propensity, caliper_day_dist,
                  method = "nearest", 
                  exact = ~Institution,
                  distance = distance, ratio=k, replace = F)
-    print(plot(m, type = "qq", interactive = FALSE, which.xs = c("age", "covid_risk", "index_prior_inf", "Day")))
+   # print(plot(m, type = "qq", interactive = FALSE, which.xs = c("age", "covid_risk", "index_prior_inf", "Day")))
   }
   
   print(summary(m))
@@ -54,14 +47,28 @@ match <- function(propensity, day, caliper_propensity, caliper_day_dist,
 reweigh_matches <- function(data, caliper_propensity, caliper_day_dist){
   data <- data %>% group_by(subclass) %>% arrange(desc(treatment)) %>%
     filter(abs(first(Day)-Day)<=caliper_day_dist&abs(first(ps)-ps)<=caliper_propensity)
+  data <- data %>% filter(n()>1)
   # reweigh matches
   data <- data %>% mutate(weights=ifelse(treatment==1,1,1/sum(treatment==0)))
   mean_weights <- mean((data %>% filter(treatment==0))$weights)
   data <- data %>% mutate(weights=ifelse(treatment==1,1,weights/mean_weights))
+  data
 }
 
 # caliper testing
 # manually set calipers for Day and propensity score
+# propensity score caliper = 0.05
+ps_dist <- 0.05
+day_dist <- 30
+
+matched <- match(distance_propensity, distance_matrix, ps_dist, day_dist, c(0.5, 0.5), 10, T)
+matched %>% group_by(subclass) %>% arrange(subclass, desc(treatment)) %>% 
+  select(subclass, treatment, ps, Day) %>% 
+  filter(treatment==1|(abs(first(Day)-Day)>day_dist|abs(first(ps)-ps)>ps_dist)) %>% filter(n()>1)
+#matched %>% filter(subclass==81)
+matched <- reweigh_matches(matched, ps_dist, day_dist)
+matched %>% write_csv("matched_data_alternative_cal_propensity05.csv")
+
 # propensity score caliper = 0.2
 ps_dist <- 0.2
 day_dist <- 30
@@ -152,3 +159,4 @@ mout %>% group_by(subclass) %>% arrange(subclass, desc(treatment)) %>%
   select(subclass, treatment, ps, Day) %>% 
   filter(treatment==1|(abs(first(Day)-Day)>day_dist)) %>% filter(n()>1)
 mout %>% write_csv("matched_data_alternative_propensity_sex_race.csv")
+

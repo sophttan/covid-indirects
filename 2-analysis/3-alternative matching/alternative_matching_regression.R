@@ -36,19 +36,21 @@ run_regression <- function(data) {
   model[2:3,]
 }
 
-res <- make_res(run_regression(read_csv("matched_data_alternative_cal_propensity.csv")), "Caliper of propensity score = 0.1") 
+res <- make_res(run_regression(read_csv("matched_data_alternative_cal_propensity05.csv")), "Caliper of propensity score = 0.05") 
+res <- rbind(res,
+             make_res(run_regression(read_csv("matched_data_alternative_cal_propensity.csv")), "Caliper of propensity score = 0.2"))
 res <- rbind(res, 
-             make_res(run_regression(read_csv("matched_data_alternative_cal_days.csv")), "Caliper of days between index cases = 15") )
+             make_res(run_regression(read_csv("matched_data_alternative_cal_days.csv")), "Caliper of days between index cases = 15"))
 res <- rbind(res, 
-             make_res(run_regression(read_csv("matched_data_alternative1_4ratio.csv")), "1:4 matching") )
+             make_res(run_regression(read_csv("matched_data_alternative1_4ratio.csv")), "1:4 matching"))
 res <- rbind(res, 
-             make_res(run_regression(read_csv("matched_data_alternative_weights_1p_3d.csv")), "1:3 ratio") )
+             make_res(run_regression(read_csv("matched_data_alternative_weights_1p_3d.csv")), "1:3 ratio"))
 res <- rbind(res, 
-             make_res(run_regression(read_csv("matched_data_alternative_weights_3p_1d.csv")), "3:1 ratio") )
+             make_res(run_regression(read_csv("matched_data_alternative_weights_3p_1d.csv")), "3:1 ratio"))
 res <- rbind(res, 
-             make_res(run_regression(read_csv("matched_data_alternative_nopropensity.csv")), "Matching without propensity score") )
+             make_res(run_regression(read_csv("matched_data_alternative_nopropensity.csv")), "Matching without propensity score"))
 res <- rbind(res, 
-             make_res(run_regression(read_csv("matched_data_alternative_propensity_sex_race.csv")), "Matching with propensity score with sex and race") )
+             make_res(run_regression(read_csv("matched_data_alternative_propensity_sex_race.csv")), "Matching with propensity score with sex and race"))
 
 
 # no matching
@@ -68,11 +70,11 @@ res_nomatch <- data.frame(group="No matching",
                           ub=100*(exp(model[,1]+2*model[,2])-1), row.names=NULL)
 
 res <- rbind(res,res_nomatch) %>% 
-  mutate(covariate=rep(c("Prior vaccination", "Prior infection"), 8)) %>% 
+  mutate(covariate=rep(c("Prior vaccination", "Prior infection"), 9)) %>% 
   select(1,5,2,3,4)
 
 res_tbl <- res %>% mutate(res = paste0(round(relrisk, 1), " (", round(lb, 1), ", ", round(ub, 1), ")"))
-res_tbl <- res_tbl %>% mutate(header=c("Varying choice of caliper","","","",
+res_tbl <- res_tbl %>% mutate(header=c("Varying choice of caliper","","","","","",
                                       "Varying k in 1:k matching","",
                                       "Varying weights between propensity score and time","","","",
                                       "Overall changes to propensity score","","","",

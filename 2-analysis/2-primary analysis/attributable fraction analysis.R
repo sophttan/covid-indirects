@@ -10,7 +10,7 @@ library(MatchIt)
 library(RColorBrewer)
 
 
-d <- read_csv("matched_data.csv") 
+d <- read_csv("matched_data_ps100722.csv") 
 
 labels <- expand.grid(index_prior_vacc=0:1, index_prior_inf=0:1) %>% 
   mutate(label=c("No prior vaccination or infection", "Prior vaccination", "Prior infection", 
@@ -39,10 +39,10 @@ d <- d %>% mutate(Institution=as.factor(Institution),
                   index_id=as.factor(index_id))
 
 # pre-specified model
-model <- glm(contact_status ~ index_prior_vacc + index_prior_inf +
+model <- glm(contact_status ~ index_prior_vacc + index_prior_inf +num_days_in_contact+
                num_vacc_doses+has_prior_inf+incidence_log+Institution, data=d, weights=weights, family="poisson")
 # find SE of linear combination of covariates (prior vaccination and prior infection)
-error <- c(sqrt(t(c(0,1,1,rep(0,28))) %*% vcovCR(model, cluster = d$subclass, type="CR2") %*% c(0,1,1,rep(0,28))))
+error <- c(sqrt(t(c(0,1,1,rep(0,29))) %*% vcovCR(model, cluster = d$subclass, type="CR2") %*% c(0,1,1,rep(0,29))))
 model <- coef_test(model, vcov = "CR2", cluster = d$subclass) %>% data.frame(row.names = NULL)
 main_results <- model[2:3,] %>% select(Coef, beta, SE) %>% 
   rbind(list("both_vacc_inf", sum(.$beta), error))
@@ -57,7 +57,7 @@ main_results <- main_results %>% est_relative_risk()
 main_results
 
 # attributable fraction among all omicron infections
-full <- read_csv("housing_inf_data.csv")
+full <- read_csv("housing_inf_data072122.csv")
 full %>% group_by(ResidentId) %>% filter(any(!Institution %>% is.na())|any(!RoomId %>% is.na()))
 omicron <- full %>% group_by(ResidentId, num_pos) %>% filter(num_pos>0) %>% filter(first(Day)>="2021-12-15")
 omicron <- omicron %>% summarise_all(first)

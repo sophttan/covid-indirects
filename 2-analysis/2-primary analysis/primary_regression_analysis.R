@@ -9,7 +9,7 @@ library(tidyverse)
 library(cowplot)
 library(RColorBrewer)
 
-d <- read_csv("matched_data_ps092922.csv")
+d <- read_csv("matched_data_ps100722.csv")
 
 d <- d %>% mutate(Institution=as.factor(Institution),
                           index_id=as.factor(index_id))
@@ -65,8 +65,10 @@ mean_weights <- d %>% filter(treatment==0) %>% group_by(index_prior_vacc_doses) 
 d <- d %>% group_by(index_prior_vacc_doses) %>% 
   mutate(dose_weights=ifelse(treatment==1,1,dose_weights/(mean_weights)$mean[index_prior_vacc_doses]))
 
+# d <- read_csv("matched_data_doses.csv") %>% mutate(Institution=as.factor(Institution),
+#                                                    index_id=as.factor(index_id))
 model <- glm(contact_status ~ index_prior_vacc_doses + index_prior_inf +num_days_in_contact+
-               num_vacc_doses+has_prior_inf+incidence_log+Institution, data=d, weights=dose_weights, family="poisson")
+               num_vacc_doses+has_prior_inf+incidence_log+Institution, data=d, weights=weights, family="poisson")
 model <- coef_test(model, vcov = "CR2", cluster = d$subclass) %>% data.frame(row.names=NULL)
 res <- rbind(model[2,], model[2,], model[2,])
 res$x <- c(1,2,3)

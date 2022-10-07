@@ -11,7 +11,7 @@ library(RColorBrewer)
 
 # add in dates of most recent vaccination
 vacc <- read_csv("cleaned_vaccination_data.csv")
-d <- read_csv("matched_data_ps092922.csv")
+d <- read_csv("matched_data_ps100722.csv")
 d <- d %>% left_join(vacc %>% select(ResidentId, num_dose, Date), 
                      by=c("index_id"="ResidentId", "index_prior_vacc_doses"="num_dose")) %>% rename("index_vacc_date"="Date")
 
