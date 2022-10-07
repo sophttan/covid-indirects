@@ -54,7 +54,7 @@ res <- rbind(res,
 
 
 # no matching
-nomatch <- read_csv("unmatched_all_covariates092922.csv")
+nomatch <- read_csv("unmatched_all_covariates100722.csv")
 nomatch <- nomatch %>% mutate(Institution=as.factor(Institution),
                                        index_id=as.factor(index_id))
 model <- glm(contact_status ~ index_prior_vacc + index_prior_inf + num_days_in_contact+
