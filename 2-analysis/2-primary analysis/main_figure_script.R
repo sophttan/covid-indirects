@@ -10,8 +10,8 @@ library(scales)
 library(patchwork)
 library(reshape2)
 
-d <- read_csv("housing_inf_data.csv")
-matched <- read_csv("matched_data.csv")
+d <- read_csv("housing_inf_data072122.csv")
+matched <- read_csv("matched_data_ps100722.csv")
 matched_summary <- matched %>%group_by(Institution) %>% summarise(count=n())
 
 # total infections over time
@@ -30,7 +30,6 @@ p1 <- all_inf %>% mutate(Month=as.Date(format(Day, "%Y-%m-01"))) %>% group_by(Mo
         panel.grid.minor.x = element_blank(), 
         panel.grid.minor.y = element_blank())
 
-p1
 
 # omicron index cases stratified by 
 matched <- matched %>% mutate(Month=as.Date(format(Day, "%Y-%m-01")))
@@ -57,7 +56,6 @@ p2 <- matched_stratified %>% ggplot(aes(Month, prim_cases, group=label, color=la
         panel.background = element_blank(), 
         axis.line.x.bottom = element_line(), 
         axis.line.y.left = element_line())
-p2
 
 
 #omicron infections over time by institution
@@ -88,7 +86,6 @@ p3 <- total_inf %>%
         axis.line.x.bottom = element_line(), 
         axis.line.y.left = element_line(),
         axis.line.y.right = element_line())
-p3
 
 
 # vaccination data over time
@@ -99,7 +96,7 @@ gc()
 # population for the purposes of this plot 
 # is total number of residents that were incarcerated at any point 
 # during the vaccination time period from 12/7/2020 to May 2022
-pop <- (nh %>% filter(!is.na(Institution)))$ResidentId %>% unique() %>% length()
+pop <- 155000#(nh %>% filter(!is.na(Institution)))$ResidentId %>% unique() %>% length()
 
 vacc <- vacc %>% mutate(booster_add_dose = ifelse(num_dose>full_vacc, 1, 0))
 vacc <- vacc %>% mutate(Month=as.Date(format(Date, "%Y-%m-01")))
@@ -131,7 +128,6 @@ p4 <- full_vacc_table %>% ggplot(aes(Month)) +
         legend.key=element_blank(),
         axis.line.x.bottom = element_line(), 
         axis.line.y.left = element_line())
-p4
 
 
 # save

@@ -61,7 +61,7 @@ reweigh_matches <- function(data, caliper_propensity, caliper_day_dist){
 ps_dist <- 0.05
 day_dist <- 30
 
-matched <- match(distance_propensity, distance_matrix, ps_dist, day_dist, c(0.5, 0.5), 10, T)
+matched <- match(distance_propensity, distance_matrix, ps_dist, day_dist, c(0.5, 0.5), 8, T)
 matched %>% group_by(subclass) %>% arrange(subclass, desc(treatment)) %>% 
   select(subclass, treatment, ps, Day) %>% 
   filter(treatment==1|(abs(first(Day)-Day)>day_dist|abs(first(ps)-ps)>ps_dist)) %>% filter(n()>1)

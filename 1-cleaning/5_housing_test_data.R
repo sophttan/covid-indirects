@@ -67,10 +67,15 @@ inf_vacc_housing <- inf_vacc_housing %>% mutate(num_dose_adjusted = ifelse(Day <
 
 
 inf_vacc_housing <- inf_vacc_housing %>% fill(num_pos, .direction="down")
-inf_vacc_housing <- inf_vacc_housing %>% group_by(ResidentId, num_pos) %>%
+inf_vacc_housing1 <- inf_vacc_housing %>% group_by(ResidentId, num_pos) %>%
   mutate(infectious = ifelse(!is.na(num_pos) & Day-first(Day)<=4, 1, 0))
-inf_vacc_housing <- inf_vacc_housing %>% select(!c(ReceivedDate))
-write_csv(inf_vacc_housing, "housing_inf_data072122.csv")
+inf_vacc_housing1 <- inf_vacc_housing1 %>% select(!c(ReceivedDate))
+write_csv(inf_vacc_housing1, "housing_inf_data072122.csv")
+
+inf_vacc_housing2 <- inf_vacc_housing %>% group_by(ResidentId, num_pos) %>%
+  mutate(infectious = ifelse(!is.na(num_pos) & Day-first(Day)<=6, 1, 0))
+inf_vacc_housing2 <- inf_vacc_housing2 %>% select(!c(ReceivedDate))
+write_csv(inf_vacc_housing2, "housing_inf_data_infperiod7.csv")
 
 adjust_inf <- inf_vacc_housing %>% group_by(ResidentId, num_pos) %>% 
   mutate(Day_inf = if_else(!is.na(num_pos), first(Day)-2, as.Date(NA))) %>% ungroup()
@@ -78,15 +83,16 @@ adjust_inf <- adjust_inf %>% group_by(ResidentId, Day_inf) %>% summarise(num_pos
 inf_vacc_housing_adj_inf <- inf_vacc_housing %>% full_join(adjust_inf, by=c("ResidentId", "Day"="Day_inf")) %>% 
   group_by(ResidentId) %>% arrange(ResidentId, Day) %>% 
   fill(num_pos.y, .direction="down")
-inf_vacc_housing_adj_inf <- inf_vacc_housing_adj_inf %>% filter(!num_dose %>% is.na())
 inf_vacc_housing_adj_inf <- inf_vacc_housing_adj_inf %>% rename("num_pos"="num_pos.y")
   
   
-inf_vacc_housing_adj_inf <- inf_vacc_housing_adj_inf %>% group_by(ResidentId, num_pos) %>% 
+inf_vacc_housing_adj_inf1 <- inf_vacc_housing_adj_inf %>% group_by(ResidentId, num_pos) %>% 
   mutate(infectious = ifelse(!is.na(num_pos) & Day-first(Day)<=4, 1, 0))
-write_csv(inf_vacc_housing_adj_inf, "housing_inf_data_infperiod2_5.csv")
+inf_vacc_housing_adj_inf1 <- inf_vacc_housing_adj_inf1 %>% filter(!num_dose %>% is.na())
+write_csv(inf_vacc_housing_adj_inf1, "housing_inf_data_infperiod2_5.csv")
 
-inf_vacc_housing_adj_inf <- inf_vacc_housing_adj_inf %>% group_by(ResidentId, num_pos) %>% 
+inf_vacc_housing_adj_inf2 <- inf_vacc_housing_adj_inf %>% group_by(ResidentId, num_pos) %>% 
   mutate(infectious = ifelse(!is.na(num_pos) & Day-first(Day)<=6, 1, 0))
-write_csv(inf_vacc_housing_adj_inf, "housing_inf_data_infperiod2_7.csv")
+inf_vacc_housing_adj_inf2 <- inf_vacc_housing_adj_inf2 %>% filter(!num_dose %>% is.na())
+write_csv(inf_vacc_housing_adj_inf2, "housing_inf_data_infperiod2_7.csv")
 

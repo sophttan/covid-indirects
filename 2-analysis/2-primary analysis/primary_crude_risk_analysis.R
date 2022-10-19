@@ -8,7 +8,7 @@ library(readr)
 library(tidyverse)
 library(broom)
 
-d <- read_csv("matched_data_ps092922.csv")
+d <- read_csv("matched_data_ps100722.csv")
 
 binomial <- function(data) {
   data %>%
@@ -93,3 +93,4 @@ p <- total %>%
 
 p %>% ggsave(filename = "/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/figures/main/unadjusted_attack_rate_figure2.jpg", 
              width = 5, height= 4)
+

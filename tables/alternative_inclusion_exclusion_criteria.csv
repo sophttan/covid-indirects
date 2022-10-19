@@ -1,5 +1,5 @@
 Inclusion or exclusion criteria,Index case,Relative % change in attack rate of infection in close contact (95% CI)
-Removing requirement for negative test in close contact within 2 days of first exposure,Prior vaccination,"-24 (-36.5, -9.1)"
-Removing requirement for negative test in close contact within 2 days of first exposure,Prior infection,"-19.4 (-35.6, 0.9)"
-Including close contacts that test positive within 2 days after first exposure,Prior vaccination,"-23.9 (-36.4, -9)"
-Including close contacts that test positive within 2 days after first exposure,Prior infection,"-16.6 (-32.8, 3.5)"
+Removing requirement for negative test in close contact within 2 days of first exposure,Prior vaccination,"-19 (-32.7, -2.6)"
+Removing requirement for negative test in close contact within 2 days of first exposure,Prior infection,"-20.7 (-36.7, -0.6)"
+Including close contacts that test positive within 2 days after first exposure,Prior vaccination,"-23 (-35.4, -8.3)"
+Including close contacts that test positive within 2 days after first exposure,Prior infection,"-17.4 (-33.7, 2.9)"

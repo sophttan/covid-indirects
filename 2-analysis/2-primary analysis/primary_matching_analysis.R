@@ -10,6 +10,7 @@ library(tidyverse)
 library(broom)
 library(readr)
 library(MatchIt)
+library(RColorBrewer)
 
 # prep data for matching
 vacc <- read_csv("cleaned_vaccination_data.csv")
@@ -18,18 +19,18 @@ inst_day <- read_csv("incidence_final.csv")
 covid_risk <- read_csv("covid_risk_score.csv")
 demographic <- read_csv("demographic_data_clean.csv")
 
-infections <- read_csv("final_sample092922_nopcr.csv") %>% 
+infections <- read_csv("final_sample100722_nopcr.csv") %>%
   left_join(vacc %>% select(ResidentId, num_dose, Date_offset), by=c("ResidentId", "num_dose"))
 infections <- infections %>% mutate(num_dose_adjusted = ifelse(num_dose>0 & Day<Date_offset, num_dose-1, num_dose))
-infections <- infections %>% left_join(summary_housing) 
+infections <- infections %>% left_join(summary_housing)
 
-# covariates 
+# covariates
 # add incidence
 infections <- infections %>% left_join(inst_day)
 infections <- infections %>% mutate(incidence_log = log(incidence))
 
 # rename columns and aggregate covariates
-infections <- infections %>% rename("index_id"="ResidentId", 
+infections <- infections %>% rename("index_id"="ResidentId",
                                     "index_prior_vacc_doses"="num_dose_adjusted",
                                     "contact_id"="contacts",
                                     "contact_status"="neg_pos_contact")
@@ -45,13 +46,13 @@ infections <- infections %>% mutate(index_has_vacc_or_inf=ifelse(index_prior_inf
 infections %>% group_by(index_prior_vacc, index_prior_inf) %>% summarise(case_contact_pairs=n(), inf_risk=mean(contact_status))
 
 # keep only 1 contact for each index case
-mult_contacts <- infections %>% group_by(no) %>% filter(n()>1) 
+mult_contacts <- infections %>% group_by(no) %>% filter(n()>1)
 mult_contacts %>% summarise(count=n())
 set.seed(42)
 mult_contacts <- mult_contacts[sample(1:nrow(mult_contacts)),]
 mult_contacts_single <- mult_contacts %>% group_by(no) %>% summarise_all(first)
 
-# subset data for matching 
+# subset data for matching
 infections_unique <- infections %>% group_by(no) %>% filter(n()==1) %>% summarise_all(first)
 infections_unique <- infections_unique %>% rbind(mult_contacts_single)
 infections_unique <- infections_unique %>% mutate(treatment = as.factor(ifelse(index_prior_vacc_doses==0, 1, 0)))
@@ -62,11 +63,11 @@ inf_omicron_subset <- infections_unique %>% filter(first < "2020-04-01") %>% arr
 # add COVID-19 risk score
 library(lubridate)
 covid_risk <- read_csv("covid_risk_score.csv")
-covid_risk_subset <- covid_risk %>% filter(ResidentId %in% inf_omicron_subset$index_id) 
-covid_risk_subset <- covid_risk_subset %>% rowwise() %>% mutate(first=interval %>% str_extract_all("[0-9]+-[0-9]+-[0-9]+"), 
+covid_risk_subset <- covid_risk %>% filter(ResidentId %in% inf_omicron_subset$index_id)
+covid_risk_subset <- covid_risk_subset %>% rowwise() %>% mutate(first=interval %>% str_extract_all("[0-9]+-[0-9]+-[0-9]+"),
                                                   interval=interval(first[1], first[2])) %>% select(!first)
 
-inf_omicron_subset <- inf_omicron_subset %>% full_join(covid_risk_subset, by=c("index_id"="ResidentId")) %>% 
+inf_omicron_subset <- inf_omicron_subset %>% full_join(covid_risk_subset, by=c("index_id"="ResidentId")) %>%
   filter(Day %>% lubridate::`%within%`(interval)) %>%
   rename("covid_risk"="Value")
 inf_omicron_subset
@@ -77,10 +78,6 @@ inf_omicron_subset <- inf_omicron_subset %>% left_join(demographic, by=c("index_
 inf_omicron_subset <- inf_omicron_subset %>% mutate(age=as.numeric(Year)-as.numeric(BirthYear))
 inf_omicron_subset
 
-
-write_csv(inf_omicron_subset, "unmatched_all_covariates092922.csv")
-
-
 # Matching
 # estimate propensity scores (age, COVID-19 risk, and prior infection history)
 ps <- glm(treatment ~ age + covid_risk + index_prior_inf, data = inf_omicron_subset, family = binomial(link='logit'))
@@ -88,6 +85,7 @@ summary(ps)
 inf_omicron_subset <- inf_omicron_subset %>% mutate(logodds = predict.glm(ps),
                                                     ps=exp(logodds)/(1+exp(logodds)))
 inf_omicron_subset
+write_csv(inf_omicron_subset, "unmatched_all_covariates100722.csv")
 
 # distance matrices for Day and propensity score
 distance_propensity <- dist(as.matrix(inf_omicron_subset%>%select(ps)), diag = T, upper = T) %>% as.matrix()
@@ -111,14 +109,14 @@ totaldistance <- distance_matrix*weights[1] + distance_propensity*weights[2]
 # match using combined distance with exact matches by Institution
 # 10:1 ratio of vaccinated to unvaccinated cases without replacement
 m <- matchit(treatment ~ age + covid_risk + index_prior_inf + Day, data = inf_omicron_subset,
-             method = "nearest", 
+             method = "nearest",
              exact = ~Institution,
              distance = totaldistance, ratio=10, replace = F)
 mout <- match.data(m)
 plot(m, type = "qq", interactive = FALSE, which.xs = c("age", "covid_risk", "index_prior_inf", "Day"))
 
 # check quality of matches
-mout %>% group_by(subclass) %>% arrange(desc(treatment)) %>% 
+mout %>% group_by(subclass) %>% arrange(desc(treatment)) %>%
   filter(abs(first(Day)-Day)>day_dist|abs(first(ps)-ps)>ps_dist) %>% select(no, index_id, subclass)
 mout %>% filter(subclass==83) %>% select(no, index_id, Day, age, covid_risk, index_prior_inf, ps, weights, subclass)
 
@@ -129,7 +127,8 @@ final <- final %>% mutate(weights=ifelse(treatment==1,1,1/sum(treatment==0)))
 mean_weights <- mean((final %>% filter(treatment==0))$weights)
 final <- final %>% mutate(weights=ifelse(treatment==1,1,weights/mean_weights))
 
-final %>% write_csv("matched_data_ps092922.csv")
+final
+final %>% write_csv("matched_data_ps100722.csv")
 
 # check final sample sizes
 final %>% group_by(treatment) %>% summarise(count=n())
@@ -143,61 +142,62 @@ p <- final %>% mutate(treatment=factor(treatment, levels=c(1,0), labels=c("No pr
   group_by(treatment) %>% summarise(total=n(), num_days_in_contact=num_days_in_contact) %>%
   group_by(treatment, num_days_in_contact) %>% summarise(prop=n()/total) %>%
   ggplot(aes(x=num_days_in_contact, y=prop, group=treatment, fill=treatment)) +
-  geom_bar(stat="identity",position ="dodge") + 
-  scale_x_continuous(name="Number of days of exposure between\nindex case and close contact") + 
-  scale_y_continuous("Proportion of index cases", expand=c(0,0)) + 
+  geom_bar(stat="identity",position ="dodge") +
+  scale_x_continuous(name="Number of days of exposure between\nindex case and close contact") +
+  scale_y_continuous("Proportion of index cases", expand=c(0,0)) +
   scale_fill_manual(values=colors, name="Prior vaccination in index case")+
   theme(legend.title = element_text(),
         legend.position = "bottom",
-        panel.background = element_blank(), 
-        axis.line.x.bottom = element_line(), 
+        panel.background = element_blank(),
+        axis.line.x.bottom = element_line(),
         axis.line.y.left = element_line())
 p
+
 unvacc_exposure <- (final %>% filter(treatment==1))$num_days_in_contact
 vacc_exposure <- (final %>% filter(treatment==0))$num_days_in_contact
 t.test(unvacc_exposure, vacc_exposure, var.equal = F)
-ggsave(p, filename="days_contact_a2.jpg", width=5, height=4)
+ggsave(p, filename="days_contact_a2.jpg", width=6, height=4)
 
 # Figure A3
 # distribution of the number of matches per unvaccinated index case
-p <- final %>% filter(treatment==0) %>% group_by(subclass) %>% summarise(count=n()) %>% 
-  ggplot(aes(as.factor(count))) + geom_bar() + 
-  scale_x_discrete(name="Number of matches per unvaccinated index case") + 
-  scale_y_continuous("Number of unvaccinated index cases", expand=c(0,0), limits=c(0,80)) + 
-  theme(panel.background = element_blank(), 
-        axis.line.x.bottom = element_line(), 
+p <- final %>% filter(treatment==0) %>% group_by(subclass) %>% summarise(count=n()) %>%
+  ggplot(aes(as.factor(count))) + geom_bar() +
+  scale_x_discrete(name="Number of matches per unvaccinated index case") +
+  scale_y_continuous("Number of unvaccinated index cases", expand=c(0,0), limits=c(0,80)) +
+  theme(panel.background = element_blank(),
+        axis.line.x.bottom = element_line(),
         axis.line.y.left = element_line())
+p
 ggsave(p, filename="num_matches_dist_a3.jpg", width=5, height=4)
 
 # Figure A4
 # distribution of the distance between matched cases
-p2 <- final %>% group_by(subclass) %>% arrange(desc(treatment)) %>% 
-  mutate(distance=as.numeric(abs(first(Day)-Day))) %>% filter(treatment==0) %>% 
-  ggplot(aes(distance)) + geom_histogram(color="white", bins=31) + 
-  scale_y_continuous(expand=c(0,0), limits=c(0, 250)) + 
-  scale_x_continuous("Absolute number of days\nbetween matched index cases", expand=c(0,0)) + 
+p2 <- final %>% group_by(subclass) %>% arrange(desc(treatment)) %>%
+  mutate(distance=as.numeric(abs(first(Day)-Day))) %>% filter(treatment==0) %>%
+  ggplot(aes(distance)) + geom_histogram(color="white", bins=31) +
+  scale_y_continuous(expand=c(0,0), limits=c(0, 250)) +
+  scale_x_continuous("Absolute number of days\nbetween matched index cases", expand=c(0,0)) +
   labs(subtitle="B")+
-  theme(panel.background = element_blank(), 
+  theme(panel.background = element_blank(),
         legend.title=element_blank(),
         legend.key=element_blank(),
         axis.title.y = element_blank(),
-        axis.line.x.bottom = element_line(), 
-        axis.line.y.left = element_line()) 
+        axis.line.x.bottom = element_line(),
+        axis.line.y.left = element_line())
 
-p1 <- final %>% group_by(subclass) %>% arrange(desc(treatment)) %>% 
-  mutate(distance=as.numeric(abs(first(ps)-ps))) %>% filter(treatment==0) %>% 
-  ggplot(aes(distance)) + geom_histogram(color="white", bins=20) + 
-  scale_y_continuous("Number of matches", expand=c(0,0), limits=c(0, 250)) + 
+p1 <- final %>% group_by(subclass) %>% arrange(desc(treatment)) %>%
+  mutate(distance=as.numeric(abs(first(ps)-ps))) %>% filter(treatment==0) %>%
+  ggplot(aes(distance)) + geom_histogram(color="white", bins=20) +
+  scale_y_continuous("Number of matches", expand=c(0,0), limits=c(0, 250)) +
   scale_x_continuous("Absolute difference in propensity score\nbetween matched index cases", expand=c(0,0),
-                     breaks=seq(0,0.1,0.02)) + 
+                     breaks=seq(0,0.1,0.02)) +
   labs(subtitle="A")+
-  theme(panel.background = element_blank(), 
+  theme(panel.background = element_blank(),
         legend.title=element_blank(),
         legend.key=element_blank(),
-        axis.line.x.bottom = element_line(), 
-        axis.line.y.left = element_line()) 
+        axis.line.x.bottom = element_line(),
+        axis.line.y.left = element_line())
 
 library(patchwork)
 p1|p2
 ggsave(p1|p2, filename="distance_between_matches_a4.jpg", width=6.5, height=3.5)
-
