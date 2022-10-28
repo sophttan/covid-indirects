@@ -41,4 +41,4 @@ results_tbl
 
 results_tbl$Coef <- c("Prior vaccination", "Prior infection")
 names(results_tbl) <- c("","Odds ratio of infection in close contact (95% CI)")
-results_tbl %>% write_csv("/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/logistic_regression_s8.csv")
+results_tbl %>% write_csv("/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/logistic_regression.csv")

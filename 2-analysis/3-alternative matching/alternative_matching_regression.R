@@ -83,4 +83,4 @@ res_tbl <- res_tbl %>% select(!c(3,4,5)) %>% select(4,1:3)
 names(res_tbl) <- c("","Matching specification", "Index case", "Relative % change in attack rate of infection in close contact (95% CI)")
 
 
-write_csv(res_tbl, "/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/alternative_matching_specs_s6.csv")
+write_csv(res_tbl, "/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/alternative_matching_specs.csv")

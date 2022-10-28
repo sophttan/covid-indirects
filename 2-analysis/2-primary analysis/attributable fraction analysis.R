@@ -110,4 +110,4 @@ names(tbl) <- c("", "Fraction of transmission from SARS-CoV-2 infections (%) (95
                 "Among Omicron SARS-CoV-2 infections with complete prior infection history")
 tbl
 
-write_csv(tbl,"/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/attributable_fraction_s9.csv")
+write_csv(tbl,"/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/attributable_fraction.csv")

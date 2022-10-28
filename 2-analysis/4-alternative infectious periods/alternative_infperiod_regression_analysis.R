@@ -79,4 +79,4 @@ res$group2 <- c("Duration of 7 days", "",
                "Duration of 7 days", "")
 res <- res %>% select(group1, group2, Coef, risk_red)
 names(res) <- c("Start of infectious period","Duration of infectious period","Index case","Relative % change in attack rate of infection in close contact (95% CI)")
-res %>% write_csv("/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/alternative_infperiod_s7.csv")
+res %>% write_csv("/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/alternative_infperiod.csv")

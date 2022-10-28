@@ -104,7 +104,7 @@ vacc_def_results_tbl$Coef <- c(rep(c("Prior vaccination only",
 vacc_def_results_tbl$group <- c("Index case", rep("",3), "Close contact", rep("",4))
 vacc_def_results_tbl <- vacc_def_results_tbl %>% select(group, Coef, risk_red)
 names(vacc_def_results_tbl) <- c("","","Relative % change in attack rate of infection in close contact (95% CI)")
-vacc_def_results_tbl %>% write_csv("/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/vaccine_def_s3.csv")
+vacc_def_results_tbl %>% write_csv("/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/vaccine_def.csv")
 
 
 
@@ -124,7 +124,7 @@ interaction_results_tbl$Coef <- c("Prior vaccination",
                                   "Interaction between vaccination and prior infection")
 interaction_results_tbl <- interaction_results_tbl %>% select(Coef, risk_red)
 names(interaction_results_tbl) <- c("","Relative % change in attack rate of infection in close contact (95% CI)")
-interaction_results_tbl %>% write_csv("/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/interaction_vacc_inf_s4.csv")
+interaction_results_tbl %>% write_csv("/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/interaction_vacc_inf.csv")
 
 
 # plot key results

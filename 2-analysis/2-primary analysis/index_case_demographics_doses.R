@@ -1,4 +1,4 @@
-# demographics of study population
+# demographics of index cases by number of vaccine doses
 
 rm(list=ls())
 gc()
@@ -81,4 +81,4 @@ names(prim_series) <- NULL
 colnames(prim_series) <- colnames(tbl1_matrix)
 
 
-tbl1_matrix %>% rbind(prim_series) %>% write.csv("/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/table1bydoses.csv",)
+tbl1_matrix %>% rbind(prim_series) %>% write.csv("/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/demographics_table_by_doses.csv")

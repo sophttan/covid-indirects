@@ -92,4 +92,4 @@ names(prim_series) <- NULL
 colnames(prim_series) <- colnames(tbl1_matrix)
 
 
-tbl1_matrix %>% rbind(prim_series) %>% write.csv("/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/table1.csv",)
+tbl1_matrix %>% rbind(prim_series) %>% write.csv("/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/demographics_table.csv",)
