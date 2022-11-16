@@ -89,8 +89,14 @@ p <- total %>%
         legend.key = element_blank(),
         panel.background = element_blank(), 
         axis.line.x.bottom = element_line(), 
-        axis.line.y.left = element_line())
+        axis.line.y.left = element_line(),
+        text = element_text(family="Helvetica", size = 7))
 
 p %>% ggsave(filename = "/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/figures/main/unadjusted_attack_rate_figure2.jpg", 
-             width = 5, height= 4)
+             units="mm", width = 180, height= 120)
 
+library(devEMF)
+emf(file="/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/figures/main/unadjusted_attack_rate_figure2.emf", 
+    units="mm", width = 180, height=120)
+p
+dev.off()

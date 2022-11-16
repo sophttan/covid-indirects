@@ -34,9 +34,8 @@ cases <- cases %>% mutate(primary_series=ifelse(num_doses==0, "Unvaccinated", pr
                           boosted=ifelse(num_doses>full_vacc & full_vacc>0, 1, 0), 
                           Race = case_when(Race=="A"~"Asian or Pacific Islander",
                                            Race=="B"~"Black",
-                                           Race=="H"~"Hispanic",
+                                           Race=="H"|Race=="M"~"Hispanic",
                                            Race=="I"~"American Indian/Alaskan Native",
-                                           Race=="M"~"Mexican",
                                            Race=="O"~"Other",
                                            Race=="W"~"White")) 
 
@@ -48,25 +47,15 @@ cases <- cases %>% mutate(status=case_when(num_doses>0&num_doses==full_vacc~"Ful
 
 prim_series <- cases %>% group_by(num_doses, primary_series) %>% summarise(n=n())
 prim_series <- prim_series %>% group_by(num_doses) %>% summarise(primary_series=primary_series, n=n, perc=signif(n/sum(n)*100,2))
-stratified_status <- cases %>% filter(primary_series != "Unvaccinated") %>% group_by(num_doses, primary_series) %>% 
-  summarise(status=status,count=n()) %>% 
-  group_by(num_doses, primary_series, status) %>% summarise(n=n(), perc=signif(n()/mean(count)*100, 2))
-prim_series <- prim_series %>% mutate(status="") %>% rbind(stratified_status)
 
 prim_series <- prim_series %>% mutate(primary_series = case_when(grepl("Ad26",primary_series)~"Ad26.COV2",
                                                                  grepl("BNT",primary_series)~"BNT162b2",
                                                                  grepl("1273",primary_series)~"mRNA-1273",
                                                                  primary_series=="Unvaccinated"~"Unvaccinated")) %>% 
-  mutate(`N (%)` = paste0(n, " (", perc, "%)"), 
-         status = paste(primary_series, status)) 
+  mutate(`N (%)` = paste0(n, " (", perc, "%)"))
 
-prim_series <- prim_series %>% select(!c(n, perc, primary_series)) %>% 
-  pivot_wider(names_from=c(num_doses), values_from=`N (%)`, values_fill = "-") %>%
-  mutate(status=status %>% 
-           factor(levels=c("Unvaccinated ", "Ad26.COV2 ", "Ad26.COV2 Fully vaccinated", "Ad26.COV2 Boosted",
-                           "BNT162b2 ", "BNT162b2 Partially vaccinated", "BNT162b2 Fully vaccinated", "BNT162b2 Boosted",
-                           "mRNA-1273 ", "mRNA-1273 Partially vaccinated", "mRNA-1273 Fully vaccinated", "mRNA-1273 Boosted"))) %>%
-  arrange(status)
+prim_series <- prim_series %>% select(!c(n, perc)) %>% 
+  pivot_wider(names_from=c(num_doses), values_from=`N (%)`, values_fill = "-") 
 
 vars <- c("Sex", "Age", "Race", "covid_risk", "prior_inf", "num_days_in_contact")
 catVars <- c("Sex", "Race", "prior_inf")
@@ -75,8 +64,7 @@ tbl1_matrix <- print(tbl1)
 tbl1_matrix <- tbl1_matrix[,1:4]
 
 
-prim_series <- prim_series %>% data.frame(row.names = as.character(prim_series$status), check.names = F)
-prim_series <- prim_series %>% select(!status)
+prim_series <- prim_series %>% data.frame(row.names = as.character(prim_series$primary_series), check.names = F) %>% select(!primary_series)
 names(prim_series) <- NULL
 colnames(prim_series) <- colnames(tbl1_matrix)
 

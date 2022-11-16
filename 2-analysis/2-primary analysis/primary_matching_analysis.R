@@ -108,12 +108,19 @@ totaldistance <- distance_matrix*weights[1] + distance_propensity*weights[2]
 
 # match using combined distance with exact matches by Institution
 # 10:1 ratio of vaccinated to unvaccinated cases without replacement
-m <- matchit(treatment ~ age + covid_risk + index_prior_inf + Day, data = inf_omicron_subset,
+inf_omicron_subset <- inf_omicron_subset %>% mutate("Age"=age,
+                                                    "COVID-19 risk"=covid_risk,
+                                                    "Prior SARS-CoV-2 infection"=index_prior_inf,
+                                                    "Day of first positive test"=Day)
+m <- matchit(treatment ~ Age + `COVID-19 risk` + `Prior SARS-CoV-2 infection` + `Day of first positive test`, data = inf_omicron_subset,
              method = "nearest",
              exact = ~Institution,
              distance = totaldistance, ratio=10, replace = F)
 mout <- match.data(m)
-plot(m, type = "qq", interactive = FALSE, which.xs = c("age", "covid_risk", "index_prior_inf", "Day"))
+#plot(m, type = "density", interactive = FALSE, which.xs = c("age", "covid_risk", "index_prior_inf", "Day"))
+jpeg("~/Documents/UCSF/CDCR-CalProtect/figures/appendix/primary_matching.jpg", width = 500, height = 300)
+plot(summary(m, subclass = TRUE), threshold=c(NA, 0.1), var.order = "data", abs=T, xlim=c(0, 0.6))
+dev.off()
 
 # check quality of matches
 mout %>% group_by(subclass) %>% arrange(desc(treatment)) %>%

@@ -45,9 +45,8 @@ total <- total %>% mutate(primary_series=ifelse(num_doses==0, "Unvaccinated", pr
                           boosted=ifelse(num_doses>full_vacc & full_vacc>0, 1, 0), 
                           Race = case_when(Race=="A"~"Asian or Pacific Islander",
                                            Race=="B"~"Black",
-                                           Race=="H"~"Hispanic",
+                                           Race=="H"|Race=="M"~"Hispanic",
                                            Race=="I"~"American Indian/Alaskan Native",
-                                           Race=="M"~"Mexican",
                                            Race=="O"~"Other",
                                            Race=="W"~"White")) 
 

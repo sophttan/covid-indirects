@@ -28,7 +28,8 @@ p1 <- all_inf %>% mutate(Month=as.Date(format(Day, "%Y-%m-01"))) %>% group_by(Mo
         axis.line.y.left = element_line(),
         panel.grid.major.x = element_blank(), 
         panel.grid.minor.x = element_blank(), 
-        panel.grid.minor.y = element_blank())
+        panel.grid.minor.y = element_blank(),
+        text = element_text(family="Helvetica", size = 7))
 
 
 # omicron index cases stratified by 
@@ -55,7 +56,8 @@ p2 <- matched_stratified %>% ggplot(aes(Month, prim_cases, group=label, color=la
         legend.key = element_blank(),
         panel.background = element_blank(), 
         axis.line.x.bottom = element_line(), 
-        axis.line.y.left = element_line())
+        axis.line.y.left = element_line(),
+        text = element_text(family="Helvetica", size = 7))
 
 
 #omicron infections over time by institution
@@ -85,14 +87,16 @@ p3 <- total_inf %>%
         panel.background = element_blank(), 
         axis.line.x.bottom = element_line(), 
         axis.line.y.left = element_line(),
-        axis.line.y.right = element_line())
+        axis.line.y.right = element_line(),
+        text = element_text(family="Helvetica", size = 7))
 
 
 # vaccination data over time
 vacc <- read_csv("cleaned_vaccination_data.csv")
-nh <- read_delim("/Users/sophiatan/Documents/UCSF/ST files/NightlyHousing_20220520.csv",";")
-nh <- nh %>% filter(Night >= "2020-12-07") 
-gc()
+# nh <- read_delim("/Users/sophiatan/Documents/UCSF/ST files/NightlyHousing_20220520.csv",";")
+# nh <- nh %>% filter(Night >= "2020-12-07") 
+# gc()
+
 # population for the purposes of this plot 
 # is total number of residents that were incarcerated at any point 
 # during the vaccination time period from 12/7/2020 to May 2022
@@ -113,28 +117,35 @@ full_vacc_table <- full_vacc_table %>% mutate(any_total=any_total/pop*100,
                                               full_total=full_total/pop*100,
                                               boosted_total=boosted_total/pop*100)
 
-
+color <- brewer.pal(9, "Greens")[c(8,6,4)]
 p4 <- full_vacc_table %>% ggplot(aes(Month)) + 
   geom_line(aes(y=any_total, color="At least 1 dose")) + 
   geom_line(aes(y=full_total, color="Completed primary series")) +
   geom_line(aes(y=boosted_total, color="Received booster dose")) + 
   geom_rect(aes(xmin = as.Date("2021-12-01"), xmax = as.Date("2022-05-01"), ymin = 0, ymax = 100), alpha = 0.005) +
   scale_y_continuous("Cumulative vaccination (%)", limits=c(0,100), expand = c(0,0)) + 
-  scale_color_brewer(palette="Greens", direction=-1)+
+  scale_color_manual(values = color)+
   guides(color=guide_legend(title="Vaccine status")) +
   labs(subtitle="D")+  xlab("Time")+
   theme(panel.background = element_blank(), 
         legend.title=element_blank(),
         legend.key=element_blank(),
         axis.line.x.bottom = element_line(), 
-        axis.line.y.left = element_line())
+        axis.line.y.left = element_line(),
+        text = element_text(family="Helvetica", size = 7))
 
 
+p <- (p1+p2)/p3/p4
 # save
-((p1+p2)/p3/p4) %>% 
+p %>% 
   ggsave(filename="/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/figures/main/summary_figure1.jpg", 
-         width=10, height=9)
+         units="mm", width=180, height=180)
 
+library(devEMF)
+emf(file="/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/figures/main/summary_figure1.emf", 
+    units="mm", width = 180, height=180)
+p
+dev.off()
 
 # build on p3, omicron infections
 # what proportion of total Omicron infections were included as index cases?
