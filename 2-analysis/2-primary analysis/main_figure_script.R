@@ -28,8 +28,8 @@ p1 <- all_inf %>% mutate(Month=as.Date(format(Day, "%Y-%m-01"))) %>% group_by(Mo
         axis.line.y.left = element_line(),
         panel.grid.major.x = element_blank(), 
         panel.grid.minor.x = element_blank(), 
-        panel.grid.minor.y = element_blank(),
-        text = element_text(family="Helvetica", size = 7))
+        panel.grid.minor.y = element_blank())#,
+        #text = element_text(family="Helvetica", size = 7))
 
 
 # omicron index cases stratified by 
@@ -56,8 +56,8 @@ p2 <- matched_stratified %>% ggplot(aes(Month, prim_cases, group=label, color=la
         legend.key = element_blank(),
         panel.background = element_blank(), 
         axis.line.x.bottom = element_line(), 
-        axis.line.y.left = element_line(),
-        text = element_text(family="Helvetica", size = 7))
+        axis.line.y.left = element_line())#,
+        #text = element_text(family="Helvetica", size = 7))
 
 
 #omicron infections over time by institution
@@ -87,8 +87,8 @@ p3 <- total_inf %>%
         panel.background = element_blank(), 
         axis.line.x.bottom = element_line(), 
         axis.line.y.left = element_line(),
-        axis.line.y.right = element_line(),
-        text = element_text(family="Helvetica", size = 7))
+        axis.line.y.right = element_line())#,
+        #text = element_text(family="Helvetica", size = 7))
 
 
 # vaccination data over time
@@ -100,7 +100,7 @@ vacc <- read_csv("cleaned_vaccination_data.csv")
 # population for the purposes of this plot 
 # is total number of residents that were incarcerated at any point 
 # during the vaccination time period from 12/7/2020 to May 2022
-pop <- 155000#(nh %>% filter(!is.na(Institution)))$ResidentId %>% unique() %>% length()
+pop <- 150000#(nh %>% filter(!is.na(Institution)))$ResidentId %>% unique() %>% length()
 
 vacc <- vacc %>% mutate(booster_add_dose = ifelse(num_dose>full_vacc, 1, 0))
 vacc <- vacc %>% mutate(Month=as.Date(format(Date, "%Y-%m-01")))
@@ -131,21 +131,20 @@ p4 <- full_vacc_table %>% ggplot(aes(Month)) +
         legend.title=element_blank(),
         legend.key=element_blank(),
         axis.line.x.bottom = element_line(), 
-        axis.line.y.left = element_line(),
-        text = element_text(family="Helvetica", size = 7))
+        axis.line.y.left = element_line())#,
+        #text = element_text(family="Helvetica", size = 7))
 
 
 p <- (p1+p2)/p3/p4
 # save
 p %>% 
   ggsave(filename="/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/figures/main/summary_figure1.jpg", 
-         units="mm", width=180, height=180)
+         units="mm", width=250, height=180)
 
-library(devEMF)
-emf(file="/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/figures/main/summary_figure1.emf", 
-    units="mm", width = 180, height=180)
-p
-dev.off()
+p %>% 
+  ggsave(filename="/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/figures/main/summary_figure1.eps", 
+         units="mm", width=180, height=185)
+
 
 # build on p3, omicron infections
 # what proportion of total Omicron infections were included as index cases?

@@ -55,7 +55,7 @@ summary_risk <- priorvacc %>% filter(index_prior_inf != -1) %>%
 names(summary_risk)[1] <- "Attack rate (%) (95% CI)"
 summary_risk
 
-summary_risk %>% write_csv("/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/crude_attack_rate_4x4_s1.csv")
+summary_risk %>% write_csv("/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/tables/crude_attack_rate_4x4.csv")
 
 
 d <- d %>% mutate(boosted=ifelse(index_prior_vacc_doses>full_vacc, 2, ifelse(index_prior_vacc_doses==0, 0, 1)))
@@ -89,14 +89,12 @@ p <- total %>%
         legend.key = element_blank(),
         panel.background = element_blank(), 
         axis.line.x.bottom = element_line(), 
-        axis.line.y.left = element_line(),
-        text = element_text(family="Helvetica", size = 7))
+        axis.line.y.left = element_line())#,
+        #text = element_text(family="Helvetica", size = 7))
 
 p %>% ggsave(filename = "/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/figures/main/unadjusted_attack_rate_figure2.jpg", 
              units="mm", width = 180, height= 120)
 
-library(devEMF)
-emf(file="/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/figures/main/unadjusted_attack_rate_figure2.emf", 
-    units="mm", width = 180, height=120)
-p
-dev.off()
+p %>% ggsave(filename = "/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/figures/main/unadjusted_attack_rate_figure2.eps", 
+             units="mm", width = 180, height= 120)
+

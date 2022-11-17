@@ -157,15 +157,13 @@ p <- results_plotting %>% ggplot(aes(label, risk_red, color=group)) +  geom_hlin
   theme(legend.position = "none",
         panel.background = element_blank(), 
         axis.line.x.bottom = element_line(), 
-        axis.line.y.left = element_line(),
-        text = element_text(family="Helvetica", size = 7))
+        axis.line.y.left = element_line())#,
+        #text = element_text(family="Helvetica", size = 7))
 p
 
 p %>% ggsave(filename="/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/figures/main/relative_risk_reduction_figure3.jpg", 
              units="mm", width=180, height=120)
 
-library(devEMF)
-emf(file="/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/figures/main/relative_risk_reduction_figure3.emf", 
-    units="mm", width = 180, height=120)
-p
-dev.off()
+p %>% ggsave(filename="/Users/sophiatan/Documents/UCSF/CDCR-CalProtect/figures/main/relative_risk_reduction_figure3.eps", 
+             units="mm", width=180, height=120)
+
