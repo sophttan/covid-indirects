@@ -4,7 +4,7 @@ This repository contains analytic code for estimating the infectiousness of Omic
 
 Data used for this analysis is not publicly available. Data requests may be made to the California Correctional Health Care Services and are subject to controlled access due to requirements to enhance protection of this vulnerable incarcerated population. Requests for data access for study replication or new analyses can be made [here](http://cdcrdata.miraheze.org/wiki/Request_data). 
 
-The preprint is available [here](https://www.medrxiv.org/content/10.1101/2022.08.08.22278547v5). Additional methods not included in the main manuscript are available in [Methods.md](https://github.com/sophttan/CDCR-CalProtect/blob/main/Methods.md). The pre-analysis plan developed and posted prior to any analysis can be found in [Analysis Plan Calprotect vaccine study Tan Lo- FINAL.pdf](https://github.com/sophttan/CDCR-CalProtect/blob/main/Analysis%20Plan%20Calprotect%20vaccine%20study%20Tan%20Lo-%20FINAL.pdf). 
+The preprint is available [here](https://www.medrxiv.org/content/10.1101/2022.08.08.22278547v6). Additional methods not included in the main manuscript are available in [Methods.md](https://github.com/sophttan/CDCR-CalProtect/blob/main/Methods.md). The pre-analysis plan developed prior to any analysis can be found in [Analysis Plan Calprotect vaccine study Tan Lo- FINAL.pdf](https://github.com/sophttan/CDCR-CalProtect/blob/main/Analysis%20Plan%20Calprotect%20vaccine%20study%20Tan%20Lo-%20FINAL.pdf). 
 
 ## Structure
 - `1-cleaning`: contains all code needed for initial cleaning of data 
