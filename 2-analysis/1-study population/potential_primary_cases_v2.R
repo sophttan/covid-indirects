@@ -10,7 +10,7 @@ library(readr)
 library(tidyverse)
 
 # replace with different datasets with different infectious period definitions
-d <- read_csv("housing_inf_data_infperiod2_7.csv")
+d <- read_csv("housing_inf_data072122.csv")
 d <- d %>% group_by(ResidentId, num_pos)
 
 # include only if test negative pcr in the 7 days prior to first positive test
@@ -38,13 +38,13 @@ infections <- infections %>% left_join(summary_data)
 infections <- infections %>% filter(first < "2020-04-01")
 infections
 
-#infections_subset <- infections %>% group_by(ResidentId, num_pos) %>% filter(all(!(Result=="Negative"&pcr&Day<(first(Day)+5)), na.rm=T))
+infections_subset <- infections %>% group_by(ResidentId, num_pos) %>% filter(all(!(Result=="Negative"&pcr&Day<(first(Day)+5)), na.rm=T))
 
-# when infectious period starts 2 days prior to first positive test
-# exclude cases with negative test in 2 days prior to first positive test
-# exclude cases with negative pcr test during infectious period after first positive test
-infections <- infections %>% group_by(ResidentId, num_pos) %>% filter(all(!(Day<(first(Day)+2)&Result=="Negative"),na.rm=T))
-infections_subset <- infections %>% group_by(ResidentId, num_pos) %>% filter(all(!(Result=="Negative"&pcr), na.rm=T))
+# # when infectious period starts 2 days prior to first positive test
+# # exclude cases with negative test in 2 days prior to first positive test
+# # exclude cases with negative pcr test during infectious period after first positive test
+# infections <- infections %>% group_by(ResidentId, num_pos) %>% filter(all(!(Day<(first(Day)+2)&Result=="Negative"),na.rm=T))
+# infections_subset <- infections %>% group_by(ResidentId, num_pos) %>% filter(all(!(Result=="Negative"&pcr), na.rm=T))
 
 infections_subset_adjusted <- infections_subset %>%
   mutate(infectious = ifelse(Result=="Negative", 0, NA)) %>%

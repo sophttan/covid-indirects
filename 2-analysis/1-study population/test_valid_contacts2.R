@@ -7,9 +7,9 @@ setwd("/Users/sophiatan/Documents/UCSF/cleaned_data/")
 library(tidyverse)
 library(readr)
 
-d <- read_csv("housing_inf_data_infperiod2_7.csv")
+d <- read_csv("housing_inf_data072122.csv")
 
-infections <- read_csv("infectious_periods_primary_cases100722_nopcr2_7days.csv")
+infections <- read_csv("infectious_periods_primary_cases100722_nopcr.csv")
 
 group_room <- d %>% filter(!is.na(Institution) & !is.na(RoomId)) %>% group_by(Institution, RoomId, Day)
 group_room <- group_room %>% summarise(residents=list(unique(ResidentId)))

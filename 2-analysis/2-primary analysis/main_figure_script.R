@@ -18,7 +18,7 @@ matched_summary <- matched %>%group_by(Institution) %>% summarise(count=n())
 all_inf <- d %>% group_by(ResidentId, num_pos) %>% filter(num_pos>=1) %>% summarise_all(first)
 p1 <- all_inf %>% mutate(Month=as.Date(format(Day, "%Y-%m-01"))) %>% group_by(Month) %>% summarise(cases=n()) %>%
   ggplot(aes(Month, cases)) + 
-  geom_rect(aes(xmin = as.Date("2021-12-01"), xmax = as.Date("2022-05-01"), ymin = 0, ymax = 20000), alpha = 0.005) +
+  geom_rect(aes(xmin = as.Date("2021-12-01"), xmax = as.Date("2022-05-01"), ymin = 0, ymax = 20000), fill="grey90", color="grey90") +
   geom_line() + 
   xlab("Time")+
   scale_y_continuous("Monthly SARS-CoV-2\ninfections", expand = c(0,0), limits=c(0,20000), label=comma) +
@@ -119,15 +119,17 @@ full_vacc_table <- full_vacc_table %>% mutate(any_total=any_total/pop*100,
 
 color <- brewer.pal(9, "Greens")[c(8,6,4)]
 p4 <- full_vacc_table %>% ggplot(aes(Month)) + 
+  geom_rect(aes(xmin = as.Date("2021-12-01"), xmax = as.Date("2022-05-01"), ymin = 0, ymax = 100), color="grey90", fill="grey90") +
   geom_line(aes(y=any_total, color="At least 1 dose")) + 
   geom_line(aes(y=full_total, color="Completed primary series")) +
   geom_line(aes(y=boosted_total, color="Received booster dose")) + 
-  geom_rect(aes(xmin = as.Date("2021-12-01"), xmax = as.Date("2022-05-01"), ymin = 0, ymax = 100), alpha = 0.005) +
   scale_y_continuous("Cumulative vaccination (%)", limits=c(0,100), expand = c(0,0)) + 
+  scale_x_date(date_labels = "%Y-%m", date_breaks = "1 month", expand=c(0,0)) +
   scale_color_manual(values = color)+
   guides(color=guide_legend(title="Vaccine status")) +
   labs(subtitle="D")+  xlab("Time")+
   theme(panel.background = element_blank(), 
+        axis.text.x = element_text(angle=90),
         legend.title=element_blank(),
         legend.key=element_blank(),
         axis.line.x.bottom = element_line(), 
@@ -135,6 +137,7 @@ p4 <- full_vacc_table %>% ggplot(aes(Month)) +
         #text = element_text(family="Helvetica", size = 7))
 
 
+p4
 p <- (p1+p2)/p3/p4
 # save
 p %>% 
