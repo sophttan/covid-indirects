@@ -1,10 +1,9 @@
-# Sophia Tan 1/28/22
-# Combine cleaned vaccination and infection/testing data 1/15/22 
+# Sophia Tan 1/9/22
+# Combine cleaned vaccination and infection/testing data 12/16/22 
 
 rm(list=ls())
 
-setwd("/Users/sophiatan/Documents/UCSF/cleaned_data/")
-#setwd("D:/stan5/code_ST/march-data/")
+setwd("D:/CCHCS_premium/st/indirects/cleaned-data/")
 
 library(readr)
 library(tidyverse)
@@ -16,23 +15,21 @@ d <- test_inf %>%
   full_join(vacc, by=c("ResidentId", "Day" = "Date")) %>% 
   arrange(ResidentId, Day) 
 
-# 260,032 residents included over time in this dataset
-# 153 residents have vaccine records but no testing/infection data (IDs 1619718382, 1627977166, 1635328030)
+# 169,481 residents included over time in this dataset
+# 108 residents have vaccine records but no testing/infection data 
 vacc[!(vacc$ResidentId %in% (test_inf$ResidentId %>% unique())),] %>% group_by(ResidentId)
-test_inf[!(test_inf$ResidentId %in% (vacc$ResidentId %>% unique())),] %>% group_by(ResidentId)
 d <- d %>% group_by(ResidentId) #%>% select(!Institution)
 
-# 67,093 residents were infected at least once (Similar to report by CalProtect, which includes less data (less time))
+# 76,656 residents were infected at least once 
 d %>% filter(any(Result=="Positive"))
-#d <- d %>% mutate(antigen_negative = ifelse(is.na(antigen_negative) & !is.na(Result), F, antigen_negative))
 
 # fill in missing vaccine dose data
 d_filled <- d %>% fill(num_dose, .direction = "down") %>% 
-  fill(max_dose, full_vacc, booster_add_dose, booster_add_dose_mixed, incomplete, .direction = "downup") %>% 
+  fill(max_dose, full_vacc, booster_add_dose, incomplete, .direction = "downup") %>% 
   replace_na(list(num_dose=0, max_dose=0, full_vacc=0, booster_add_dose=0, booster_add_dose_mixed=0, incomplete=0)) 
 d_filled[1:200,] %>% view()
 
-tests_vacc <- d_filled %>% filter(any(!is.na(Result))) # exclude 153 individuals with vaccine data only
+tests_vacc <- d_filled %>% filter(any(!is.na(Result))) # exclude individuals with vaccine data only
 infections <- tests_vacc %>% filter(any(Result=="Positive"))
 
 
@@ -106,16 +103,11 @@ more_than_2_inf <- re_inf %>% filter(max(num_pos)>2) # 31 experienced multiple r
 more_than_2_inf %>% group_by(ResidentId) %>% summarise(inf=n(), max_dose=first(max_dose), full_vacc=first(full_vacc)) %>% 
   filter(full_vacc==0) %>% nrow() # 7 out of 31 are unvaccinated
 
-pre_vacc <- unique_vacc_infections %>% filter(Day < "2020-12-07")
-post_vacc <- unique_vacc_infections %>% filter(Day >= "2020-12-07")
-filter(post_vacc, num_dose==0) %>% nrow()# 50680 residents were infected when unvaccinated
-filter(post_vacc, num_dose==1 & full_vacc == 2) # 1088 infected with 1 dose of an mRNA vaccine
-filter(post_vacc, num_dose > 0 & num_dose==full_vacc)
-filter(post_vacc, num_dose > full_vacc)
+
 
 
 vacc_infections_removed_extra_inf <- tests_vacc %>% 
   full_join(full_mult_inf %>% select(!c(neg_test, Result)), 
             by=c("ResidentId", "Day")) #%>% replace_na(list(Month=202201))
 
-write_csv(vacc_infections_removed_extra_inf, "has_testing_data_aggregated_infections072122.csv")
+write_csv(vacc_infections_removed_extra_inf, "testing_vacc_clean.csv")
