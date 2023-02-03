@@ -59,4 +59,6 @@ covid_vacc_cleaned <- covid_vacc_cleaned %>% mutate(Date_offset = Date + 14)
 
 write_csv(covid_vacc_cleaned, "D:/CCHCS_premium/st/indirects/cleaned-data/cleaned_vaccination_data.csv")
 
-
+vacc %>% group_by(Date) %>% filter(any(grepl("bivalent", Vaccine))) %>% 
+  group_by(Date, Vaccine) %>% summarise(count=n()) %>% 
+  group_by(Date) %>% mutate(prop=count/sum(count)) %>% filter(grepl("bivalent", Vaccine)) %>% view()
