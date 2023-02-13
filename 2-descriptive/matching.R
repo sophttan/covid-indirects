@@ -1,117 +1,7 @@
-# Sophia Tan 1/13/23
-# exploring indirect effects
+for_matching <- read_csv("full_data_prematching.csv")
 
-rm(list=ls())
-setwd("D:/CCHCS_premium/st/indirects/cleaned-data/")
+write_csv(filtered_matches, "matching.csv")
 
-library(tidyverse)
-library(readr)
-library(lubridate)
-
-d <- read_csv("complete-data.csv")
-
-group_room <- d %>% filter(!is.na(Institution) & !is.na(RoomId)) %>% filter(Day >= "2021-12-15") %>% 
-  group_by(Institution, RoomId, Day) 
-
-# test <- group_room %>% summarise(num_res=n()) %>% 
-#   mutate(less_than_5 = ifelse(num_res<=5, num_res, 0), less_than_2 = ifelse(num_res<=2, num_res, 0))
-# test2 <- test %>% 
-#   group_by(Day) %>% summarise(prop_people_5 = sum(less_than_5)/sum(num_res), prop_people_2 = sum(less_than_2)/sum(num_res))
-# test2 %>% ggplot(aes(Day)) + geom_line(aes(y=prop_people_5, color="Proportion of residents in rooms of 5 or less people")) +
-#   geom_line(aes(y=prop_people_2, color="Proportion of residents in rooms of 2 or less people")) 
-room_size_over_time <- group_room %>% summarise(n=n()) %>% group_by(Day) %>% summarise(mean=mean(n))
-ggplot(room_size_over_time, aes(Day, mean)) + geom_line() + 
-  scale_x_date("Day", breaks="month", expand=c(0.05,0)) + 
-  scale_y_continuous("Average room size", breaks=seq(2.1, 2.3, 0.025)) + 
-  theme(axis.text.x = element_text(angle=90))
-
-duration <- read_csv("housing_duration.csv")
-duration <- duration %>% filter(first<="2020-03-31")
-included <- duration$ResidentId %>% unique()
-
-group_room_summary <- group_room %>% filter(n()==2)
-
-residents <- group_room_summary %>% group_by(ResidentId) %>% group_keys()
-residents <- residents %>% filter(ResidentId %in% included)
-group_room_summary_entirepandemic <- group_room_summary %>% inner_join(residents)
-group_room_summary_entirepandemic <- group_room_summary_entirepandemic %>% filter(n()==2)
-
-group_room_2 <- group_room_summary_entirepandemic %>% mutate(num=as.factor(1:n())) %>%
-  arrange(Day, Institution, RoomId)
-group_room_2 <- group_room_2 %>%
-  select(Institution, BuildingId, RoomId, Day, ResidentId, num, num_pos, num_dose_adjusted)
-group_room_2 <- group_room_2 %>% mutate(vacc=ifelse(num_dose_adjusted>0,1,0))
-
-group_room_2 <- group_room_2 %>% group_by(Institution, RoomId) %>% 
-  filter(length(unique(BuildingId))==1) %>%
-  as.data.frame()
-
-building_room <- group_room_2 %>% group_by(Institution, RoomId, BuildingId) %>% group_keys()
-
-group_room_2_wide <- group_room_2 %>% select(!BuildingId) %>%
-  reshape(idvar = c("Institution", "RoomId", "Day"),
-          timevar = "num",
-          v.names = c("ResidentId", "num_pos", "num_dose_adjusted", "vacc"),
-          direction = "wide")
-
-# add building type
-group_room_2_wide <- group_room_2_wide %>% left_join(building_room) 
-group_room_2_wide <- group_room_2_wide %>% select(Institution, BuildingId, RoomId, Day, everything())
-
-write_csv(group_room_2_wide, "wide_housing_2room.csv")
-group_room_2_wide <- read_csv("wide_housing_2room.csv") 
-
-group_room_2_wide_distinct <- group_room_2_wide %>%
-  distinct(Institution,RoomId,ResidentId.1,ResidentId.2,
-           vacc.1,vacc.2,.keep_all=T)
-
-group_room_2_wide_distinct <- group_room_2_wide_distinct %>% 
-  mutate(both_unvacc=(vacc.1==0&vacc.2==0),
-         one_unvacc=(!both_unvacc&(vacc.1==0|vacc.2==0)),
-         num_inf=case_when(
-           is.na(num_pos.1)&is.na(num_pos.2)~0,
-           is.na(num_pos.1)|is.na(num_pos.2)~1,
-           !is.na(num_pos.1)&!is.na(num_pos.2)~2))
-
-labeled <- group_room_2_wide_distinct %>% group_by(Institution, RoomId) %>% 
-  mutate(label=1:n()) %>% ungroup() %>% 
-  select(Institution, RoomId, Day, label)
-
-group_room_2_wide <- group_room_2_wide %>% left_join(labeled) 
-group_room_2_wide_summary <- group_room_2_wide %>% group_by(Institution, RoomId, ResidentId.1, ResidentId.2) %>%
-  fill(label, .direction="down") %>% 
-  group_by(Institution, RoomId, label) %>%
-  summarise(first=first(Day), last=last(Day)) %>%
-  mutate(duration=difftime(last, first, units="days")+1)
-
-any_unvacc <- group_room_2_wide_summary %>% select(!label) %>% 
-  left_join(group_room_2_wide_distinct, by=c("Institution", "RoomId", "first"="Day")) %>%
-  rowwise() %>% filter(any(both_unvacc|one_unvacc))
-any_unvacc
-
-
-any_unvacc %>% ggplot(aes(duration)) + geom_histogram() + 
-  scale_x_continuous("Duration of co-residence (days)",limits=c(0,365),
-                     expand=c(0,0)) + scale_y_continuous("Number of units",expand=c(0,0))
-any_unvacc$duration %>% as.numeric() %>% summary()
-
-
-p1 <- any_unvacc %>% ggplot(aes(Institution)) + geom_bar() + 
-  scale_x_continuous(limits=c(1,35),breaks=1:35,labels=1:35, expand=c(0,0)) + 
-  scale_y_continuous("Number of units") 
-
-p2 <- any_unvacc %>% filter(duration >= 30) %>% ggplot(aes(Institution)) + geom_bar() + 
-  scale_x_continuous(limits=c(1,35),breaks=1:35,labels=1:35, expand=c(0,0)) + 
-  scale_y_continuous("Number of units")
-
-library(patchwork)
-p1/p2
-
-any_unvacc_over30 <- any_unvacc %>% filter(duration>=30) 
-any_unvacc_over30 %>% ggplot(aes(duration)) + geom_histogram() + 
-  scale_x_continuous("Duration of co-residence (days)",limits=c(0,365),
-                     expand=c(0,0)) + scale_y_continuous("Number of units",expand=c(0,0))
-any_unvacc_over30$duration %>% as.numeric() %>% summary()
 
 test <- any_unvacc_over30 %>% filter(Institution==2) %>% arrange(BuildingId)
 test <- test %>% mutate(treatment = ifelse(both_unvacc, 1, 0),
@@ -144,7 +34,7 @@ filter(test, as.vector(duration_overlap_wide[first_control$label[1],] >= 14)) %>
 roomtypes <- d %>% group_by(Institution, RoomId) %>% summarise(RoomType=unique(RoomType))
 test <- test %>% left_join(roomtypes)
 
-test %>% arrange(first, duration) %>% mutate(row=1:n()) %>% 
+test %>% arrange(num_inf, first, duration) %>% mutate(row=1:n()) %>% 
   ggplot(aes(x = int_start(duration_interval), y = row, colour = as.factor(treatment))) +
   geom_segment(aes(xend = int_end(duration_interval), yend = row, color=as.factor(treatment))) +
   geom_point(size = 1) +
@@ -156,13 +46,13 @@ test %>% arrange(first, duration) %>% mutate(row=1:n()) %>%
         axis.title.y = element_blank(),axis.ticks.y = element_blank(), 
         axis.text.x = element_text(angle=90)) 
 
-k <- 3
+k <- 5
 library(MatchIt)
 # if <14 day overlap mark as infinite
 duration_overlap_wide[duration_overlap_wide > 352] <- Inf
 match1 <- matchit(treatment ~ Institution + RoomType + duration_interval, data = test,
-                 distance = duration_overlap_wide %>% as.matrix(), exact = treatment ~ Institution + RoomType, 
-                 ratio = k, method="optimal")
+                  distance = duration_overlap_wide %>% as.matrix(), exact = treatment ~ Institution + RoomType, 
+                  ratio = k, method="optimal")
 m1 <- match1 %>% get_matches() %>% arrange(subclass)
 
 match2 <- matchit(treatment ~ BuildingId + RoomType + duration_interval, data = test,
@@ -172,16 +62,94 @@ m2 <- match2 %>% get_matches() %>% arrange(subclass)
 
 match3 <- matchit(treatment ~ BuildingId + RoomType + duration_interval + num_inf, data = test,
                   distance = duration_overlap_wide %>% as.matrix(), exact = treatment ~ BuildingId + RoomType + num_inf, 
-                  ratio = k, method="optimal")
+                  ratio = k, min.controls = 1, max.controls = 6, method="optimal")
 m3 <- match3 %>% get_matches() %>% arrange(subclass)
+
+generate_distance_matrix <- function(d) {
+  overlap <- expand.grid(x=d$label,y=d$label) %>% 
+    left_join(d %>% select(label, duration_interval), by=c("x"="label")) %>% 
+    left_join(d %>% select(label, duration_interval), by=c("y"="label")) %>% 
+    mutate(overlap=intersect(duration_interval.x,duration_interval.y), 
+           duration_overlap=366-(time_length(overlap, unit = "day")+1))
+  
+  overlap_wide <- overlap%>% 
+    select(x,y,overlap) %>% pivot_wider(id_cols = x, names_from = y, values_from = overlap)
+  overlap_wide <- overlap_wide %>% as.data.frame(row.names = .$x) %>% select(!x)
+  
+  duration_overlap_wide <- overlap%>% 
+    select(x,y,duration_overlap) %>% replace_na(list(duration_overlap=Inf)) %>% 
+    pivot_wider(id_cols = x, names_from = y, values_from = duration_overlap)
+  duration_overlap_wide <- duration_overlap_wide %>% as.data.frame(row.names = .$x) %>% select(!x)
+  
+  duration_overlap_wide[duration_overlap_wide > 352] <- Inf
+  
+  duration_overlap_wide %>% as.matrix()
+}
+
+plot_all_units <- function(d) {
+  p <- d %>% 
+    ggplot(aes(x = int_start(duration_interval), y = label, colour = as.factor(treatment))) +
+    geom_segment(aes(xend = int_end(duration_interval), yend = label, color=as.factor(treatment))) +
+    geom_point(size = 1) +
+    geom_point(aes(x = int_end(duration_interval)), size = 1) +
+    scale_x_datetime("Duration of co-residence", date_breaks = "1 month", date_labels ="%b-%y") + 
+    geom_text(aes(label=label), nudge_x = -60*60*24*14, color="black") + 
+    # stat_brace(data=test_b, 
+    #            aes(x=as.POSIXct("2023-01-15"), y=row, group=num_inf, label=num_inf), color="black",
+    #            rotate=90, labelsize=3, bending = 0.7) + 
+    scale_color_discrete(name="Unit type", labels=c("Treatment", "Control")) +
+    guides(color = guide_legend(reverse=TRUE)) + 
+    labs(#title=paste("Institution 2", "Building", b),
+      subtitle="All units") + 
+    theme(#legend.position = "none", 
+      axis.text.y = element_blank(),
+      axis.title.y = element_blank(),axis.ticks.y = element_blank(), 
+      axis.text.x = element_text(angle=90)) 
+  
+  p
+}
+
+for (b in unique(test$BuildingId)) {
+  test_b <- test %>% filter(Institution==2 & BuildingId==b)
+  for (i in unique(test_b$num_inf)) {
+    t <- test_b %>% filter(num_inf==1) %>% 
+      arrange(first, duration) %>%
+      mutate(label=1:nrow(.))
+    
+    tryCatch(
+      {
+        matchit(treatment ~ BuildingId + duration_interval + num_inf, data = t,
+                distance = generate_distance_matrix(t), exact = treatment ~ BuildingId + num_inf, 
+                ratio = 5, min.controls = 1, max.controls = 6, remove.unmatchables = T, method="optimal")
+      },
+      error = function(e){
+        print(b)
+        print(i)
+      }
+    )
+  }
+}
+
+
+t <- test %>% filter(BuildingId==-107909874 & num_inf==2) %>% 
+  arrange(first, duration) %>% ungroup() %>% 
+  mutate(label=1:nrow(.))
+plot_all_units(t)
+
+matchit(treatment ~ BuildingId + duration_interval + num_inf, data = t,
+        distance = generate_distance_matrix(t), exact = treatment ~ BuildingId + num_inf, 
+        ratio = 5, min.controls = 1, max.controls = 6, remove.unmatchables = T, method="optimal") %>% 
+  get_matches()
+
+
 # m %>% group_by(label) %>% summarise(count=n())
 # m %>% group_by(subclass) %>% summarise(count=n())
 # m %>% view()
 
-filtered_matches <- m %>% group_by(subclass) %>% 
+filtered_matches <- m3 %>% group_by(subclass) %>% 
   select(treatment,label,RoomId, ResidentId.1, num_pos.1, vacc.1, ResidentId.2, num_pos.2, vacc.2, first, last, duration, duration_interval) %>% 
   mutate(intersect=time_length(intersect(first(duration_interval),duration_interval),unit="day")+1) %>% 
-  filter(intersect >= 14)
+  filter(intersect >= 14) %>% filter(n()>1)
 
 
 # filtered_matches %>% group_by(subclass) %>% summarise(count=n()-1) %>% 
@@ -199,61 +167,68 @@ m %>% arrange(subclass) %>% mutate(subclass1=as.numeric(subclass)*5-0.4*0:(n()-1
   theme(axis.text.y = element_blank(),
         axis.title.y = element_blank(),axis.ticks.y = element_blank())
 
+
 pdf("D:/CCHCS_premium/st/indirects/testing/matching.pdf")
-for (b in (m$BuildingId %>% unique())) {
-  test_b <- test %>% filter(BuildingId==b)
-  m2_b <- m2 %>% filter(BuildingId==b) %>% group_by(subclass) %>% 
-    arrange(subclass) %>% mutate(subclass1=as.numeric(subclass)*5-0.4*(0:(n()-1)))
+for (b in (m3$BuildingId %>% unique())) {
+  test_b <- test %>% filter(num_inf==1) %>%
+    filter(BuildingId==b) %>% arrange(num_inf, first, duration) %>% mutate(row=1:n())
   
-  p1 <- test_b %>% arrange(first, duration) %>% mutate(row=1:n()) %>% 
+  t1 <- test_b %>% select(label, row)
+  m3_keys <- m3 %>% filter(BuildingId==b & num_inf==1) %>% filter(treatment==1) %>% arrange(first, duration) %>% 
+    group_by(num_inf, subclass) %>% select(num_inf, subclass, first) %>% ungroup() %>% mutate(subclass1=1:n())
+  m3_b <- m3 %>% filter(BuildingId==b & num_inf==1) %>% left_join(m3_keys) %>% 
+    group_by(subclass) %>% fill(subclass1, .direction="down") %>% 
+    group_by(subclass1) %>% 
+    mutate(subclass1=subclass1*3-0.4*0:(n()-1)) %>% ungroup() %>% left_join(t1)
+  
+  t1 <- test_b %>% select(!c(Institution, RoomId, BuildingId, ResidentId.1, ResidentId.2, RoomType)) %>% 
+    select(label, everything()) 
+  
+  p <- test_b %>% 
     ggplot(aes(x = int_start(duration_interval), y = row, colour = as.factor(treatment))) +
     geom_segment(aes(xend = int_end(duration_interval), yend = row, color=as.factor(treatment))) +
     geom_point(size = 1) +
     geom_point(aes(x = int_end(duration_interval)), size = 1) +
     scale_x_datetime("Duration of co-residence", date_breaks = "1 month", date_labels ="%b-%y") + 
+    geom_text(aes(label=row), nudge_x = -60*60*24*14, color="black") + 
+    # stat_brace(data=test_b, 
+    #            aes(x=as.POSIXct("2023-01-15"), y=row, group=num_inf, label=num_inf), color="black",
+    #            rotate=90, labelsize=3, bending = 0.7) + 
+    scale_color_discrete(name="Unit type", labels=c("Treatment", "Control")) +
     guides(color = guide_legend(reverse=TRUE)) + 
-    labs(subtitle="All units") + 
-    theme(legend.position = "none", 
-          axis.text.y = element_blank(),
-          axis.title.y = element_blank(),axis.ticks.y = element_blank(), 
-          axis.text.x = element_text(angle=90)) 
-  p2 <- m2_b %>%
+    labs(#title=paste("Institution 2", "Building", b),
+      subtitle="All units") + 
+    theme(#legend.position = "none", 
+      axis.text.y = element_blank(),
+      axis.title.y = element_blank(),axis.ticks.y = element_blank(), 
+      axis.text.x = element_text(angle=90)) 
+  
+  m3_b_summ <- m3_b %>% group_by(num_inf) %>% filter(subclass1==min(subclass1) | subclass1==max(subclass1))
+  p1 <- m3_b %>%
     ggplot(aes(x = int_start(duration_interval), y = subclass1, 
                colour = as.factor(treatment))) +
-    geom_segment(aes(xend = int_end(duration_interval), yend = subclass1, color=as.factor(treatment))) +
+    geom_segment(aes(xend = int_end(duration_interval), yend = subclass1, group = num_inf, color=as.factor(treatment))) +
     geom_point(size = 1) +
     geom_point(aes(x = int_end(duration_interval)), size = 1) +
+    geom_text(aes(label=row), nudge_x = -60*60*24*14, color="black") + 
+    # stat_brace(data=m3_b_summ, 
+    #            aes(x=as.POSIXct("2023-01-15"), y=subclass1, group=num_inf, label=num_inf), color="black",
+    #            rotate=90, labelsize=3, bending = 0.7) + 
     scale_x_datetime("Duration of co-residence", date_breaks = "1 month", date_labels ="%b-%y") + 
     scale_color_discrete(name="Unit type", labels=c("Treatment", "Control")) +
     guides(color = guide_legend(reverse=TRUE)) + 
-    labs(subtitle="Matched by building") + 
-    theme(legend.position = "none", 
-          axis.text.y = element_blank(),
-          axis.title.y = element_blank(),axis.ticks.y = element_blank(), 
-          axis.text.x = element_text(angle=90)) 
-  p3 <- m3 %>% filter(BuildingId==b) %>% arrange(subclass) %>% 
-    left_join(m2_b %>% select(label, subclass), by="label") %>%
-    group_by(subclass.x) %>% 
-    mutate(subclass=ifelse(treatment==1, subclass.y, NA)) %>% 
-    fill(subclass, .direction="down") %>% 
-    mutate(subclass1=as.numeric(subclass)*5-0.4*0:(n()-1)) %>%
-    ggplot(aes(x = int_start(duration_interval), y = subclass1, 
-               colour = as.factor(treatment))) +
-    geom_segment(aes(xend = int_end(duration_interval), yend = subclass1, color=as.factor(treatment))) +
-    geom_point(size = 1) +
-    geom_point(aes(x = int_end(duration_interval)), size = 1) +
-    scale_x_datetime("Duration of co-residence", date_breaks = "1 month", date_labels ="%b-%y") + 
-    scale_y_continuous(limits=c(min(m2_b$subclass1), max(m2_b$subclass1))) +
-    scale_color_discrete(name="Unit type", labels=c("Treatment", "Control")) +
-    guides(color = guide_legend(reverse=TRUE)) + 
-    labs(subtitle="Matched by building and prior infections") + 
+    labs(#title="", 
+      subtitle="Matched by time") + 
     theme(axis.text.y = element_blank(),
-          axis.title.y = element_blank(),axis.ticks.y = element_blank(), 
+          axis.title.y = element_blank(), axis.ticks.y = element_blank(), 
           axis.text.x = element_text(angle=90)) 
-  library(patchwork)
-  print(p1|p2|p3)
+  
+  print(p|p1)
+  
 }
 dev.off()
+
+
 
 filtered_matches %>% filter(n()>1) %>% mutate(subclass1=as.numeric(subclass)-0.1*0:(n()-1)) %>%
   ggplot(aes(x = int_start(duration_interval), y = subclass1*10, colour = as.factor(treatment))) +
@@ -279,7 +254,7 @@ filtered_matches %>% filter(subclass==6) %>% mutate(label=seq(66,1)) %>%
 
 
 library(lubridate)
-for_matching <- any_unvacc_over30 %>% mutate(treatment = ifelse(both_unvacc, 1, 0),
+for_matching <- any_unvacc_over30_noinf %>% mutate(treatment = ifelse(both_unvacc, 1, 0),
                                              adjusted_start = first+7)
 for_matching <- for_matching %>% rowwise() %>% mutate(duration_interval = interval(adjusted_start, last)) 
 for_matching <- for_matching %>% ungroup() %>% mutate(label=1:nrow(.))
@@ -301,8 +276,6 @@ duration_overlap_wide <- duration_overlap_wide %>% as.data.frame(row.names = .$x
 
 for_matching$treatment %>% table()
 #1:5 control to treatment ratio
-
-for_matching <- for_matching %>% left_join(roomtypes)
 
 library(MatchIt)
 duration_overlap_wide[duration_overlap_wide > 352] <- Inf
@@ -377,11 +350,7 @@ for (i in 1:nrow(keys)) {
     theme(axis.text.y = element_blank(),
           axis.title.y = element_blank(), axis.ticks.y = element_blank(), 
           axis.text.x = element_text(angle=90)) 
- 
+  
   print(p|p1)
 }
 dev.off()
-
-
-write_csv(for_matching, "full_data_prematching.csv")
-write_csv(filtered_matches, "matching.csv")
