@@ -29,8 +29,9 @@ d_filled <- d %>% fill(num_dose, .direction = "down") %>%
   replace_na(list(num_dose=0, max_dose=0, full_vacc=0, booster_add_dose=0, booster_add_dose_mixed=0, incomplete=0)) 
 d_filled[1:200,] %>% view()
 
-tests_vacc <- d_filled %>% filter(any(!is.na(Result))) # exclude individuals with vaccine data only
-infections <- tests_vacc %>% filter(any(Result=="Positive"))
+#tests_vacc <- d_filled %>% filter(any(!is.na(Result))) # exclude individuals with vaccine data only
+tests_vacc <- d_filled
+infections <- tests_vacc %>% filter(any(Result=="Positive",na.rm=T))
 
 
 # diffDay_first_inf represents num days since day of first positive PCR test
@@ -76,7 +77,7 @@ joined %>% filter(any(is.na(num_pos.y))) %>% view()
 
 
 # add vaccination data to test data
-unique_vacc_infections <- tests_vacc %>% 
+unique_vacc_infections <- tests_vacc %>% arrange(ResidentId, Day) %>% 
   right_join(full_mult_inf %>% select(!c(neg_test)), 
              by=c("ResidentId", "Day")) #%>% replace_na(list(Month=202201))
 total_inf_time <- unique_vacc_infections %>% group_by(Day) %>% summarise(inf=n())
@@ -106,7 +107,7 @@ more_than_2_inf %>% group_by(ResidentId) %>% summarise(inf=n(), max_dose=first(m
 
 
 
-vacc_infections_removed_extra_inf <- tests_vacc %>% 
+vacc_infections_removed_extra_inf <- tests_vacc %>% arrange(ResidentId, Day) %>% 
   full_join(full_mult_inf %>% select(!c(neg_test, Result)), 
             by=c("ResidentId", "Day")) #%>% replace_na(list(Month=202201))
 
