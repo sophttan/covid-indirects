@@ -23,12 +23,12 @@ gc() # free up memory
 inf_vacc_housing <- inf_vacc_housing %>% arrange(ResidentId, Day)
 inf_vacc_housing <- inf_vacc_housing %>% group_by(ResidentId) %>% 
   fill(Date_offset, num_dose, .direction="down") %>% 
-  fill(max_dose, full_vacc, booster_add_dose, .direction="downup")
+  fill(max_dose, full_vacc, booster_add_dose, .direction="up")
 inf_vacc_housing <- inf_vacc_housing %>%
-  mutate(num_dose_adjusted = ifelse(Day < Date_offset & num_dose > 0, num_dose-1, num_dose)) %>% select(!Date_offset)
-inf_vacc_housing <- inf_vacc_housing %>% replace_na(list(num_dose=0, max_dose=0, full_vacc=0, booster_add_dose=0, incomplete=0))
+  mutate(num_dose_adjusted = ifelse(Day < Date_offset & num_dose > 0, num_dose-1, num_dose))# %>% select(!Date_offset)
+inf_vacc_housing <- inf_vacc_housing %>% replace_na(list(num_dose=0, num_dose_adjusted=0, max_dose=0, full_vacc=0, booster_add_dose=0))
 
-check <- (inf_vacc_housing%>%group_keys())$ResidentId[100000]
+check <- (inf_vacc_housing%>%group_keys())$ResidentId[130000]
 inf_vacc_housing %>% filter(ResidentId==check) %>% view()
 
 inf_vacc_housing <- inf_vacc_housing %>% fill(num_pos, .direction="down")

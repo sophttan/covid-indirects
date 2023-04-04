@@ -10,7 +10,7 @@ testing <- read_csv("testing_vacc_clean.csv") %>% filter(!Result%>%is.na()) %>%
   group_by(ResidentId) %>% fill(num_pos, .direction="down")
 
 clean_data <- function(d) {
-  d %>% select(!c(adjusted_start.x, adjusted_start.y, last_chunked.x, last_chunked.y, duration_chunked.x, duration_chunked.y))
+  d %>% select(!c(adjusted_start.x, adjusted_start.y, last_chunked.x, last_chunked.y, duration_testing.x, duration_testing.y))
 }
 
 find_event_rate <- function(d) {
@@ -24,7 +24,7 @@ find_event_rate <- function(d) {
   num_events
 }
 
-data <- read_csv("full_data_prematching_030823.csv")
+data <- read_csv("full_data_prematching_040423.csv")
 data <- clean_data(data)
 data
 

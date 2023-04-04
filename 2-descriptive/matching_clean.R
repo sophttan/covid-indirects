@@ -1,10 +1,14 @@
+rm(list=ls())
+gc()
+setwd("D:/CCHCS_premium/st/indirects/cleaned-data/")
+
 library(lubridate)
 library(tidyverse)
 library(MatchIt)
 library(ggbrace)
 library(patchwork)
 
-for_matching <- read_csv("full_data_prematching_030823.csv")
+for_matching <- read_csv("full_data_prematching_040423.csv")
 
 generate_distance_matrix <- function(d) {
   overlap <- expand.grid(x=d$label,y=d$label) %>% 
@@ -80,10 +84,10 @@ plot_matches <- function(d, title="", subtitle="") {
 for_matching <- for_matching %>% rowwise() %>% mutate(duration_interval = interval(adjusted_start, last_chunked)) 
 for_matching <- for_matching %>% ungroup() %>% mutate(label=1:nrow(.))
 
-match <- matchit(treatment ~ Institution + BuildingId + duration_interval + inf.primary,# + inf.secondary, 
+match <- matchit(treatment ~ Institution + BuildingId + duration_interval + inf.primary + inf.secondary, 
                  data = for_matching,
                  distance = generate_distance_matrix(for_matching), 
-                 exact = treatment ~ Institution + BuildingId + inf.primary,# + inf.secondary,
+                 exact = treatment ~ Institution + BuildingId + inf.primary + inf.secondary,
                  ratio = 5, min.controls = 1, max.controls = 6, method="optimal")
 m <- match %>% get_matches() %>% arrange(subclass)
 
@@ -94,10 +98,10 @@ filtered_matches <- m %>% group_by(subclass) %>% arrange(subclass, desc(treatmen
   filter(include|treatment==0) %>%
   ungroup() %>% select(!c(id, subclass, weights)) %>% mutate(label=1:nrow(.))
 
-match_adjusted <- matchit(treatment ~ Institution + BuildingId + duration_interval + inf.primary,# + inf.secondary,
+match_adjusted <- matchit(treatment ~ Institution + BuildingId + duration_interval + inf.primary + inf.secondary,
                           data = filtered_matches,
                           distance = generate_distance_matrix(filtered_matches), 
-                          exact = treatment ~ Institution + BuildingId + inf.primary,# + inf.secondary, 
+                          exact = treatment ~ Institution + BuildingId + inf.primary + inf.secondary, 
                           ratio = 5, min.controls = 1, max.controls = 6, method="optimal") 
 
 m_adjusted <- match_adjusted %>% 
@@ -108,10 +112,16 @@ m_adjusted <- match_adjusted %>%
   replace_na(list(intersect=0)) %>% 
   filter(treatment==1|intersect>=7) %>% filter(n()>1)
 
+#testing data
+testing <- read_csv("complete_testing_data.csv")
+m_adjusted_testing <- m_adjusted %>% left_join(testing %>% select(ResidentId, Day), by=c("primary"="ResidentId")) %>% 
+  filter(Day %within% duration_interval)
+
+
 m_adjusted%>%nrow()
 m_adjusted$treatment%>%table()
 
-pdf("D:/CCHCS_premium/st/indirects/testing/matching_030823/matching_full_id4.pdf")
+pdf("D:/CCHCS_premium/st/indirects/testing/matching_040423/matching_full.pdf")
 keys <- m_adjusted %>% group_by(Institution) %>% group_keys() #, BuildingId
 for (i in 1:nrow(keys)) {
   print(plot_matches(m_adjusted %>% filter(Institution==keys$Institution[i]),
@@ -120,4 +130,4 @@ for (i in 1:nrow(keys)) {
 }
 dev.off()
 
-write_csv(m_adjusted, "matching_data_030823/matched_id4.csv")
+write_csv(m_adjusted, "matching_data_040423/matched.csv")
