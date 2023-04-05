@@ -84,10 +84,10 @@ plot_matches <- function(d, title="", subtitle="") {
 for_matching <- for_matching %>% rowwise() %>% mutate(duration_interval = interval(adjusted_start, last_chunked)) 
 for_matching <- for_matching %>% ungroup() %>% mutate(label=1:nrow(.))
 
-match <- matchit(treatment ~ Institution + BuildingId + duration_interval + inf.primary + inf.secondary, 
+match <- matchit(treatment ~ Institution + BuildingId + duration_interval + inf.primary,# + inf.secondary, 
                  data = for_matching,
                  distance = generate_distance_matrix(for_matching), 
-                 exact = treatment ~ Institution + BuildingId + inf.primary + inf.secondary,
+                 exact = treatment ~ Institution + BuildingId + inf.primary,# + inf.secondary,
                  ratio = 5, min.controls = 1, max.controls = 6, method="optimal")
 m <- match %>% get_matches() %>% arrange(subclass)
 
@@ -98,24 +98,28 @@ filtered_matches <- m %>% group_by(subclass) %>% arrange(subclass, desc(treatmen
   filter(include|treatment==0) %>%
   ungroup() %>% select(!c(id, subclass, weights)) %>% mutate(label=1:nrow(.))
 
-match_adjusted <- matchit(treatment ~ Institution + BuildingId + duration_interval + inf.primary + inf.secondary,
+match_adjusted <- matchit(treatment ~ Institution + BuildingId + duration_interval + inf.primary,# + inf.secondary,
                           data = filtered_matches,
                           distance = generate_distance_matrix(filtered_matches), 
-                          exact = treatment ~ Institution + BuildingId + inf.primary + inf.secondary, 
+                          exact = treatment ~ Institution + BuildingId + inf.primary,# + inf.secondary, 
                           ratio = 5, min.controls = 1, max.controls = 6, method="optimal") 
 
 m_adjusted <- match_adjusted %>% 
   get_matches() %>% 
   group_by(subclass) %>% 
   arrange(subclass, desc(treatment)) %>% 
-  mutate(intersect=time_length(intersect(first(duration_interval),duration_interval),unit="day")+1) %>% 
+  mutate(intersection=intersect(first(duration_interval),duration_interval)) %>% 
+  mutate(intersect=time_length(intersection,unit="day")+1) %>% 
   replace_na(list(intersect=0)) %>% 
   filter(treatment==1|intersect>=7) %>% filter(n()>1)
 
 #testing data
 testing <- read_csv("complete_testing_data.csv")
 m_adjusted_testing <- m_adjusted %>% left_join(testing %>% select(ResidentId, Day), by=c("primary"="ResidentId")) %>% 
-  filter(Day %within% duration_interval)
+  group_by(id) %>% 
+  summarise(subclass=first(subclass), include=any(Day %within% intersection)) 
+
+(m_adjusted %>% filter(treatment!=1))$intersect %>% hist()
 
 
 m_adjusted%>%nrow()
