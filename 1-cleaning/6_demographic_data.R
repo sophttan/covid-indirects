@@ -4,7 +4,9 @@ rm(list=ls())
 library(tidyverse)
 library(readr)
 
-demographic_data <- read.csv("/Users/sophiatan/Documents/UCSF/ST files/Demographics_20220520.csv", sep = ";")
+setwd("D:/CCHCS_premium/CDCR Data/Dec 16 2022 Data")
+
+demographic_data <- read.csv("Demographics_20221216.csv", sep = ";")
 demographic_data
 demographic_data$Demographic %>% unique()
 
@@ -14,6 +16,8 @@ demo_wide <- demographic_data %>% filter(Demographic %in% c("BirthYear", "Sex", 
               values_from = "Value",
               values_fill = NA) %>% arrange(ResidentId)
 
+demo_wide <- demo_wide %>% mutate(BirthYear=as.numeric(BirthYear))
+
 demo_wide
 
-write_csv(demo_wide, "/Users/sophiatan/Documents/UCSF/cleaned_data/demographic_data_clean.csv")
+write_csv(demo_wide, "D:/CCHCS_premium/st/indirects/cleaned-data/demographic_data_clean.csv")

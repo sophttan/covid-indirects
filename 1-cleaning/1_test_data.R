@@ -38,7 +38,7 @@ keep_pcr_if_multiple <- multiple_tests %>% filter(all(!unknown)) %>%  # 394 resi
 
 final_tests <- rbind(one_result_day, keep_pcr_if_multiple) %>% arrange(ResidentId, CollectionDate) #3,731,885 tests per resident/day included
 final_tests %>% select(!c(Institution)) %>% rename("Day"="CollectionDate") %>% 
-  write_csv("D:/CCHCS_premium/st/indirects/cleaned_data/complete_testing_data.csv")
+  write_csv("D:/CCHCS_premium/st/indirects/cleaned-data/complete_testing_data.csv")
 
 # setwd("D:/stan5/code_ST")
 # write_csv(all_tests_Cleaned %>% rename("Day"="CollectionDate") %>% select(!c(Institution)), "march-data/complete_testing_data.csv", append=F)

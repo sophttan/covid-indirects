@@ -71,6 +71,7 @@ treatment_time_test <- treatment_testing %>%
 #  mutate(time=as.numeric(as.Date(adjusted_start)-as.Date("2021-12-15"))+1) %>%
   mutate(survival_time=as.numeric(Day-start)) %>%
   mutate(last = ifelse(any(Result=="Positive")&Result=="Positive", Result=="Positive", Day==last(Day))) %>% 
+  mutate(pos_first=first(Result)=="Positive") %>%
   filter(last) %>% summarise_all(first) %>% select(!last) %>% 
   mutate(survival_time=ifelse(Result!="Positive", as.numeric(end-start), survival_time))
 
@@ -98,6 +99,7 @@ control_testing_unique <- control_test_overlap %>% group_by(id, label) %>% summa
 control_time_test <- control_testing_unique %>% group_by(id, label) %>% add_testing() %>% filter_testing() %>% 
   mutate(survival_time=as.numeric(Day-start)) %>% 
   mutate(last = ifelse(any(Result=="Positive")&Result=="Positive", Result=="Positive", Day==last(Day))) %>%
+  mutate(pos_first=first(Result)=="Positive") %>%
   filter(last) %>% summarise_all(first) %>% select(!last) %>% 
   mutate(survival_time=ifelse(Result!="Positive", as.numeric(end-start), survival_time))
 
@@ -154,14 +156,6 @@ full_secondary %>% filter(Result=="Negative"&Result2=="Positive") %>% select(sur
 full_secondary %>% filter(Result=="Positive"&Result2=="Positive") %>% select(survival_time, survival_time2)
 full_secondary %>% filter(Result=="Positive"&Result2=="Positive") %>% select(survival_time, survival_time2)
 
-full_secondary %>% mutate(end_5_days = end+5) %>% select(!Day) %>% 
-  left_join(testing %>% select(ResidentId, Day, Result) %>% rename("postResult"="Result"), 
-            by=c("primary"="ResidentId")) %>% 
-  filter(Day <= end_5_days & Day > end) %>% 
-  group_by(id, start) %>% 
-  filter(any(postResult=="Positive")) %>% 
-  select(id, treatment, start, end, end_5_days, survival_time, survival_time2, Day, Result, Result2, postResult) %>% view()
-
 d <- read_csv("testing_vacc_clean.csv")
 infections <- d %>% group_by(ResidentId, num_pos) %>% filter(num_pos>0) %>% select(ResidentId, Day, num_pos)
 infections
@@ -204,10 +198,59 @@ library(patchwork)
 p+p1
 
 
+full_testing_extend <- full %>% group_by(id, start) %>% 
+  select(!c(survival_time, Result)) %>% mutate(end_5_days = end+5) %>% 
+  left_join(testing %>% select(ResidentId, Day, Result), 
+            by=c("primary"="ResidentId")) %>%
+  filter(Day <= end_5_days & Day >= start) %>% 
+  mutate(survival_time=as.numeric(Day-start)) %>% 
+  mutate(last = ifelse(any(Result=="Positive")&Result=="Positive", Result=="Positive", Day==last(Day))) %>%
+  filter(last) %>% summarise_all(first) %>% select(!last) %>% 
+  mutate(survival_time=ifelse(Result!="Positive", as.numeric(end_5_days-start), survival_time))
 
+full_testing_extend
+full_testing_extend%>%
+  group_by(treatment)%>%
+  summarise(cases=sum(Result=="Positive"), person_time=sum(survival_time))%>%
+  mutate(inc_rate=cases/person_time)
 
+(full_secondary %>% filter(Result=="Positive"))$survival_time%>%summary()
+full_secondary %>% filter(Result=="Positive") %>% 
+  ggplot(aes(survival_time, group=treatment, fill=as.factor(treatment))) + 
+  geom_histogram(aes(y=..density..), alpha=0.7, position="identity", binwidth = 2.5) + 
+  scale_fill_discrete("Treatment") + 
+  scale_x_continuous("Survival time until first positive test (days)") + 
+  scale_y_continuous("Density")
 
+secondary_vacc <- full_secondary %>% filter(treatment==1) %>% 
+  left_join(vacc%>%select(ResidentId, Date_offset, num_dose) %>% 
+              rename("vacc_day"="Date_offset"), 
+            by=c("secondary"="ResidentId")) %>% 
+  filter(vacc_day <= start) %>% 
+  arrange(id, start, desc(vacc_day)) %>% 
+  summarise_all(first)
 
+secondary_vacc <- secondary_vacc %>% mutate(time_vacc=start-vacc_day+1)
+
+secondary_vacc %>% ggplot(aes(time_vacc)) + geom_histogram(binwidth = 50) + 
+  scale_x_continuous("Time since most recent vaccination (days)") + 
+  scale_y_continuous("Count")
+
+secondary_vacc$time_vacc%>%as.numeric()%>%summary()
+
+demo <- read_csv("demographic_data_clean.csv") %>% select(ResidentId, BirthYear)
+full_age <- full %>% 
+  left_join(demo, by=c("primary"="ResidentId")) %>% 
+  mutate(age1=as.numeric(format(start, "%Y"))-BirthYear) %>% 
+  select(!BirthYear) %>% 
+  left_join(demo, by=c("secondary"="ResidentId")) %>% 
+  mutate(age2=as.numeric(format(start, "%Y"))-BirthYear) 
+full_age %>% ggplot() + 
+  geom_histogram(aes(age1, y=..density.., fill="Primary resident"), alpha=0.7) + 
+  geom_histogram(aes(age2, y=..density.., fill="Secondary resident"), alpha=0.5) + 
+  scale_x_continuous("Age (years)") + 
+  scale_y_continuous("Density") + 
+  theme(legend.title = element_blank())
 
 # control_testing <- control %>% left_join(testing %>% select(ResidentId, Day, Result), by=c("primary"="ResidentId")) %>% 
 #   filter(Day >= adjusted_start & Day <= last_chunked)
