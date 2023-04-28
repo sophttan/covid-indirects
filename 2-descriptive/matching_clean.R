@@ -8,7 +8,8 @@ library(MatchIt)
 library(ggbrace)
 library(patchwork)
 
-for_matching <- read_csv("full_data_prematching_040423.csv")
+for_matching <- read_csv("full_data_prematching_relaxtesting60_042823.csv")
+for_matching <- for_matching %>% rowwise() %>% mutate(adjusted_end = min(as.Date("2022-12-15"), last + 5))
 
 generate_distance_matrix <- function(d) {
   overlap <- expand.grid(x=d$label,y=d$label) %>% 
@@ -56,10 +57,8 @@ plot_all_units <- function(d) {
 
 plot_matches <- function(d, title="", subtitle="") {
   d <- d %>% arrange(subclass)
-  d_keys <- d %>% group_by(subclass) %>% group_keys() %>% mutate(subclass1=1:n())
-  d <- d %>% left_join(d_keys) %>%
-    group_by(subclass) %>% fill(subclass1, .direction="down") %>% 
-    group_by(subclass1) %>% 
+  d <- d %>% ungroup() %>% mutate(subclass1=match(subclass, unique(subclass)))
+  d <- d %>% group_by(subclass1) %>% 
     mutate(subclass1=subclass1*5-0.4*0:(n()-1)) %>% ungroup()
   
   p <- d %>%
@@ -68,7 +67,9 @@ plot_matches <- function(d, title="", subtitle="") {
     geom_segment(aes(xend = int_end(duration_interval), yend = subclass1, group = num_inf, color=as.factor(treatment))) +
     geom_point(size = 1) +
     geom_point(aes(x = int_end(duration_interval)), size = 1) +
-    scale_x_datetime("Duration of co-residence", date_breaks = "1 month", date_labels ="%b-%y") + 
+    scale_x_datetime("Duration of co-residence", 
+                     limits = c(as.POSIXct("2021-12-15"), as.POSIXct("2022-12-15")), 
+                     date_breaks = "1 month", date_labels ="%b-%y") + 
     scale_color_discrete(name="Unit type", labels=c("Treatment", "Control")) +
     guides(color = guide_legend(reverse=TRUE)) + 
     labs(title=title, 
@@ -81,15 +82,15 @@ plot_matches <- function(d, title="", subtitle="") {
 }
 
   
-for_matching <- for_matching %>% rowwise() %>% mutate(duration_interval = interval(adjusted_start, last_chunked)) 
+for_matching <- for_matching %>% rowwise() %>% mutate(duration_interval = interval(adjusted_start, adjusted_end)) 
 for_matching <- for_matching %>% ungroup() %>% mutate(label=1:nrow(.))
 
-match <- matchit(treatment ~ Institution + BuildingId + duration_interval + inf.primary,# + inf.secondary, 
+first_match <- matchit(treatment ~ Institution + BuildingId + duration_interval + inf.primary,# + inf.secondary, 
                  data = for_matching,
                  distance = generate_distance_matrix(for_matching), 
                  exact = treatment ~ Institution + BuildingId + inf.primary,# + inf.secondary,
                  ratio = 5, min.controls = 1, max.controls = 6, method="optimal")
-m <- match %>% get_matches() %>% arrange(subclass)
+m <- first_match %>% get_matches() %>% arrange(subclass)
 
 filtered_matches <- m %>% group_by(subclass) %>% arrange(subclass, desc(treatment)) %>%
   mutate(intersect=time_length(intersect(first(duration_interval),duration_interval),unit="day")+1) %>% 
@@ -125,7 +126,7 @@ m_adjusted_testing <- m_adjusted %>% left_join(testing %>% select(ResidentId, Da
 m_adjusted%>%nrow()
 m_adjusted$treatment%>%table()
 
-pdf("D:/CCHCS_premium/st/indirects/testing/matching_040423/matching_full.pdf")
+pdf("D:/CCHCS_premium/st/indirects/testing/matching_042723/matching_full_relaxtesting.pdf")
 keys <- m_adjusted %>% group_by(Institution) %>% group_keys() #, BuildingId
 for (i in 1:nrow(keys)) {
   print(plot_matches(m_adjusted %>% filter(Institution==keys$Institution[i]),
@@ -134,4 +135,4 @@ for (i in 1:nrow(keys)) {
 }
 dev.off()
 
-write_csv(m_adjusted, "matching_data_040423/matched.csv")
+write_csv(m_adjusted, "matching_data_042823/matched_relaxtesting60.csv")

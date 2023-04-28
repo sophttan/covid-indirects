@@ -11,6 +11,8 @@ library(ggfortify)
 m_adjusted <- read_csv("matching_data_040423/matched.csv") 
 testing <- read_csv("complete_testing_data.csv")
 
+m_adjusted
+
 add_testing <- function(d) {
   d %>% left_join(testing %>% select(ResidentId, Day, Result), by=c("primary"="ResidentId"))
 }
@@ -21,11 +23,11 @@ filter_testing <- function(d) {
 
 m_adjusted <- m_adjusted %>% 
   select(id, subclass, Institution, BuildingId, RoomId, RoomType, 
-         primary, inf.primary, inf.secondary, both_unvacc, one_unvacc,
-         treatment, adjusted_start, last_chunked, intersect, intersection, 
+         primary, secondary, inf.primary, inf.secondary, both_unvacc, one_unvacc,
+         treatment, adjusted_start, adjusted_end, intersect, intersection, #last_chunked,
          ResidentId.1, ResidentId.2) 
 
-m_adjusted <- m_adjusted %>% mutate(secondary=ifelse(primary==ResidentId.1, ResidentId.2, ResidentId.1))
+#m_adjusted <- m_adjusted %>% mutate(secondary=ifelse(primary==ResidentId.1, ResidentId.2, ResidentId.1))
 m_adjusted %>% select(primary, secondary)
 
 m_adjusted_testing <- m_adjusted %>% add_testing()
@@ -120,8 +122,7 @@ full <- full %>% mutate(treatment=1-treatment) %>% group_by(subclass) %>% filter
 full$treatment%>%table()
 
 full <- full %>% 
-  mutate(status=ifelse(Result=="Positive", 1, 0)) %>% 
-  select(survival_time, status, treatment) 
+  mutate(status=ifelse(Result=="Positive", 1, 0)) 
 fit <- survfit(Surv(survival_time, status, type="right")~treatment, data = full)
 autoplot(fit) + 
   xlab("Time") + ylab("Survival") + 
@@ -130,7 +131,7 @@ autoplot(fit) +
 
 # avg incidence rate
 full%>%group_by(treatment)%>%summarise(cases=sum(status), person_time=n()*mean(survival_time))%>%mutate(inc_rate=cases/person_time)
-full%>%group_by(inf.primary, treatment)%>%summarise(cases=sum(status), person_time=n()*mean(survival_time))%>%mutate(inc_rate=cases/person_time)
+full%>%group_by(inf.secondary, treatment)%>%summarise(cases=sum(status), person_time=n()*mean(survival_time))%>%mutate(inc_rate=cases/person_time)
 
 
 full_secondary <- full %>% 
@@ -222,21 +223,27 @@ full_secondary %>% filter(Result=="Positive") %>%
   scale_x_continuous("Survival time until first positive test (days)") + 
   scale_y_continuous("Density")
 
-secondary_vacc <- full_secondary %>% filter(treatment==1) %>% 
+secondary_vacc <- full %>% group_by(id, start) %>% 
   left_join(vacc%>%select(ResidentId, Date_offset, num_dose) %>% 
               rename("vacc_day"="Date_offset"), 
             by=c("secondary"="ResidentId")) %>% 
-  filter(vacc_day <= start) %>% 
+  filter(vacc_day <= start|treatment==0) %>% 
   arrange(id, start, desc(vacc_day)) %>% 
-  summarise_all(first)
+  summarise_all(first) %>% 
+  mutate(vacc_day=ifelse(treatment==0, as.Date(NA), vacc_day))
 
-secondary_vacc <- secondary_vacc %>% mutate(time_vacc=start-vacc_day+1)
+secondary_vacc <- secondary_vacc %>% mutate(time_vacc=as.numeric(start-vacc_day+1))
 
 secondary_vacc %>% ggplot(aes(time_vacc)) + geom_histogram(binwidth = 50) + 
   scale_x_continuous("Time since most recent vaccination (days)") + 
   scale_y_continuous("Count")
 
 secondary_vacc$time_vacc%>%as.numeric()%>%summary()
+
+secondary_vacc <- secondary_vacc %>% mutate(recent_vacc=time_vacc<=120)
+
+secondary_vacc%>%group_by(recent_vacc, treatment)%>%summarise(n=n(), mean_time=mean(time_vacc), cases=sum(status), person_time=n()*mean(survival_time))%>%mutate(inc_rate=cases/person_time)
+
 
 demo <- read_csv("demographic_data_clean.csv") %>% select(ResidentId, BirthYear)
 full_age <- full %>% 
