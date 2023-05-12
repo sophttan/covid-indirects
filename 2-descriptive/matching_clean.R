@@ -8,8 +8,72 @@ library(MatchIt)
 library(ggbrace)
 library(patchwork)
 
-for_matching <- read_csv("full_data_prematching_relaxtesting60_042823.csv")
+for_matching <- read_csv("full_data_prematching_infection050923.csv")
+for_matching <- for_matching %>% ungroup() %>% mutate(label=1:nrow(.))
 for_matching <- for_matching %>% rowwise() %>% mutate(adjusted_end = min(as.Date("2022-12-15"), last + 5))
+
+for_matching <- for_matching %>% mutate(secondary=ifelse(primary==ResidentId.1, ResidentId.2, ResidentId.1))
+
+vacc <- read_csv("cleaned_vaccination_data.csv")
+for_matching <- for_matching %>% left_join(vacc %>% select(ResidentId, num_dose, Date_offset),
+                                           by=c("secondary"="ResidentId"))
+
+for_matching <- for_matching %>% group_by(label) %>% 
+  mutate(new_vacc=Date_offset > adjusted_start & Date_offset < adjusted_end) %>% 
+  filter(treatment==1|Date_offset<=last) %>% 
+  arrange(label, desc(Date_offset))
+
+for_matching %>% select(label, primary, secondary, treatment, first, last, Date_offset, new_vacc)
+
+unvacc <- for_matching %>% filter(treatment==1) %>% distinct(label, .keep_all = T) %>% select(!c(num_dose, Date_offset, new_vacc))
+vacc_before <- for_matching %>% filter(treatment==0 & all(!new_vacc)) %>% distinct(label, .keep_all = T)
+vacc_during <- for_matching %>% filter(treatment==0 & any(new_vacc))
+
+vacc_before <- vacc_before %>% 
+  mutate(Date_end = Date_offset + 90) %>% 
+  mutate(eligible = adjusted_start <= Date_end) %>% 
+  rowwise() %>% 
+  mutate(vacc_start = max(Date_offset, adjusted_start), 
+         vacc_end=(min(Date_end, adjusted_end))) 
+
+vacc_before %>% 
+  select(label, treatment, eligible, adjusted_start, adjusted_end, Date_offset, Date_end, vacc_start, vacc_end)
+
+vacc_before_final <- vacc_before %>% filter(eligible)
+
+vacc_during %>% 
+  select(label, treatment, adjusted_start, adjusted_end, Date_offset, num_dose)
+
+vacc_during <- vacc_during %>%
+  mutate(Date_end = Date_offset + 90) %>% 
+  mutate(eligible = adjusted_start <= Date_end)
+
+vacc_during_final <- vacc_during %>% filter(eligible) %>% 
+  mutate(overlap = lead(Date_end, 1)>=Date_offset & lead(Date_end, 1)<=Date_end) %>%
+  mutate(keep = !overlap%>%is.na()|n()==1) %>% 
+  rowwise() %>%
+  mutate(vacc_start = max(Date_offset, adjusted_start), 
+         vacc_end=(min(Date_end, adjusted_end))) %>%
+  group_by(label) %>% 
+  mutate(last_start = lead(vacc_start, 1), 
+         last_end = lead(vacc_end, 1)) %>% 
+  mutate(vacc_start=if_else(overlap&!is.na(overlap), last_start, vacc_start)) %>% 
+  filter(keep)
+
+vacc_during_final <- vacc_during_final %>% distinct(label, vacc_start, vacc_end, .keep_all = T) %>% 
+  mutate(d=vacc_end-vacc_start) %>% arrange(label, vacc_start, desc(d)) %>% summarise_all(first)
+
+
+for_matching <- unvacc %>% rbind(vacc_before_final %>% 
+                                   select(!c(adjusted_start, adjusted_end)) %>% 
+                                            rename("adjusted_start"="vacc_start", "adjusted_end"="vacc_end") %>% 
+                                   select(names(unvacc)),
+                                 vacc_during_final %>% 
+                                   select(!c(adjusted_start, adjusted_end)) %>% 
+                                   rename("adjusted_start"="vacc_start", "adjusted_end"="vacc_end") %>% 
+                                   select(names(unvacc)))
+
+
 
 generate_distance_matrix <- function(d) {
   overlap <- expand.grid(x=d$label,y=d$label) %>% 
@@ -56,7 +120,7 @@ plot_all_units <- function(d) {
 }
 
 plot_matches <- function(d, title="", subtitle="") {
-  d <- d %>% arrange(subclass)
+  d <- d %>% arrange(inf.primary, subclass)
   d <- d %>% ungroup() %>% mutate(subclass1=match(subclass, unique(subclass)))
   d <- d %>% group_by(subclass1) %>% 
     mutate(subclass1=subclass1*5-0.4*0:(n()-1)) %>% ungroup()
@@ -85,11 +149,11 @@ plot_matches <- function(d, title="", subtitle="") {
 for_matching <- for_matching %>% rowwise() %>% mutate(duration_interval = interval(adjusted_start, adjusted_end)) 
 for_matching <- for_matching %>% ungroup() %>% mutate(label=1:nrow(.))
 
-first_match <- matchit(treatment ~ Institution + BuildingId + duration_interval + inf.primary,# + inf.secondary, 
+first_match <- matchit(treatment ~ Institution + BuildingId + duration_interval + inf.primary + vacc.primary + vacc.secondary, 
                  data = for_matching,
                  distance = generate_distance_matrix(for_matching), 
-                 exact = treatment ~ Institution + BuildingId + inf.primary,# + inf.secondary,
-                 ratio = 5, min.controls = 1, max.controls = 6, method="optimal")
+                 exact = treatment ~ Institution + BuildingId + inf.primary + vacc.primary + vacc.secondary,# + inf.secondary,
+                 ratio = 2, min.controls = 1, max.controls = 6, method="optimal")
 m <- first_match %>% get_matches() %>% arrange(subclass)
 
 filtered_matches <- m %>% group_by(subclass) %>% arrange(subclass, desc(treatment)) %>%
@@ -99,11 +163,11 @@ filtered_matches <- m %>% group_by(subclass) %>% arrange(subclass, desc(treatmen
   filter(include|treatment==0) %>%
   ungroup() %>% select(!c(id, subclass, weights)) %>% mutate(label=1:nrow(.))
 
-match_adjusted <- matchit(treatment ~ Institution + BuildingId + duration_interval + inf.primary,# + inf.secondary,
+match_adjusted <- matchit(treatment ~ Institution + BuildingId + duration_interval + inf.primary + vacc.primary + vacc.secondary,# + inf.secondary,
                           data = filtered_matches,
                           distance = generate_distance_matrix(filtered_matches), 
-                          exact = treatment ~ Institution + BuildingId + inf.primary,# + inf.secondary, 
-                          ratio = 5, min.controls = 1, max.controls = 6, method="optimal") 
+                          exact = treatment ~ Institution + BuildingId + inf.primary + vacc.primary + vacc.secondary,# + inf.secondary, 
+                          ratio = 2, min.controls = 1, max.controls = 6, method="optimal") 
 
 m_adjusted <- match_adjusted %>% 
   get_matches() %>% 
@@ -124,9 +188,10 @@ m_adjusted_testing <- m_adjusted %>% left_join(testing %>% select(ResidentId, Da
 
 
 m_adjusted%>%nrow()
+m_adjusted%>%group_by(inf.primary, inf.secondary)%>%summarise(n=n())
 m_adjusted$treatment%>%table()
 
-pdf("D:/CCHCS_premium/st/indirects/testing/matching_042723/matching_full_relaxtesting.pdf")
+pdf("D:/CCHCS_premium/st/indirects/testing/matching_050923/matching_infection.pdf")
 keys <- m_adjusted %>% group_by(Institution) %>% group_keys() #, BuildingId
 for (i in 1:nrow(keys)) {
   print(plot_matches(m_adjusted %>% filter(Institution==keys$Institution[i]),
@@ -135,4 +200,4 @@ for (i in 1:nrow(keys)) {
 }
 dev.off()
 
-write_csv(m_adjusted, "matching_data_042823/matched_relaxtesting60.csv")
+write_csv(m_adjusted, "matching_data_050923/matching_data_infection_vacc051023.csv")

@@ -14,6 +14,10 @@ d <- d %>% select(ResidentId, Day, Institution, BuildingId, RoomType, RoomId, nu
 infections <- d %>% group_by(ResidentId, num_pos) %>% filter(!num_pos %>% is.na()) %>% 
   summarise(Day_inf=first(Day))
 
+d <- d %>% group_by(ResidentId, num_pos) %>% mutate(num_pos_adjusted=ifelse(Day==first(Day), num_pos-1, num_pos))
+d <- d %>% replace_na(list(num_pos_adjusted=0))
+d
+
 # keep data only for Omicron period
 group_room <- d %>% filter(!is.na(Institution) & !is.na(RoomId)) %>% filter(Day >= "2021-12-15") %>%
   group_by(Institution, RoomId, Day)
@@ -39,7 +43,9 @@ group_room_summary <- group_room %>% filter(n()==2)
 #### commented only if removing requirement for incarceration over the entire pandemic
 # include only residents that were incarcerated over the entire pandemic (before 4/1/2020)
 duration <- read_csv("housing_duration.csv")
-duration <- duration %>% filter(first<="2020-03-31")
+duration <- duration %>% filter(first<="2020-03-31") 
+duration <- duration %>% mutate(max_duration=last-first+1) %>% 
+  filter(max_duration-duration<=30)
 included <- duration$ResidentId %>% unique()
 
 residents <- group_room_summary %>% group_by(ResidentId) %>% group_keys()
@@ -49,12 +55,12 @@ group_room_summary_entirepandemic <- group_room_summary_entirepandemic %>% filte
 
 # label if residents have had documented infection in the last 90 days
 group_room_summary_entirepandemic <- group_room_summary_entirepandemic %>% 
-  left_join(infections, by=c("ResidentId", "num_pos")) 
+  left_join(infections, by=c("ResidentId", "num_pos_adjusted"="num_pos")) 
 group_room_summary_entirepandemic <- group_room_summary_entirepandemic %>% 
   mutate(inf_90_days = difftime(Day, Day_inf, units="days") + 1 < 90)
 
 group_room_summary_entirepandemic %>% group_by(ResidentId) %>% filter(any(num_pos>=1)) %>% 
-  select(ResidentId, Day, num_pos, Day_inf, inf_90_days) %>% head(1000) %>% view()
+  select(ResidentId, Day, num_pos, num_pos_adjusted, Day_inf, inf_90_days) %>% head(1000) %>% view()
 
 write_csv(group_room_summary_entirepandemic, "group_room_data_2_entireperiod.csv")
 
@@ -62,8 +68,9 @@ write_csv(group_room_summary_entirepandemic, "group_room_data_2_entireperiod.csv
 group_room_2 <- group_room_summary_entirepandemic %>% mutate(num=as.factor(1:n())) %>%
   arrange(Institution, RoomId, Day)
 group_room_2 <- group_room_2 %>%
-  select(Institution, BuildingId, RoomType, RoomId, Day, ResidentId, num, num_pos, inf_90_days, num_dose_adjusted)
-group_room_2 <- group_room_2 %>% mutate(vacc=ifelse(num_dose_adjusted>0,1,0))
+  select(Institution, BuildingId, RoomType, RoomId, Day, ResidentId, num, num_pos, num_pos_adjusted, inf_90_days, num_dose_adjusted)
+group_room_2 <- group_room_2 %>% mutate(vacc=ifelse(num_dose_adjusted>0,1,0), 
+                                        inf=num_pos_adjusted>0)
 group_room_2
 
 # keep residents with clear building reporting
@@ -76,24 +83,24 @@ group_room_2 <- group_room_2 %>% group_by(Institution, RoomId) %>%
 building_room <- group_room_2 %>% group_by(Institution, RoomId, BuildingId) %>% group_keys()
 
 # reshape dataset to be wide so each row represents a room-day instead of a resident-day over time
-group_room_2_wide <- group_room_2 %>% select(!BuildingId) %>%
+group_room_2_wide <- group_room_2 %>% select(!c(BuildingId)) %>%
   reshape(idvar = c("Institution", "RoomId", "Day"),
           timevar = "num",
-          v.names = c("ResidentId", "num_pos", "num_dose_adjusted", "vacc", "inf_90_days"),
+          v.names = c("ResidentId", "num_pos", "num_pos_adjusted", "num_dose_adjusted", "vacc", "inf", "inf_90_days"),
           direction = "wide")
 
 # add building type
 group_room_2_wide <- group_room_2_wide %>% left_join(building_room)
 group_room_2_wide <- group_room_2_wide %>% select(Institution, BuildingId, everything())
 
-write_csv(group_room_2_wide, "wide_housing_2room.csv")
+write_csv(group_room_2_wide, "wide_housing_2room050823.csv")
 
 # read in dataset
 group_room_2_wide <- read_csv("wide_housing_2room.csv") 
 
 group_room_2_wide <- group_room_2_wide %>% arrange(Institution, BuildingId, RoomId, Day)
 
-group_room_2_wide %>% select(Institution, BuildingId, RoomId, Day, ResidentId.1, ResidentId.2) %>% head(20)
+group_room_2_wide %>% head(20)
 
 group_room_2_wide <- group_room_2_wide %>% replace_na(list(inf_90_days.1=F, inf_90_days.2=F)) %>% 
   mutate(prior_inf_90 = inf_90_days.1==1|inf_90_days.2==1)
@@ -111,16 +118,18 @@ g <- g %>% fill(unit_label, .direction="down")
 
 group_room_2_wide_distinct <- g %>%
   distinct(Institution,RoomId,ResidentId.1,ResidentId.2,unit_label,
-           vacc.1,vacc.2,prior_inf_90,.keep_all=T) %>% ungroup()
+           prior_inf_90,.keep_all=T) %>% ungroup()
 
 group_room_2_wide_distinct_final <- group_room_2_wide_distinct %>% 
-  group_by(Institution, RoomId, ResidentId.1, ResidentId.2, unit_label, vacc.1, vacc.2) %>% 
+  group_by(Institution, RoomId, ResidentId.1, ResidentId.2, unit_label) %>% 
   mutate(new_unit=n()>1&first(prior_inf_90)) %>% 
   mutate(new_no_inf=ifelse(new_unit, 1:n(), 1)) %>% 
   distinct(Institution,RoomId,ResidentId.1,ResidentId.2,unit_label,
-           vacc.1,vacc.2,new_no_inf,.keep_all=T)
+           new_no_inf,.keep_all=T)
 
 group_room_2_wide_distinct_final <- group_room_2_wide_distinct_final %>% 
+  mutate(both_inf=(inf.1==0&inf.2==0),
+         one_inf=(!both_inf&(inf.1==0|inf.2==0))) %>%
   mutate(both_unvacc=(vacc.1==0&vacc.2==0),
          one_unvacc=(!both_unvacc&(vacc.1==0|vacc.2==0)),
          num_inf=case_when(
@@ -149,7 +158,7 @@ group_room_2_final <- group_room_2_wide_summary %>% select(!label) %>%
 over_14 <- group_room_2_final %>% filter(duration >= 14)
 
 # keep units where at least 1 resident is unvaccinated
-any_unvacc_over14 <- over_14 %>% filter(any(both_unvacc|one_unvacc))
+any_unvacc_over14 <- over_14 %>% filter(any(both_inf|one_inf))
 
 any_unvacc_over14 %>% ggplot(aes(duration)) + geom_histogram() + 
   scale_x_continuous("Duration of co-residence (days)",limits=c(0,365),
@@ -169,7 +178,7 @@ p2 <- any_unvacc_over14 %>% ggplot(aes(Institution)) + geom_bar() +
 library(patchwork)
 p1/p2
 
-any_unvacc_over14_noinf <- any_unvacc_over14 %>% filter(!prior_inf_90)
+any_unvacc_over14_noinf <- over_14 %>% filter(!prior_inf_90)
 any_unvacc_over14_noinf <- any_unvacc_over14_noinf %>% ungroup() %>% mutate(label=1:n())
 
 # check testing data
@@ -213,11 +222,11 @@ omicron_testing%>%ggplot(aes(Test))+geom_histogram()+xlab("Time")+ylab("Tests ov
 
 omicron_testing_summary <- omicron_testing %>% 
   mutate(time=as.numeric(difftime(last, "2021-12-15"))+1) %>%
-  summarise(tests=n(), rate_testing=tests/first(time)*60)
+  summarise(tests=n(), rate_testing=tests/first(time)*30)
 omicron_testing_summary$rate_testing%>%summary()
 omicron_testing_summary%>%
   ggplot(aes(rate_testing))+
-  geom_histogram()+xlab("Testing rate (tests per 60 days)")
+  geom_histogram()+xlab("Testing rate (tests per 30 days)")
 omicron_testing_summary1 <- omicron_testing_summary%>%filter(rate_testing>=1)
 
 few_tests <- omicron_testing%>%
@@ -252,33 +261,45 @@ avg_1_test <- any_unvacc_over14_noinf %>%
          test2=ResidentId.2 %in% omicron_testing_summary1$ResidentId) %>%
   filter(test1|test2)
 
-avg_1_test <- avg_1_test %>% filter(both_unvacc|(one_unvacc&((test1&vacc.1==0)|(test2&vacc.2==0))))
+avg_1_test <- avg_1_test %>% rowwise() %>%
+  mutate(primary=case_when(test1&!test2~ResidentId.1,
+                           !test1&test2~ResidentId.2,
+                           test1&test2~sample(c(ResidentId.1, ResidentId.2), 1)),
+         secondary=ifelse(primary==ResidentId.1, ResidentId.1, ResidentId.2))
+
+#avg_1_test <- avg_1_test %>% filter(both_inf|(one_inf&((test1&inf.1==0)|(test2&inf.2==0))))
 
 matching <- avg_1_test %>% rowwise() %>%
-  mutate(primary=case_when(one_unvacc&vacc.1==0~ResidentId.1,
-                           one_unvacc&vacc.2==0~ResidentId.2,
-                           both_unvacc&test1&!test2~ResidentId.1,
-                           both_unvacc&!test1&test2~ResidentId.2,
+  mutate(primary=case_when(one_inf&inf.1==0~ResidentId.1,
+                           one_inf&inf.2==0~ResidentId.2,
+                           both_inf&test1&!test2~ResidentId.1,
+                           both_inf&!test1&test2~ResidentId.2,
                            T~sample(c(ResidentId.1, ResidentId.2), 1)))
 
-matching%>%select(label, one_unvacc, both_unvacc, ResidentId.1, vacc.1, test1, ResidentId.2, vacc.2, test2, primary)
+matching%>%select(label, one_inf, both_inf, ResidentId.1, inf.1, test1, ResidentId.2, inf.2, test2, primary)
 
-matching <- matching %>% 
+matching <- avg_1_test %>% 
   mutate(secondary = ifelse(primary==ResidentId.1, ResidentId.2, ResidentId.1),
          inf.primary=ifelse(primary==ResidentId.1, num_pos.1>0, num_pos.2>0), 
          inf.secondary=ifelse(primary==ResidentId.1, num_pos.2>0, num_pos.1>0), 
          inf.primary=ifelse(inf.primary%>%is.na(), 0, 1), 
-         inf.secondary=ifelse(inf.secondary%>%is.na(), 0, 1))
+         inf.secondary=ifelse(inf.secondary%>%is.na(), 0, 1),
+         vacc.primary=ifelse(primary==ResidentId.1, vacc.1, vacc.2),
+         vacc.secondary=ifelse(primary==ResidentId.1, vacc.2, vacc.1))
 
 matching <- matching %>% 
-  mutate(treatment = ifelse(both_unvacc, 1, 0))
+  mutate(treatment = ifelse(inf.secondary==0, 0, 1))
+
+matching %>% group_by(inf.primary, inf.secondary) %>% summarise(n=n())
 
 matching$treatment %>% table()
 
 matching <- matching %>% rowwise() %>% mutate(adjusted_start=first+5,
                                               adjusted_end=min(as.Date("2022-12-15"), last + 5))
 
-write_csv(matching, "full_data_prematching_relaxtesting60_042823.csv")
+
+write_csv(matching, "full_data_prematching_infection050923.csv")
+write_csv(matching, "full_data_prematching_relaxincarceration_relaxtesting30_050123.csv")
 
 
 units_testing1 <- any_unvacc_over14_noinf %>% 

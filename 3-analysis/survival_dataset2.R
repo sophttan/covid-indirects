@@ -6,8 +6,8 @@ filter_testing <- function(d) {
 }
 
 # use matched time where we use maximum overlapped time
-treatment <- m_adjusted %>% filter(treatment==0)
-control <- m_adjusted %>% filter(treatment==1)
+treatment <- m_adjusted %>% filter(treatment==1)
+control <- m_adjusted %>% filter(treatment==0)
 
 treatment_testing <- treatment %>% add_testing() %>% 
   mutate(start=int_start(intersection)%>%as.Date(), end=int_end(intersection)%>%as.Date())
@@ -52,21 +52,47 @@ control_time_test <- control_testing_unique %>% group_by(id, label) %>%
 
 control_time_test <- control_time_test %>% select(!c(id_treat, first_intersection, last_intersection, next_intersection, overlap_next))
 
-# treatment_time_test <- treatment_time_test %>% 
-#   left_join(control_test_overlap%>%select(id_treat,start,end), by=c("id"="id_treat")) %>% 
-#   mutate(time1=as.Date(start.x)-as.Date(start.y), time2=as.Date(end.x)-as.Date(start.y)+1)
-# treatment_time_test %>% select(id, subclass, intersection, start.y, end.y, time1, time2)
-
 
 full <- treatment_time_test %>% 
-  select(id, treatment, subclass, primary, secondary, inf.primary, inf.secondary, start, end, survival_time, Result) %>% 
-  rbind(control_time_test %>% select(id, treatment, subclass, primary, secondary, inf.primary, inf.secondary, start, end, survival_time, Result))
+  select(id, treatment, subclass, weights, BuildingId, primary, secondary, inf.primary, inf.secondary, vacc.primary, vacc.secondary, start, end, survival_time, Result) %>% 
+  rbind(control_time_test %>% select(id, treatment, subclass, weights, BuildingId, primary, secondary, inf.primary, inf.secondary, vacc.primary, vacc.secondary, start, end, survival_time, Result))
 
-full <- full %>% mutate(treatment=1-treatment) %>% group_by(subclass) %>% filter(any(treatment==1)&any(treatment==0))
+full <- full %>% group_by(subclass) %>% filter(any(treatment==1)&any(treatment==0))
+full <- full %>% mutate(weights=ifelse(sum(treatment==1)>1&treatment==1, sum(treatment==1), 1))
+#full <- full %>% mutate(treatment=1-treatment)
 full$treatment%>%table()
 
 full <- full %>% 
-  mutate(status=ifelse(!Result%>%is.na()&Result=="Positive", 1, 0)) 
+  mutate(status=ifelse(!Result%>%is.na()&Result=="Positive", 1, 0), 
+         BuildingId=as.factor(BuildingId),
+         subclass=as.factor(subclass)) 
 
-full%>%group_by(treatment)%>%summarise(units=length(unique(id)), cases=sum(status), person_time=n()*mean(survival_time))%>%mutate(inc_rate=cases/person_time)
- 
+full%>%group_by(inf.secondary)%>%summarise(units=length(unique(id)), cases=sum(status), person_time=n()*mean(survival_time))%>%mutate(inc_rate=cases/person_time)
+
+# full <- full %>% mutate(time_since_start=as.numeric(difftime(start, "2021-12-15", units="days")))
+full <- full %>% group_by(treatment) %>% mutate(n=1:n()) %>% mutate(n=ifelse(treatment==0, n, NA))
+full <- full %>% arrange(subclass, start) %>% ungroup() %>% 
+  fill(n, .direction="down") %>%
+  group_by(n) %>% 
+  mutate(time_since_start_rel=start-first(start))
+
+fit <- survfit(Surv(survival_time, status, type="right")~treatment, data = full)
+autoplot(fit) + 
+  xlab("Time") + ylab("Survival") + 
+  scale_fill_discrete(name=element_blank(), label=c("Control", "Treatment")) + 
+  guides(color=F)
+
+
+results <- coxph(Surv(survival_time, status) ~ 
+                   treatment + inf.primary + vacc.primary + vacc.secondary + BuildingId + frailty(subclass), 
+                 data=full)
+
+tbl_regression(results, exp = TRUE) 
+
+
+# vacc_check <- full %>% group_by(id) %>% 
+  left_join(vacc %>% select(ResidentId, Date_offset, num_dose), by=c("secondary"="ResidentId")) %>% 
+  filter(Date_offset<=start) %>% 
+  arrange(id, desc(Date_offset)) %>% summarise_all(first)
+vacc_check <- vacc_check %>% mutate(time_since_vacc=start-Date_offset)
+vacc_check%>%ggplot(aes(time_since_vacc)) + geom_histogram()

@@ -3,8 +3,10 @@
 rm(list=ls())
 gc()
 
+setwd("D:/CCHCS_premium/CDCR Data/Dec 16 2022 Data")
+
 # hospitalization data
-hosp <- read.csv("/Users/sophiatan/Documents/UCSF/ST files/CovidHospitalizations_20220520.csv", sep = ";")
+hosp <- read.csv("CovidHospitalizations_20221216.csv", sep = ";")
 hosp <- hosp %>% mutate(AdmissionDate=as.Date(AdmissionDate),
                         DischargeDate=as.Date(DischargeDate))
 hosp %>% group_by(ResidentId) 

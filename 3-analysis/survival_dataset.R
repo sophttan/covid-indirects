@@ -7,14 +7,15 @@ library(readr)
 library(lubridate)
 library(survival)
 library(ggfortify)
+library(gtsummary)
 
-m_adjusted <- read_csv("matching_data_040423/matched.csv") 
-testing <- read_csv("complete_testing_data.csv")
+m_adjusted <- read_csv("matching_data_050923/matching_data_infection_vacc051023.csv") 
+testing <- read_csv("complete_testing_data.csv") %>% select(ResidentId, Day, Result)
 
-m_adjusted
+m_adjusted <- m_adjusted %>% mutate(intersection = interval(adjusted_start, adjusted_end))
 
 add_testing <- function(d) {
-  d %>% left_join(testing %>% select(ResidentId, Day, Result), by=c("primary"="ResidentId"))
+  d %>% left_join(testing, by=c("primary"="ResidentId"))
 }
 
 filter_testing <- function(d) {
@@ -22,8 +23,8 @@ filter_testing <- function(d) {
 }
 
 m_adjusted <- m_adjusted %>% 
-  select(id, subclass, Institution, BuildingId, RoomId, RoomType, 
-         primary, secondary, inf.primary, inf.secondary, both_unvacc, one_unvacc,
+  select(id, subclass, weights, Institution, BuildingId, RoomId, RoomType, 
+         primary, secondary, inf.primary, inf.secondary, vacc.primary, vacc.secondary,
          treatment, adjusted_start, adjusted_end, intersect, intersection, #last_chunked,
          ResidentId.1, ResidentId.2) 
 
@@ -115,8 +116,8 @@ control_time_test <- control_time_test %>% select(!c(id_treat, first_intersectio
 
 
 full <- treatment_time_test %>% 
-  select(id, treatment, subclass, primary, secondary, inf.primary, inf.secondary, start, end, survival_time, Result) %>% 
-  rbind(control_time_test %>% select(id, treatment, subclass, primary, secondary, inf.primary, inf.secondary, start, end, survival_time, Result))
+  select(id, treatment, subclass, BuildingId,  primary, secondary, inf.primary, inf.secondary, start, end, survival_time, Result) %>% 
+  rbind(control_time_test %>% select(id, treatment, subclass, BuildingId, primary, secondary, inf.primary, inf.secondary, start, end, survival_time, Result))
 
 full <- full %>% mutate(treatment=1-treatment) %>% group_by(subclass) %>% filter(any(treatment==1)&any(treatment==0))
 full$treatment%>%table()

@@ -2,6 +2,7 @@
 # Clean nightly housing data 12/16/22
 
 rm(list=ls())
+gc()
 
 setwd("D:/CCHCS_premium/CDCR Data/Dec 16 2022 Data")
 
@@ -14,8 +15,12 @@ min(nh$Night)
 max(nh$Night)
 
 nh_after_3_1_2020 <- nh %>% filter(Night >= "2020-03-01")
+rm(nh)
+gc()
+
+names(nh_after_3_1_202)
 nh_after_3_1_2020_subset <- nh_after_3_1_2020 %>% 
-  select(Night, ResidentId, RoomId, RoomType, Institution, FacilityId, BuildingId, ActivityCohortId)
+  select(Night, ResidentId, RoomId, RoomType, Institution, FacilityId, BuildingId, Floor, ActivityCohortId)
 
 summary_housing <- nh_after_3_1_2020_subset %>% group_by(ResidentId) %>% arrange(Night) %>% summarise(first=first(Night), last=last(Night), duration=n())
 summary_housing %>% write_csv("D:/CCHCS_premium/st/indirects/cleaned-data/housing_duration.csv")
