@@ -49,7 +49,7 @@ summary_overall%>%group_by(Institution) %>% summarise(duration=mean(duration)) %
 (d %>% group_by(BuildingId,) %>% summarise(num_act = unique(ActivityCohortId) %>% length()))$num_act %>% summary()
 
 
-summary2 <- d %>% arrange(BuildingId, Day, ResidentId) %>% group_by(BuildingId, Day) %>% 
+summary2 <- d %>% arrange(BuildingId, Day, ResidentId) %>% group_by(Institution, BuildingId, Day) %>% 
   summarise(residents=list(ResidentId), 
             num_res=n(), 
             #BuildingId=first(BuildingId), num_building=length(unique(BuildingId)), 
@@ -80,3 +80,41 @@ summary_overall2
 summary_overall2%>%group_by(Institution) %>% summarise(duration=mean(duration)) %>% ggplot(aes(Institution, duration)) + geom_bar(stat="identity") +
   scale_x_continuous(breaks=1:35, limits=c(0,36), expand=c(0,0)) +
   scale_y_continuous("Duration (days) of the same cohort")
+
+pdf("D:/CCHCS_premium/st/indirects/testing/building_vacc_inf_profile.pdf")
+for (id in (summary2%>%group_keys())$BuildingId) {
+  p <- summary2 %>% ungroup() %>% 
+    filter(BuildingId==id) %>% ggplot(aes(Day)) + 
+    geom_line(aes(y=prop_vacc, color="Previously vaccinated (any)")) + 
+    geom_line(aes(y=prop_inf, color="Previously infected (any)"))
+  print(p)
+}
+dev.off()
+
+
+spread <- summary2 %>% group_by(Day) %>% summarise(vacc_mean=mean(prop_vacc),
+                                         vacc_25=quantile(prop_vacc, .25),
+                                         vacc_75=quantile(prop_vacc, .75),
+                                         inf_mean=mean(prop_inf),
+                                         inf_25=quantile(prop_inf, .25),
+                                         inf_75=quantile(prop_inf, .75))
+spread %>% ggplot(aes(Day, vacc_mean)) + geom_point() + 
+  geom_linerange(aes(ymin=vacc_25, ymax=vacc_75))
+
+spread %>% ggplot(aes(Day, inf_mean)) + geom_point() + 
+  geom_linerange(aes(ymin=inf_25, ymax=inf_75))
+
+
+building_summary <- summary2 %>% 
+  group_by(Institution, BuildingId) %>% summarise(Institution=unique(Institution), `Average Number of Residents`=mean(num_res)) 
+
+building_summary %>% write_csv("D:/CCHCS_premium/st/indirects/covid-indirects/data/building_summary.csv")
+
+institution_summary <- building_summary %>% group_by(Institution) %>% summarise_all(mean) %>% select(!BuildingId)
+institution_summary
+
+institution_summary %>% write_csv("D:/CCHCS_premium/st/indirects/covid-indirects/data/institution_summary.csv")
+
+institution_summary %>% ggplot(aes(Institution, `Average Number of Residents`)) + geom_bar(stat="identity") +
+  scale_x_continuous(breaks=1:35, limits=c(0,36), expand=c(0,0)) + 
+  scale_y_continuous("Average Building Size")
