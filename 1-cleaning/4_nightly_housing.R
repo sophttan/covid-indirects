@@ -18,9 +18,9 @@ nh_after_3_1_2020 <- nh %>% filter(Night >= "2020-03-01")
 rm(nh)
 gc()
 
-names(nh_after_3_1_202)
+names(nh_after_3_1_2020)
 nh_after_3_1_2020_subset <- nh_after_3_1_2020 %>% 
-  select(Night, ResidentId, RoomId, RoomType, Institution, FacilityId, BuildingId, Floor, ActivityCohortId)
+  select(Night, ResidentId, RoomId, RoomType, Institution, FacilityId, BuildingId, FloorNumber, ActivityCohortId)
 
 summary_housing <- nh_after_3_1_2020_subset %>% group_by(ResidentId) %>% arrange(Night) %>% summarise(first=first(Night), last=last(Night), duration=n())
 summary_housing %>% write_csv("D:/CCHCS_premium/st/indirects/cleaned-data/housing_duration.csv")
@@ -47,22 +47,23 @@ nh_omicron <- nh_omicron %>% rename("RoomType" = "RoomType.y") %>% select(!RoomT
 nh_omicron <- nh_omicron %>% mutate(RoomType = ifelse(Institution ==13, 1, RoomType))
 
 weird_buildings <- nh_omicron %>% 
-  group_by(Institution, RoomId, Night, BuildingId) %>% 
-  summarise(count=n()) 
+  group_by(Institution, RoomId, BuildingId) %>% 
+  group_keys()
 w <- weird_buildings %>% group_by(Institution, RoomId) %>% 
-  filter(length(unique(BuildingId))>1)
+  filter(length(unique(BuildingId))>1) # Institution and RoomId should be identifiable, but there are some rooms that are associated with 2 buildings (1% of rooms)
+w
 
 pdf("D:/CCHCS_premium/st/indirects/testing/building.pdf")
 for (room in unique(w$RoomId)) {
-  print(w %>% filter(RoomId==room) %>% 
+  print(nh_omicron %>% filter(RoomId==room) %>% 
     ggplot(aes(Night, group=as.factor(BuildingId), fill=as.factor(BuildingId))) + 
     geom_histogram(position="dodge") + 
     labs(title=room))
 }
 dev.off()
+
 # some rooms have multiple building ids
-nh_omicron %>% 
-  group_by(Institution, RoomId) %>% summarise(BuildingId=unique(BuildingId)) %>% filter(n()>1) %>% 
+w %>% 
   write_csv("D:/CCHCS_premium/st/indirects/cleaned-data/rooms_mult_buildings.csv")
 
 write_csv(nh_omicron, "D:/CCHCS_premium/st/indirects/cleaned-data/housing_omicron.csv")

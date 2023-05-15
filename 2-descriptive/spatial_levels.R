@@ -10,9 +10,10 @@ d <- read_csv("complete-data.csv")
 
 names(d)
 
-d <- d %>% filter(Day >= "2021-12-15") %>% arrange(ActivityCohortId, Day, ResidentId) %>% group_by(ActivityCohortId, Day)
+d <- d %>% filter(Day >= "2021-12-15")
 d <- d %>% replace_na(list(num_pos=0))
 
+d <- d %>% arrange(ActivityCohortId, Day, ResidentId) %>% group_by(ActivityCohortId, Day)
 summary <- d %>% 
   summarise(residents=list(ResidentId), 
             num_res=n(), 
@@ -49,19 +50,43 @@ summary_overall%>%group_by(Institution) %>% summarise(duration=mean(duration)) %
 (d %>% group_by(BuildingId,) %>% summarise(num_act = unique(ActivityCohortId) %>% length()))$num_act %>% summary()
 
 
-summary2 <- d %>% arrange(BuildingId, Day, ResidentId) %>% group_by(Institution, BuildingId, Day) %>% 
+### building and floor
+weird_buildings <- read_csv("rooms_mult_buildings.csv")
+
+# how many floors in a building?
+d %>% group_by(Institution, BuildingId) %>% 
+  summarise(num_activity = length(unique(ActivityCohortId)),
+            num_floors= length(unique(FloorNumber))) %>% summary()
+
+summary_floor <- d %>% arrange(Institution, BuildingId, FloorNumber, Day, ResidentId) %>% 
+  group_by(Institution, BuildingId, FloorNumber, Day) %>% 
   summarise(residents=list(ResidentId), 
             num_res=n(), 
             #BuildingId=first(BuildingId), num_building=length(unique(BuildingId)), 
             Institution=first(Institution), num_inst=length(unique(Institution)),
-            prop_inf=mean(num_pos>0)*100, 
-            prop_vacc=mean(num_dose_adjusted>0)*100)
+            inf_floor=sum(num_pos>0), 
+            vacc_floor=sum(num_dose_adjusted>0),
+            inf_vacc_floor=sum(num_pos>0|num_dose_adjusted>0),
+            prop_inf_floor=inf_floor/num_res*100,
+            prop_vacc_floor=vacc_floor/num_res*100,
+            prop_inf_vacc_floor=inf_vacc_floor/num_res*100)
 
-summary2%>%group_by(Institution) %>% summarise(size=mean(num_res)) %>% ggplot(aes(Institution, size)) + geom_bar(stat="identity") +
+summary_building <- summary_floor %>% 
+  group_by(Institution, BuildingId, Day) %>% 
+  mutate(num_res_building = sum(num_res),
+         prop_inf_building = sum(inf_floor)/num_res_building*100,
+         prop_vacc_building = sum(vacc_floor)/num_res_building*100,
+         prop_inf_vacc_building = sum(inf_vacc_floor)/num_res_building*100)
+
+summary_building <- summary_building %>% select(!c(inf_floor, vacc_floor, inf_vacc_floor))
+
+summary_floor %>% group_by(Institution) %>% 
+  summarise(size=mean(num_res)) %>% 
+  ggplot(aes(Institution, size)) + geom_bar(stat="identity") +
   scale_x_continuous(breaks=1:35, limits=c(0,36), expand=c(0,0)) + 
-  scale_y_continuous("Building Size")
+  scale_y_continuous("Floor Size")
 
-summary2%>%filter(num_res<=750)%>%ggplot(aes(num_res)) + geom_histogram() + 
+summary2 %>% filter(num_res<=750)%>%ggplot(aes(num_res)) + geom_histogram() + 
   scale_x_continuous("Activity Cohort Size")
 
 summary2 <- summary2 %>% group_by(BuildingId) %>% mutate(diff=c(1, diff(Day)))
@@ -105,15 +130,44 @@ spread %>% ggplot(aes(Day, inf_mean)) + geom_point() +
   geom_linerange(aes(ymin=inf_25, ymax=inf_75))
 
 
-building_summary <- summary2 %>% 
-  group_by(Institution, BuildingId) %>% summarise(Institution=unique(Institution), `Average Number of Residents`=mean(num_res)) 
+building_summary <- summary_building %>% 
+  distinct(Institution, BuildingId, Day, .keep_all = T) %>%
+  mutate(month = format(Day, "%m-%y")) %>% 
+  group_by(Institution, BuildingId) %>% 
+  summarise(`Average Number of Residents`=mean(num_res_building),
+            `Previously infected (%)`=mean(prop_inf_building),
+            `Vaccine coverage (%)` = mean(prop_vacc_building),
+            `Population immunity (%)` = mean(prop_inf_vacc_building)) #%>%
+  # ungroup() %>% as.data.frame() %>% 
+  # reshape(idvar = c("Institution", "BuildingId"),
+  #         timevar = "month",
+  #         v.names = c("Previously infected (%)", "Vaccine coverage (%)", "Population immunity (%)"),
+  #         direction = "wide")
+building_summary
 
-building_summary %>% write_csv("D:/CCHCS_premium/st/indirects/covid-indirects/data/building_summary.csv")
+building_summary %>% round() %>% write_csv("D:/CCHCS_premium/st/indirects/covid-indirects/data/building_summary051523.csv")
+
+floor_summary <- summary_building %>% 
+  mutate(month = format(Day, "%m-%y")) %>% 
+  group_by(Institution, BuildingId, FloorNumber) %>% 
+  summarise(`Average Number of Residents`=mean(num_res),
+            `Previously infected (%)`=mean(prop_inf_floor),
+            `Vaccine coverage (%)` = mean(prop_vacc_floor),
+            `Population immunity (%)` = mean(prop_inf_vacc_floor)) #%>%
+# ungroup() %>% as.data.frame() %>% 
+# reshape(idvar = c("Institution", "BuildingId"),
+#         timevar = "month",
+#         v.names = c("Previously infected (%)", "Vaccine coverage (%)", "Population immunity (%)"),
+#         direction = "wide")
+floor_summary
+
+floor_summary %>% round() %>% write_csv("D:/CCHCS_premium/st/indirects/covid-indirects/data/floor_summary051523.csv")
+
 
 institution_summary <- building_summary %>% group_by(Institution) %>% summarise_all(mean) %>% select(!BuildingId)
 institution_summary
 
-institution_summary %>% write_csv("D:/CCHCS_premium/st/indirects/covid-indirects/data/institution_summary.csv")
+institution_summary %>% round() %>% write_csv("D:/CCHCS_premium/st/indirects/covid-indirects/data/institution_summary.csv")
 
 institution_summary %>% ggplot(aes(Institution, `Average Number of Residents`)) + geom_bar(stat="identity") +
   scale_x_continuous(breaks=1:35, limits=c(0,36), expand=c(0,0)) + 
