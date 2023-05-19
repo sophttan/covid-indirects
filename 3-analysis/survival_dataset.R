@@ -9,7 +9,7 @@ library(survival)
 library(ggfortify)
 library(gtsummary)
 
-m_adjusted <- read_csv("matching_data_050923/matching_data_infection_vacc051023.csv") 
+m_adjusted <- read_csv("matching_data_051923/matching_data_vacc051923.csv") 
 testing <- read_csv("complete_testing_data.csv") %>% select(ResidentId, Day, Result)
 
 m_adjusted <- m_adjusted %>% mutate(intersection = interval(adjusted_start, adjusted_end))
@@ -24,7 +24,7 @@ filter_testing <- function(d) {
 
 m_adjusted <- m_adjusted %>% 
   select(id, subclass, weights, Institution, BuildingId, RoomId, RoomType, 
-         primary, secondary, inf.primary, inf.secondary, vacc.primary, vacc.secondary,
+         primary, secondary, inf.primary, inf.secondary, #vacc.primary, vacc.secondary,
          treatment, adjusted_start, adjusted_end, intersect, intersection, #last_chunked,
          ResidentId.1, ResidentId.2) 
 

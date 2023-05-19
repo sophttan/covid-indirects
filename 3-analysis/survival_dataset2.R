@@ -6,8 +6,8 @@ filter_testing <- function(d) {
 }
 
 # use matched time where we use maximum overlapped time
-treatment <- m_adjusted %>% filter(treatment==1)
-control <- m_adjusted %>% filter(treatment==0)
+treatment <- m_adjusted %>% filter(treatment==0)
+control <- m_adjusted %>% filter(treatment==1)
 
 treatment_testing <- treatment %>% add_testing() %>% 
   mutate(start=int_start(intersection)%>%as.Date(), end=int_end(intersection)%>%as.Date())
@@ -54,12 +54,12 @@ control_time_test <- control_time_test %>% select(!c(id_treat, first_intersectio
 
 
 full <- treatment_time_test %>% 
-  select(id, treatment, subclass, weights, BuildingId, primary, secondary, inf.primary, inf.secondary, vacc.primary, vacc.secondary, start, end, survival_time, Result) %>% 
-  rbind(control_time_test %>% select(id, treatment, subclass, weights, BuildingId, primary, secondary, inf.primary, inf.secondary, vacc.primary, vacc.secondary, start, end, survival_time, Result))
+  select(id, treatment, subclass, weights, BuildingId, primary, secondary, inf.primary, inf.secondary, start, end, survival_time, Result) %>% 
+  rbind(control_time_test %>% select(id, treatment, subclass, weights, BuildingId, primary, secondary, inf.primary, inf.secondary, start, end, survival_time, Result))
 
 full <- full %>% group_by(subclass) %>% filter(any(treatment==1)&any(treatment==0))
 full <- full %>% mutate(weights=ifelse(sum(treatment==1)>1&treatment==1, sum(treatment==1), 1))
-#full <- full %>% mutate(treatment=1-treatment)
+full <- full %>% mutate(treatment=1-treatment)
 full$treatment%>%table()
 
 full <- full %>% 
@@ -67,7 +67,7 @@ full <- full %>%
          BuildingId=as.factor(BuildingId),
          subclass=as.factor(subclass)) 
 
-full%>%group_by(inf.secondary)%>%summarise(units=length(unique(id)), cases=sum(status), person_time=n()*mean(survival_time))%>%mutate(inc_rate=cases/person_time)
+full%>%group_by(treatment)%>%summarise(units=length(unique(id)), cases=sum(status), person_time=n()*mean(survival_time))%>%mutate(inc_rate=cases/person_time)
 
 # full <- full %>% mutate(time_since_start=as.numeric(difftime(start, "2021-12-15", units="days")))
 full <- full %>% group_by(treatment) %>% mutate(n=1:n()) %>% mutate(n=ifelse(treatment==0, n, NA))
@@ -84,7 +84,7 @@ autoplot(fit) +
 
 
 results <- coxph(Surv(survival_time, status) ~ 
-                   treatment + inf.primary + vacc.primary + vacc.secondary + BuildingId + frailty(subclass), 
+                   treatment + inf.primary + inf.secondary + BuildingId + frailty(subclass), 
                  data=full)
 
 tbl_regression(results, exp = TRUE) 

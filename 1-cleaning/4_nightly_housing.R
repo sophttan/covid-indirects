@@ -35,7 +35,7 @@ unique_res_with_testing <- nh_after_3_1_2020_subset %>% group_by(ResidentId) %>%
 unique_res_with_testing$ResidentId[!(unique_res_with_testing$ResidentId %in% unique_res_housing$ResidentId)] %>% length() # 0 residents with no housing data
 unique_res_housing$ResidentId[!(unique_res_housing$ResidentId %in% unique_res_with_testing$ResidentId)] %>% length() # 0 residents no testing data
 
-nh_omicron <- nh_after_3_1_2020_subset %>% filter(Night >= "2021-12-01")
+nh_omicron <- nh_after_3_1_2020_subset %>% filter(Night >= "2020-12-01")
 
 roomtypes <- nh_omicron %>% group_by(Institution, RoomId, RoomType) %>% summarise(count=n()) %>% group_by(Institution, RoomId)
 roomtypes %>% filter(all(RoomType%>%is.na())) # 2 rooms here have no roomtype
@@ -64,7 +64,7 @@ dev.off()
 
 # some rooms have multiple building ids
 w %>% 
-  write_csv("D:/CCHCS_premium/st/indirects/cleaned-data/rooms_mult_buildings.csv")
+  write_csv("D:/CCHCS_premium/st/indirects/cleaned-data/rooms_mult_buildings_vaccperiod.csv")
 
-write_csv(nh_omicron, "D:/CCHCS_premium/st/indirects/cleaned-data/housing_omicron.csv")
+write_csv(nh_omicron, "D:/CCHCS_premium/st/indirects/cleaned-data/housing_vaccperiod.csv")
 

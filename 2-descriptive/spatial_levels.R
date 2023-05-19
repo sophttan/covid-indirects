@@ -6,11 +6,11 @@ library(tidyverse)
 library(readr)
 library(lubridate)
 
-d <- read_csv("complete-data.csv") 
+d <- read_csv("complete-data-vaccperiod.csv") 
 
 names(d)
 
-d <- d %>% filter(Day >= "2021-12-15")
+d <- d %>% filter(Day >= "2020-12-01")
 d <- d %>% replace_na(list(num_pos=0))
 
 d <- d %>% arrange(ActivityCohortId, Day, ResidentId) %>% group_by(ActivityCohortId, Day)
@@ -63,7 +63,7 @@ summary_floor <- d %>% arrange(Institution, BuildingId, FloorNumber, Day, Reside
   summarise(residents=list(ResidentId), 
             num_res=n(), 
             #BuildingId=first(BuildingId), num_building=length(unique(BuildingId)), 
-            Institution=first(Institution), num_inst=length(unique(Institution)),
+            #Institution=first(Institution), num_inst=length(unique(Institution)),
             inf_floor=sum(num_pos>0), 
             vacc_floor=sum(num_dose_adjusted>0),
             inf_vacc_floor=sum(num_pos>0|num_dose_adjusted>0),
@@ -84,7 +84,15 @@ summary_floor %>% group_by(Institution) %>%
   summarise(size=mean(num_res)) %>% 
   ggplot(aes(Institution, size)) + geom_bar(stat="identity") +
   scale_x_continuous(breaks=1:35, limits=c(0,36), expand=c(0,0)) + 
-  scale_y_continuous("Floor Size")
+  scale_y_continuous("Floor Size", limits=c(0, 250))
+
+summary_building %>%
+  distinct(Institution, BuildingId, Day, .keep_all = T) %>% 
+  group_by(Institution) %>% 
+  summarise(size=mean(num_res_building)) %>% 
+  ggplot(aes(Institution, size)) + geom_bar(stat="identity") +
+  scale_x_continuous(breaks=1:35, limits=c(0,36), expand=c(0,0)) + 
+  scale_y_continuous("Building Size", limits=c(0, 250))
 
 summary2 %>% filter(num_res<=750)%>%ggplot(aes(num_res)) + geom_histogram() + 
   scale_x_continuous("Activity Cohort Size")
@@ -117,14 +125,15 @@ for (id in (summary2%>%group_keys())$BuildingId) {
 dev.off()
 
 
-spread <- summary2 %>% group_by(Day) %>% summarise(vacc_mean=mean(prop_vacc),
-                                         vacc_25=quantile(prop_vacc, .25),
-                                         vacc_75=quantile(prop_vacc, .75),
-                                         inf_mean=mean(prop_inf),
-                                         inf_25=quantile(prop_inf, .25),
-                                         inf_75=quantile(prop_inf, .75))
+spread <- summary_floor %>% group_by(Day) %>% summarise(vacc_mean=mean(prop_vacc_floor),
+                                         vacc_25=quantile(prop_vacc_floor, .25),
+                                         vacc_75=quantile(prop_vacc_floor, .75),
+                                         inf_mean=mean(prop_inf_floor),
+                                         inf_25=quantile(prop_inf_floor, .25),
+                                         inf_75=quantile(prop_inf_floor, .75))
 spread %>% ggplot(aes(Day, vacc_mean)) + geom_point() + 
-  geom_linerange(aes(ymin=vacc_25, ymax=vacc_75))
+  geom_linerange(aes(ymin=vacc_25, ymax=vacc_75)) + 
+  scale_y_continuous("Floor vaccine coverage (Mean % (IQR))", limits = c(0,100))
 
 spread %>% ggplot(aes(Day, inf_mean)) + geom_point() + 
   geom_linerange(aes(ymin=inf_25, ymax=inf_75))
@@ -163,6 +172,9 @@ floor_summary
 
 floor_summary %>% round() %>% write_csv("D:/CCHCS_premium/st/indirects/covid-indirects/data/floor_summary051523.csv")
 
+hist(floor_summary$`Previously infected (%)`, main=NULL, xlab = "Previously infected (%)")
+hist(floor_summary$`Vaccine coverage (%)`, main="", xlab = "Vaccine coverage (%)")
+hist(floor_summary$`Population immunity (%)`, main="", xlab = "Population immunity (%)")
 
 institution_summary <- building_summary %>% group_by(Institution) %>% summarise_all(mean) %>% select(!BuildingId)
 institution_summary

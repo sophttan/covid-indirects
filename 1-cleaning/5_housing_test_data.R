@@ -9,7 +9,7 @@ setwd("D:/CCHCS_premium/st/indirects/cleaned-data/")
 library(readr)
 library(tidyverse)
 
-nh <- read_csv("housing_omicron.csv")
+nh <- read_csv("housing_vaccperiod.csv")
 inf_vacc <- read_csv("testing_vacc_clean.csv")
 
 inf_vacc <- inf_vacc %>% mutate(has_test = ifelse(is.na(Result), F, T), 
@@ -38,5 +38,5 @@ inf_vacc_housing1 <- inf_vacc_housing %>% filter(!(Result %>% is.na() & RoomId %
 inf_vacc_housing <- inf_vacc_housing %>% group_by(ResidentId, num_pos) %>%
   mutate(infectious = ifelse(!is.na(num_pos) & Day-first(Day)<=4, 1, 0))
 inf_vacc_housing <- inf_vacc_housing %>% select(!c(ReceivedDate))
-write_csv(inf_vacc_housing, "complete-data.csv")
+write_csv(inf_vacc_housing, "complete-data-vaccperiod.csv")
 
