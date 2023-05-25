@@ -92,6 +92,9 @@ matching <- matching %>%
          inf.primary=ifelse(inf.primary, 1, 0), 
          inf.secondary=ifelse(inf.secondary, 1, 0))
 
+# if requiring that the secondary resident have prior infection
+matching <- matching %>% filter(inf.primary & inf.secondary)
+
 matching <- matching %>% 
   mutate(treatment = ifelse(both_unvacc, 1, 0))
 
