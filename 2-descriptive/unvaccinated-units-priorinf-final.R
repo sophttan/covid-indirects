@@ -9,7 +9,7 @@ library(tidyverse)
 library(readr)
 library(lubridate)
 
-d <- read_csv("allunits_noincarcreq_vaccination_analysis.csv")
+d <- read_csv("allunits_vaccination_analysis051923.csv")
 testing <- read_csv("testing_vacc_clean.csv")
 duration <- read_csv("housing_duration.csv")
 
@@ -92,6 +92,9 @@ matching <- matching %>%
          inf.primary=ifelse(inf.primary, 1, 0), 
          inf.secondary=ifelse(inf.secondary, 1, 0))
 
+# if requiring that the secondary resident have prior infection
+matching <- matching %>% filter(inf.primary & inf.secondary)
+
 matching <- matching %>% 
   mutate(treatment = ifelse(both_unvacc, 1, 0))
 
@@ -100,5 +103,5 @@ matching %>% group_by(treatment) %>% summarise(n=n())
 matching <- matching %>% rowwise() %>% mutate(adjusted_start=first+5,
                                               adjusted_end=min(as.Date("2022-12-15"), last + 5))
 
-write_csv(matching, "full_data_prematching_noincarcreq_vaccination052223.csv")
+write_csv(matching, "full_data_prematching_priorinf_vaccination052423.csv")
 

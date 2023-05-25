@@ -8,7 +8,7 @@ library(MatchIt)
 library(ggbrace)
 library(patchwork)
 
-for_matching <- read_csv("full_data_prematching_vaccination051923.csv")
+for_matching <- read_csv("full_data_prematching_priorinf_vaccination052423.csv")
 
 # for_matching <- for_matching %>% ungroup() %>% mutate(label=1:nrow(.))
 # vacc <- read_csv("cleaned_vaccination_data.csv")
@@ -144,10 +144,10 @@ plot_matches <- function(d, title="", subtitle="") {
 for_matching <- for_matching %>% rowwise() %>% mutate(duration_interval = interval(adjusted_start, adjusted_end)) 
 for_matching <- for_matching %>% ungroup() %>% mutate(label=1:nrow(.))
 
-first_match <- matchit(treatment ~ Institution + BuildingId + duration_interval + inf.primary,# + inf.secondary, 
+first_match <- matchit(treatment ~ Institution + BuildingId + duration_interval + inf.primary + inf.secondary, 
                  data = for_matching,
                  distance = generate_distance_matrix(for_matching), 
-                 exact = treatment ~ Institution + BuildingId + inf.primary, #+ inf.secondary,
+                 exact = treatment ~ Institution + BuildingId + inf.primary + inf.secondary,
                  ratio = 5, min.controls = 1, max.controls = 6, method="optimal")
 m <- first_match %>% get_matches() %>% arrange(subclass)
 
@@ -158,10 +158,10 @@ filtered_matches <- m %>% group_by(subclass) %>% arrange(subclass, desc(treatmen
   filter(include|treatment==0) %>%
   ungroup() %>% select(!c(id, subclass, weights)) %>% mutate(label=1:nrow(.))
 
-match_adjusted <- matchit(treatment ~ Institution + BuildingId + duration_interval + inf.primary,# + inf.secondary,
+match_adjusted <- matchit(treatment ~ Institution + BuildingId + duration_interval + inf.primary + inf.secondary,
                           data = filtered_matches,
                           distance = generate_distance_matrix(filtered_matches), 
-                          exact = treatment ~ Institution + BuildingId + inf.primary,# + inf.secondary,
+                          exact = treatment ~ Institution + BuildingId + inf.primary + inf.secondary,
                           ratio = 5, min.controls = 1, max.controls = 6, method="optimal") 
 
 m_adjusted <- match_adjusted %>% 
@@ -174,7 +174,7 @@ m_adjusted <- match_adjusted %>%
   filter(treatment==1|intersect>=7) %>% filter(n()>1)
 
 m_adjusted%>%nrow()
-m_adjusted%>%group_by(inf.primary, inf.secondary)%>%summarise(n=n())
+m_adjusted%>%group_by(treatment)%>%summarise(n=n())
 m_adjusted$treatment%>%table()
 
 # print plots of matches
@@ -187,4 +187,4 @@ m_adjusted$treatment%>%table()
 # }
 # dev.off()
 
-write_csv(m_adjusted, "matching_data_051923/matching_data_vacc051923.csv")
+write_csv(m_adjusted, "matching_data_051923/matching_data_priorinf_infvacc052423.csv")

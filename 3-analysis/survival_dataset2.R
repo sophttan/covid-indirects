@@ -54,8 +54,8 @@ control_time_test <- control_time_test %>% select(!c(id_treat, first_intersectio
 
 
 full <- treatment_time_test %>% 
-  select(id, treatment, subclass, weights, BuildingId, primary, secondary, inf.primary, inf.secondary, start, end, survival_time, Result) %>% 
-  rbind(control_time_test %>% select(id, treatment, subclass, weights, BuildingId, primary, secondary, inf.primary, inf.secondary, start, end, survival_time, Result))
+  select(id, treatment, subclass, weights, BuildingId, primary, secondary, vacc.primary, vacc.secondary, inf.primary, inf.secondary, start, end, survival_time, Result) %>% 
+  rbind(control_time_test %>% select(id, treatment, subclass, weights, BuildingId, primary, secondary, vacc.primary, vacc.secondary, inf.primary, inf.secondary, start, end, survival_time, Result))
 
 full <- full %>% group_by(subclass) %>% filter(any(treatment==1)&any(treatment==0))
 full <- full %>% mutate(weights=ifelse(sum(treatment==1)>1&treatment==1, sum(treatment==1), 1))
@@ -84,15 +84,15 @@ autoplot(fit) +
 
 
 results <- coxph(Surv(survival_time, status) ~ 
-                   treatment + inf.primary + inf.secondary + BuildingId + frailty(subclass), 
+                   treatment + vacc.primary + inf.primary + inf.secondary + BuildingId + frailty(subclass), 
                  data=full)
 
 tbl_regression(results, exp = TRUE) 
 
 
-# vacc_check <- full %>% group_by(id) %>% 
-  left_join(vacc %>% select(ResidentId, Date_offset, num_dose), by=c("secondary"="ResidentId")) %>% 
-  filter(Date_offset<=start) %>% 
-  arrange(id, desc(Date_offset)) %>% summarise_all(first)
-vacc_check <- vacc_check %>% mutate(time_since_vacc=start-Date_offset)
-vacc_check%>%ggplot(aes(time_since_vacc)) + geom_histogram()
+# vacc_check <- full %>% group_by(id) %>%
+#   left_join(vacc %>% select(ResidentId, Date_offset, num_dose), by=c("secondary"="ResidentId")) %>% 
+#   filter(Date_offset<=start) %>% 
+#   arrange(id, desc(Date_offset)) %>% summarise_all(first)
+# vacc_check <- vacc_check %>% mutate(time_since_vacc=start-Date_offset)
+# vacc_check%>%ggplot(aes(time_since_vacc)) + geom_histogram()
