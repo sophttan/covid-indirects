@@ -13,7 +13,7 @@ d <- read_csv("allunits_noincarcreq_vaccination_analysis.csv")
 testing <- read_csv("testing_vacc_clean.csv")
 duration <- read_csv("housing_duration.csv")
 
-# exclude units if resident's don't co-reside for at least 2 weeks
+# exclude units if resident's don't co-reside for at least 2 weeks 
 over_14 <- d %>% filter(duration >= 14)
 
 # keep units where at least 1 resident is unvaccinated
