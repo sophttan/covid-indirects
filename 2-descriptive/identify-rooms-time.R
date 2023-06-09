@@ -44,23 +44,23 @@ group_room_summary <- group_room %>% filter(n()==2)
 
 #### commented only if removing requirement for incarceration over the entire pandemic
 # include only residents that were incarcerated over the entire pandemic (before 4/1/2020)
-duration <- read_csv("housing_duration.csv")
-duration <- duration %>% filter(first<="2020-03-31")
-duration <- duration %>% mutate(max_duration=last-first+1) %>%
-  filter(max_duration-duration<=30)
-included <- duration$ResidentId %>% unique()
-
-residents <- group_room_summary %>% group_by(ResidentId) %>% group_keys()
-residents <- residents %>% filter(ResidentId %in% included)
-group_room_summary_entirepandemic <- group_room_summary %>% inner_join(residents)
-group_room_summary_entirepandemic <- group_room_summary_entirepandemic %>% filter(n()==2)
+# duration <- read_csv("housing_duration.csv")
+# duration <- duration %>% filter(first<="2020-03-31")
+# duration <- duration %>% mutate(max_duration=last-first+1) %>%
+#   filter(max_duration-duration<=30)
+# included <- duration$ResidentId %>% unique()
+# 
+# residents <- group_room_summary %>% group_by(ResidentId) %>% group_keys()
+# residents <- residents %>% filter(ResidentId %in% included)
+# group_room_summary_entirepandemic <- group_room_summary %>% inner_join(residents)
+# group_room_summary_entirepandemic <- group_room_summary_entirepandemic %>% filter(n()==2)
 
 # # label if residents have had documented infection in the last 90 days
 # # if not requiring that residents have been incarcerated for the entire pandemic use commented line
-# group_room_summary_entirepandemic <- group_room_summary %>% 
-#   left_join(infections, by=c("ResidentId", "num_pos_adjusted"="num_pos")) 
-group_room_summary_entirepandemic <- group_room_summary_entirepandemic %>%
+group_room_summary_entirepandemic <- group_room_summary %>%
   left_join(infections, by=c("ResidentId", "num_pos_adjusted"="num_pos"))
+# group_room_summary_entirepandemic <- group_room_summary_entirepandemic %>%
+#   left_join(infections, by=c("ResidentId", "num_pos_adjusted"="num_pos"))
 group_room_summary_entirepandemic <- group_room_summary_entirepandemic %>% 
   mutate(inf_90_days = difftime(Day, Day_inf, units="days") + 1 < 90)
 
