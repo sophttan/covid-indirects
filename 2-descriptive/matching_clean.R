@@ -8,7 +8,7 @@ library(MatchIt)
 library(ggbrace)
 library(patchwork)
 
-for_matching <- read_csv("allvacc_full_data_prematching_relaxincarceration_priorinf_bydose_052423.csv")
+for_matching <- read_csv("allvacc_full_data_prematching_priorinfsecondary_071023.csv")
 
 # for_matching <- for_matching %>% ungroup() %>% mutate(label=1:nrow(.))
 # vacc <- read_csv("cleaned_vaccination_data.csv")
@@ -144,55 +144,59 @@ plot_matches <- function(d, title="", subtitle="") {
 for_matching <- for_matching %>% rowwise() %>% mutate(duration_interval = interval(adjusted_start, adjusted_end)) 
 for_matching <- for_matching %>% ungroup() %>% mutate(label=1:nrow(.))
 
-demo <- read_csv("demographic_data_clean.csv")
-demo <- demo %>% mutate(age=2022-BirthYear)
-demo
+# demo <- read_csv("demographic_data_clean.csv")
+# demo <- demo %>% mutate(age=2022-BirthYear)
+# demo
+# 
+# for_matching <- for_matching %>% left_join(demo, by=c("primary"="ResidentId"))
+# for_matching <- for_matching %>% left_join(demo, by=c("secondary"="ResidentId"), suffix=c(".primary", ".secondary"))
+# for_matching <- for_matching %>% mutate(Race.primary=ifelse(Race.primary=="C"|Race.primary=="M", "H", Race.primary),
+#                   Race.secondary=ifelse(Race.secondary=="C"|Race.secondary=="M", "H", Race.secondary), 
+#                   Race.primary=case_when(Race.primary=="A"~"Asian or Pacific Islander",
+#                                          Race.primary=="B"~"Black",
+#                                          Race.primary=="H"~"Hispanic",
+#                                          Race.primary=="I"~"American Indian/Alaskan Native",
+#                                          Race.primary=="O"~"Other",
+#                                          Race.primary=="W"~"White"),
+#                   Race.secondary=case_when(Race.secondary=="A"~"Asian or Pacific Islander",
+#                                            Race.secondary=="B"~"Black",
+#                                            Race.secondary=="H"~"Hispanic",
+#                                            Race.secondary=="I"~"American Indian/Alaskan Native",
+#                                            Race.secondary=="O"~"Other",
+#                                            Race.secondary=="W"~"White"))
 
-for_matching <- for_matching %>% left_join(demo, by=c("primary"="ResidentId"))
-for_matching <- for_matching %>% left_join(demo, by=c("secondary"="ResidentId"), suffix=c(".primary", ".secondary"))
-for_matching <- for_matching %>% mutate(Race.primary=ifelse(Race.primary=="C"|Race.primary=="M", "H", Race.primary),
-                  Race.secondary=ifelse(Race.secondary=="C"|Race.secondary=="M", "H", Race.secondary), 
-                  Race.primary=case_when(Race.primary=="A"~"Asian or Pacific Islander",
-                                         Race.primary=="B"~"Black",
-                                         Race.primary=="H"~"Hispanic",
-                                         Race.primary=="I"~"American Indian/Alaskan Native",
-                                         Race.primary=="O"~"Other",
-                                         Race.primary=="W"~"White"),
-                  Race.secondary=case_when(Race.secondary=="A"~"Asian or Pacific Islander",
-                                           Race.secondary=="B"~"Black",
-                                           Race.secondary=="H"~"Hispanic",
-                                           Race.secondary=="I"~"American Indian/Alaskan Native",
-                                           Race.secondary=="O"~"Other",
-                                           Race.secondary=="W"~"White"))
+# for_matching <- for_matching %>% 
+#   left_join(infections, by=c("primary"="ResidentId")) %>% 
+#   rename("infDay.primary"="Day") %>% group_by(label)
+# 
+# for_matching <- for_matching %>% 
+#   filter(infDay.primary <= adjusted_start) %>% 
+#   arrange(label, desc(infDay.primary)) %>% 
+#   summarise_all(first) %>% 
+#   mutate(time_since_inf.primary=difftime(adjusted_start, infDay.primary, units="days")%>%as.numeric())
+# for_matching     
+# 
+# for_matching <- for_matching %>%
+#   left_join(infections, by=c("secondary"="ResidentId")) %>% 
+#   rename("infDay.secondary"="Day") %>%
+#   group_by(label) %>%
+#   filter(infDay.secondary <= adjusted_start) %>% 
+#   arrange(label, desc(infDay.secondary)) %>% 
+#   summarise_all(first) %>% 
+#   mutate(time_since_inf.secondary=(difftime(adjusted_start, infDay.secondary, units="days")%>%as.numeric()))
+# for_matching 
 
-for_matching <- for_matching %>% 
-  left_join(infections, by=c("primary"="ResidentId")) %>% 
-  rename("infDay.primary"="Day") %>% group_by(label)
-
-for_matching <- for_matching %>% 
-  filter(infDay.primary <= adjusted_start) %>% 
-  arrange(label, desc(infDay.primary)) %>% 
-  summarise_all(first) %>% 
-  mutate(time_since_inf.primary=difftime(adjusted_start, infDay.primary, units="days")%>%as.numeric())
-for_matching     
-
-for_matching <- for_matching %>%
-  left_join(infections, by=c("secondary"="ResidentId")) %>% 
-  rename("infDay.secondary"="Day") %>%
-  group_by(label) %>%
-  filter(infDay.secondary <= adjusted_start) %>% 
-  arrange(label, desc(infDay.secondary)) %>% 
-  summarise_all(first) %>% 
-  mutate(time_since_inf.secondary=(difftime(adjusted_start, infDay.secondary, units="days")%>%as.numeric()))
-for_matching 
+# for_matching1 <- for_matching%>%filter(Institution%in%1:21)
+# for_matching2 <- for_matching%>%filter(Institution%in%22:28)%>% mutate(label=1:nrow(.))
+# for_matching3 <- for_matching%>%filter(Institution%in%29:36)%>% mutate(label=1:nrow(.))
 
 first_match <- matchit(treatment ~ Institution + BuildingId + duration_interval + 
-                         age.primary + age.secondary + 
-                         time_since_inf.primary + time_since_inf.secondary + 
-                         vacc.primary, 
+                         # age.primary + age.secondary + 
+                         # time_since_inf.primary + time_since_inf.secondary + 
+                         vacc.primary + inf.primary + inf.secondary, 
                  data = for_matching,
                  distance = generate_distance_matrix(for_matching), 
-                 exact = treatment ~ Institution + BuildingId + vacc.primary,
+                 exact = treatment ~ Institution + BuildingId + vacc.primary + inf.primary + inf.secondary,
                  ratio = 5, min.controls = 1, max.controls = 6, method="optimal")
 m <- first_match %>% get_matches() %>% arrange(subclass)
 
@@ -204,12 +208,12 @@ filtered_matches <- m %>% group_by(subclass) %>% arrange(subclass, desc(treatmen
   ungroup() %>% select(!c(id, subclass, weights)) %>% mutate(label=1:nrow(.))
 
 match_adjusted <- matchit(treatment ~ Institution + BuildingId + duration_interval + 
-                            age.primary + age.secondary + 
-                            time_since_inf.primary + time_since_inf.secondary + 
-                            vacc.primary,
+                            # age.primary + age.secondary + 
+                            # time_since_inf.primary + time_since_inf.secondary + 
+                            vacc.primary + inf.primary + inf.secondary, 
                           data = filtered_matches,
                           distance = generate_distance_matrix(filtered_matches), 
-                          exact = treatment ~ Institution + BuildingId + vacc.primary,
+                          exact = treatment ~ Institution + BuildingId + vacc.primary + inf.primary + inf.secondary, 
                           ratio = 5, min.controls = 1, max.controls = 6, method="optimal") 
 
 m_adjusted <- match_adjusted %>% 
@@ -225,14 +229,14 @@ m_adjusted%>%nrow()
 m_adjusted%>%group_by(treatment)%>%summarise(n=n())
 m_adjusted$treatment%>%table()
 
-# print plots of matches
-# pdf("D:/CCHCS_premium/st/indirects/testing/matching_050923/matching_infection.pdf")
-# keys <- m_adjusted %>% group_by(Institution) %>% group_keys() #, BuildingId
+# # print plots of matches
+# pdf("D:/CCHCS_premium/st/indirects/testing/matching_bydose_070523.pdf")
+# keys <- m_adjusted %>% group_by(subclass) %>% group_keys() #, BuildingId
 # for (i in 1:nrow(keys)) {
-#   print(plot_matches(m_adjusted %>% filter(Institution==keys$Institution[i]),
-#                      title=paste("Institution", keys$Institution[i], "BuildingId", keys$BuildingId[i]), 
-#                      subtitle="Matched by building, time, and prior infection in the primary resident"))
+#   print(plot_matches(m_adjusted %>% filter(subclass==keys$subclass[i]),
+#                      title=paste("Subclass", keys$subclass[i]),
+#                      subtitle="Matched by building, time, and number of vaccine doses in the primary resident"))
 # }
 # dev.off()
 
-write_csv(m_adjusted, "matching_data_051923/matching_data_priorinf_infvacc052423.csv")
+write_csv(m_adjusted, "matching_data_051923/matching_data_allvacc_priorinfsecondary_infvacc071023.csv")

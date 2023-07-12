@@ -13,6 +13,83 @@ names(d)
 d <- d %>% filter(Day >= "2020-12-01")
 d <- d %>% replace_na(list(num_pos=0))
 
+d <- d %>% mutate(partial = num_dose_adjusted>0,
+                  full_vacc_binary = num_dose_adjusted>0 & num_dose_adjusted>=first(full_vacc),
+                  booster1 = num_dose_adjusted>0 & num_dose_adjusted-first(full_vacc)>=1,
+                  booster2up = num_dose_adjusted>0 & num_dose_adjusted-first(full_vacc)>1)
+d %>% select(ResidentId, Day, num_dose, num_dose_adjusted, full_vacc, partial, full_vacc_binary, booster1, booster2up)
+d <- d %>% group_by(ResidentId, num_dose) %>% mutate(recent_vacc = Day-first(Day)<=90 & num_dose_adjusted>0) %>%
+  mutate(bivalent = (grepl("bivalent", Vaccine)|first(Day)>="2022-09-01") & num_dose_adjusted>0)
+
+d <- d %>% group_by(ResidentId, num_pos) %>% mutate(infection=first(Day)==Day&num_pos>0)
+
+d %>% ungroup() %>% filter(ResidentId==ResidentId[300000]) %>% 
+  select(ResidentId, Day, num_pos, num_dose, num_dose_adjusted, 
+         full_vacc, partial, full_vacc_binary, booster1, booster2up, bivalent, recent_vacc, infection) %>%
+  view()
+
+summary_floor <- d %>% arrange(Institution, BuildingId, FloorNumber, Day, ResidentId) %>% 
+  group_by(Institution, BuildingId, FloorNumber, Day) %>% 
+  summarise(residents=list(ResidentId), 
+            num_res=n(), 
+            new_inf=sum(infection),
+            inf_floor=sum(num_pos>0), 
+            any_vacc_floor=sum(num_dose_adjusted>0),
+            partial=sum(partial),
+            full_vacc=sum(full_vacc_binary),
+            boost1=sum(booster1),
+            boost2up=sum(booster2up),
+            recent_vacc=sum(recent_vacc),
+            bivalent=sum(bivalent),
+            inf_any_vacc_floor=sum(num_pos>0|num_dose_adjusted>0),
+            inf_full_floor=sum(num_pos>0|full_vacc_binary),
+            inf_boost1_floor=sum(num_pos>0|booster1),
+            inf_boost2_floor=sum(num_pos>0|booster2up),
+            prop_inf_floor=inf_floor/num_res*100,
+            prop_any_vacc_floor=any_vacc_floor/num_res*100,
+            prop_partial=partial/num_res*100,
+            prop_full=full_vacc/num_res*100,
+            prop_boost=boost1/num_res*100,
+            prop_boost2=boost2up/num_res*100,
+            prop_recent_vacc=recent_vacc/num_res*100,
+            prop_bivalent=bivalent/num_res*100,
+            prop_inf_any_vacc_floor=inf_any_vacc_floor/num_res*100,
+            prop_inf_full_floor=inf_full_floor/num_res*100,
+            prop_inf_boost1_floor=inf_boost1_floor/num_res*100,
+            prop_inf_boost2_floor=inf_boost2_floor/num_res*100)
+
+
+spread <- summary_floor %>% group_by(Day) %>% summarise(vacc_mean=mean(prop_bivalent),
+                                                        vacc_25=quantile(prop_bivalent, .25),
+                                                        vacc_75=quantile(prop_bivalent, .75),
+                                                        inf_mean=mean(prop_full),
+                                                        inf_25=quantile(prop_full, .25),
+                                                        inf_75=quantile(prop_full, .75))
+
+summary_floor_week <- summary_floor %>% 
+  mutate(week=difftime(Day, "2020-12-01", units="weeks")%>%as.numeric()%>%round()) %>%
+  group_by(Institution, BuildingId, FloorNumber, week) %>% 
+  mutate(num_unique_res = unique(unlist(residents))%>%length()) %>% 
+  select(num_unique_res, new_inf, prop_recent_vacc, prop_bivalent, prop_boost, prop_boost2) %>% 
+  summarise_all(c(sum, mean, sd))
+
+summary_floor_week %>% filter(week>=92) %>% 
+  mutate(inf_prop=new_inf_fn1/num_unique_res_fn2*100) %>% 
+  ggplot(aes(prop_bivalent_fn2, inf_prop)) + 
+  geom_point() + scale_x_continuous("Bivalent booster coverage") + 
+  scale_y_continuous("Proportion of residents with new infection")
+
+summary_floor_week %>% filter(week>=40) %>% 
+  mutate(inf_prop=new_inf_fn1/num_unique_res_fn2*100) %>% 
+  ggplot(aes(prop_boost_fn2, inf_prop)) + 
+  geom_point(aes(color=week)) + scale_x_continuous("1+ booster coverage") + 
+  scale_y_continuous("Proportion of residents with new infection")
+
+spread %>% ggplot(aes(Day, vacc_mean)) + geom_point() + 
+  geom_linerange(aes(ymin=vacc_25, ymax=vacc_75)) + 
+  scale_y_continuous("Bivalent booster coverage (Mean % (IQR))", limits = c(0,100)) + 
+  scale_x_date(limits=as.Date(c("2022-09-01", "2022-12-20"), breaks="month"))
+
 d <- d %>% arrange(ActivityCohortId, Day, ResidentId) %>% group_by(ActivityCohortId, Day)
 summary <- d %>% 
   summarise(residents=list(ResidentId), 

@@ -5,13 +5,13 @@ library(tidyverse)
 library(readr)
 library(lubridate)
 
-setwd("/Users/sophiatan/Documents/UCSF/")
+setwd("D:/CCHCS_premium/CDCR Data/Dec 16 2022 Data")
 
-comorbidity <- read_delim("ST files/Comorbidity_20220520.csv",delim = ";")
+comorbidity <- read_delim("Comorbidity_20221216.csv",delim = ";")
 covid_risk <- comorbidity %>% filter(Comorbidity=='CovidWeightedRisk')
 covid_risk
 
-covid_risk <- covid_risk %>% replace_na(list(Ending="2022-05-21")) %>%
+covid_risk <- covid_risk %>% replace_na(list(Ending=as.Date("2022-12-16"))) %>%
   mutate(interval = interval(Starting, Ending-1), duration = time_length(interval, unit = "days"),
          Value=as.numeric(Value))
 
@@ -27,4 +27,4 @@ covid_score %>% filter(avg <= 12) %>% ggplot(aes(avg)) + geom_histogram(aes(y=st
 
 covid_risk
 covid_risk %>% select(!c(Comorbidity, Month, Starting, Ending, duration)) %>% 
-  write_csv("cleaned_data/covid_risk_score.csv")
+  write_csv("D:/CCHCS_premium/st/indirects/cleaned-data/covid_risk_score.csv")

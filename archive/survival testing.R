@@ -9,18 +9,23 @@ library(survival)
 library(ggfortify)
 library(gtsummary)
 
-d <- read_csv("matching_data_051923/matching_data_allvacc_priorinfsecondary_infvacc071023.csv") 
-testing <- read_csv("testing_vacc_clean.csv") %>% 
+m_adjusted <- read_csv("matching_data_051923/matching_data_allvacc_noincarcreq_infvacc070723.csv") %>%
+  rbind(read_csv("matching_data_051923/matching_data_allvacc_noincarcreq_infvacc_set2070723.csv")) %>% 
+  rbind(read_csv("matching_data_051923/matching_data_allvacc_noincarcreq_infvacc_set3070723.csv"))
+m_adjusted <- m_adjusted %>% mutate(id=1:nrow(.)) %>%
+  group_by(Institution, subclass) %>% 
+  
+  testing <- read_csv("testing_vacc_clean.csv") %>% 
   select(ResidentId, Day, Result, num_pos) %>% filter(!Result%>%is.na())
 
 fix_intersection <- function(v) {
   v%>%str_extract_all("[0-9]{4}-[0-9]{2}-[0-9]{2}", simplify = T)
 }
 
-intersection <- fix_intersection(d$intersection)
-d$start <- intersection[,1]%>%as.vector()%>%as.Date()
-d$end <- intersection[,2]%>%as.vector()%>%as.Date()
-d <- d %>% mutate(intersection=interval(start=start, end=end))
+intersection <- fix_intersection(m_adjusted$intersection)
+m_adjusted$start <- intersection[,1]%>%as.vector()%>%as.Date()
+m_adjusted$end <- intersection[,2]%>%as.vector()%>%as.Date()
+m_adjusted <- m_adjusted %>% mutate(intersection=interval(start=start, end=end))
 
 add_testing <- function(d) {
   d %>% left_join(testing, by=c("primary"="ResidentId"))
@@ -34,8 +39,8 @@ filter_testing <- function(d) {
 }
 
 # use matched time where we use maximum overlapped time
-treatment <- d %>% filter(treatment==0)
-control <- d %>% filter(treatment==1)
+treatment <- m_adjusted %>% filter(treatment==0)
+control <- m_adjusted %>% filter(treatment==1)
 
 treatment_testing <- treatment %>% add_testing()
 treatment_time_test <- treatment_testing %>% 
@@ -112,6 +117,11 @@ full <- full %>% arrange(subclass, start) %>% ungroup() %>%
   fill(n, .direction="down") %>%
   group_by(n) %>% 
   mutate(time_since_start_rel=start-first(start))
+
+results <- coxph(Surv(survival_time, status) ~ 
+                   treatment + vacc.primary + inf.primary + inf.secondary + BuildingId + frailty(subclass), 
+                 data=full)
+tbl_regression(results, exponentiate = T) 
 
 full <- full %>% ungroup() %>% mutate(id2=1:n())
 
@@ -191,6 +201,80 @@ autoplot(fit) +
   scale_fill_discrete(name=element_blank(), label=c("Control", "Treatment")) + 
   guides(color=F)
 
+results <- coxph(Surv(survival_time, status) ~ 
+                   treatment + vacc.primary + 
+                   inf.primary + inf.secondary +
+                   age.primary + age.secondary + 
+                   risk.primary + risk.secondary + BuildingId + frailty(subclass), 
+                 data=full_inf_clean_vacc_demo_risk)
 
-write_csv(full_inf_clean_vacc_demo_risk, "survival_data/allvacc_priorinfsecondary_infvacc071123.csv")
+test_hazard <- cox.zph(results)
+ggcoxzph(test_hazard)
+test_hazard
 
+tbl_regression(results, exponentiate = T, 
+               include = c("treatment", "vacc.primary", 
+                           "inf.primary", "inf.secondary",
+                           "age.primary", "age.secondary", "risk.primary", "risk.secondary", "frailty(subclass)"),
+               label = list("treatment"="Vaccination in secondary resident",
+                            "vacc.primary"="Number of vaccine doses in primary resident",
+                            "age.primary"="Age (years) of primary resident",
+                            "age.secondary"="Age (years) of secondary resident",
+                            "risk.primary"="Severe COVID-19 risk score of primary resident",
+                            "risk.secondary"="Severe COVID-19 risk score of secondary resident",
+                            "frailty(subclass)"="Frailty")) 
+
+results_summary <- summary(results)%>%coef()%>%as.data.frame()%>%
+  filter(!grepl("Building", row.names(.))) %>% 
+  mutate(lb=coef-2*`se(coef)`, ub=coef+2*`se(coef)`) %>% exp()
+
+full_inf_clean_vacc_demo_risk%>%
+  group_by(inf.primary) %>% 
+  summarise(risk.primary=mean(risk.primary), age.primary=mean(age.primary),
+            time_since_inf.primary=mean(time_since_inf.primary), time_since_vacc.primary=mean(time_since_vacc.primary))
+
+full_inf_clean_vacc_demo_risk%>%
+  group_by(inf.secondary) %>% 
+  summarise(risk.secondary=mean(risk.secondary), age.secondary=mean(age.secondary),
+            time_since_inf.secondary=mean(time_since_inf.secondary), time_since_vacc.secondary=mean(time_since_vacc.secondary,na.rm=T))
+
+results2 <- coxph(Surv(survival_time, status) ~ 
+                    treatment + vacc.primary + age.primary + age.secondary + 
+                    risk.primary + risk.secondary + time_since_vacc.primary + time_since_inf.secondary + BuildingId + frailty(subclass), 
+                  data=full_inf_clean_vacc_demo_risk)
+
+tbl_regression(results2, exponentiate = T, 
+               include = c("treatment","age.secondary","risk.secondary","time_since_inf.secondary", 
+                           "vacc.primary", "age.primary", "risk.primary", "time_since_inf.primary", "frailty(subclass)"),
+               label = list("treatment"="Vaccination in secondary resident",
+                            "vacc.primary"="Number of vaccine doses in primary resident",
+                            "age.primary"="Age (years) of primary resident",
+                            "age.secondary"="Age (years) of secondary resident",
+                            "risk.primary"="Severe COVID-19 risk score of primary resident",
+                            "risk.secondary"="Severe COVID-19 risk score of secondary resident",
+                            "time_since_inf.primary"="Time (months) since last SARS-CoV-2 infection of primary resident",
+                            "time_since_inf.secondary"="Time (months) since last SARS-CoV-2 infection of secondary resident",
+                            "frailty(subclass)"="Frailty")) 
+
+
+
+
+
+full_cases <- full_inf_clean_vacc_demo_risk%>%filter(status==1)
+full_cases$survival_time
+full_cases <- full_cases %>% left_join(infections, by=c("secondary"="ResidentId")) 
+full_cases <- full_cases %>% group_by(id2) %>% mutate(has_inf=any(Day>=start&Day<=end)) %>%
+  filter((!has_inf&Day==first(Day))|(Day>=start&Day<=end))
+full_cases <- full_cases %>% mutate(Day=if_else(!has_inf, as.Date(NA), Day)) %>% 
+  mutate(survival_time.secondary=(Day-start+1)%>%as.numeric()) %>% 
+  select(treatment, id2, id, primary, secondary, start, end, survival_time, survival_time.secondary, Day)
+full_cases %>% filter(survival_time==survival_time.secondary) # 17 cases same day or after secondary resident
+full_cases %>% filter(survival_time>survival_time.secondary) # 12 cases same day or after secondary resident
+full_cases %>% filter(survival_time<survival_time.secondary) # 13 cases before secondary resident
+full_cases %>% filter(survival_time.secondary %>%is.na()) # 119 cases where no infection in secondary resident was detected 
+
+full_cases_test <- full_cases %>% rename("Infection"="Day") %>%
+  left_join(testing %>% select(ResidentId, Day, Result), by=c("secondary"="ResidentId")) %>%
+  filter((start+survival_time-1-Day)<=5&start+survival_time-1-Day>0)
+
+full_cases %>% group_by(treatment) %>% summarise(diff_days_primary_secondary=mean(survival_time-survival_time.secondary,na.rm=T), prop_na=mean(survival_time.secondary%>%is.na()))

@@ -9,7 +9,7 @@ library(tidyverse)
 library(readr)
 library(lubridate)
 
-d <- read_csv("allunits_noincarcreq_vaccination_analysis.csv")
+d <- read_csv("allunits_vaccination_analysis051923.csv")
 testing <- read_csv("testing_vacc_clean.csv")
 duration <- read_csv("housing_duration.csv")
 
@@ -70,5 +70,5 @@ matching$treatment %>% table()
 matching <- matching %>% rowwise() %>% mutate(adjusted_start=first+5,
                                               adjusted_end=min(as.Date("2022-12-15"), last + 5))
 
-write_csv(matching, "allvacc_full_data_prematching_relaxincarceration_priorinf_052223.csv")
+write_csv(matching, "allvacc_full_data_prematching_priorinfsecondary_071023.csv")
 
