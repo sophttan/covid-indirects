@@ -8,7 +8,7 @@ library(MatchIt)
 library(ggbrace)
 library(patchwork)
 
-for_matching <- read_csv("allvacc_full_data_prematching_priorinfsecondary_071023.csv")
+for_matching <- read_csv("allvacc_full_data_prematching_relaxincarceration_priorinf_bydose_052423.csv")
 
 # for_matching <- for_matching %>% ungroup() %>% mutate(label=1:nrow(.))
 # vacc <- read_csv("cleaned_vaccination_data.csv")
@@ -141,7 +141,7 @@ plot_matches <- function(d, title="", subtitle="") {
 }
 
   
-for_matching <- for_matching %>% rowwise() %>% mutate(duration_interval = interval(adjusted_start, adjusted_end)) 
+for_matching <- for_matching %>% rowwise() %>% mutate(duration_interval = interval(first, last)) 
 for_matching <- for_matching %>% ungroup() %>% mutate(label=1:nrow(.))
 
 # demo <- read_csv("demographic_data_clean.csv")
@@ -226,17 +226,17 @@ m_adjusted <- match_adjusted %>%
   filter(treatment==1|intersect>=7) %>% filter(n()>1)
 
 m_adjusted%>%nrow()
-m_adjusted%>%group_by(treatment)%>%summarise(n=n())
+m_adjusted%>%group_by(treatment, vacc.primary, inf.primary, inf.secondary)%>%summarise(n=n())
 m_adjusted$treatment%>%table()
 
-# # print plots of matches
-# pdf("D:/CCHCS_premium/st/indirects/testing/matching_bydose_070523.pdf")
-# keys <- m_adjusted %>% group_by(subclass) %>% group_keys() #, BuildingId
-# for (i in 1:nrow(keys)) {
-#   print(plot_matches(m_adjusted %>% filter(subclass==keys$subclass[i]),
-#                      title=paste("Subclass", keys$subclass[i]),
-#                      subtitle="Matched by building, time, and number of vaccine doses in the primary resident"))
-# }
-# dev.off()
+# print plots of matches
+pdf("D:/CCHCS_premium/st/indirects/testing/matching_bydose_071223.pdf")
+keys <- m_adjusted %>% group_by(subclass) %>% group_keys() #, BuildingId
+for (i in 1:100) {
+  print(plot_matches(m_adjusted %>% filter(subclass==keys$subclass[i]),
+                     title=paste("Subclass", keys$subclass[i]),
+                     subtitle="Matched by building, time, and number of vaccine doses in the primary resident"))
+}
+dev.off()
 
-write_csv(m_adjusted, "matching_data_051923/matching_data_allvacc_priorinfsecondary_infvacc071023.csv")
+write_csv(m_adjusted, "matching_data_071223/matching_data_allvaccdoses_priorinf_infvacc071223.csv")

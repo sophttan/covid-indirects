@@ -9,7 +9,7 @@ library(survival)
 library(ggfortify)
 library(gtsummary)
 
-d <- read_csv("matching_data_051923/matching_data_allvacc_priorinfsecondary_infvacc071023.csv") 
+d <- read_csv("matching_data_051923/matching_data_allvacc_noincarcreq_priorinf_bydose_infvacc052423.csv") 
 testing <- read_csv("testing_vacc_clean.csv") %>% 
   select(ResidentId, Day, Result, num_pos) %>% filter(!Result%>%is.na())
 
