@@ -5,10 +5,10 @@ setwd("D:/CCHCS_premium/st/indirects/cleaned-data/")
 library(lubridate)
 library(tidyverse)
 library(MatchIt)
-library(ggbrace)
+#library(ggbrace)
 library(patchwork)
 
-for_matching <- read_csv("allvacc_full_data_prematching_relaxincarceration_priorinf_bydose_052423.csv")
+for_matching <- read_csv("allvacc_full_data_prematching_052223.csv")
 
 # for_matching <- for_matching %>% ungroup() %>% mutate(label=1:nrow(.))
 # vacc <- read_csv("cleaned_vaccination_data.csv")
@@ -186,16 +186,13 @@ for_matching <- for_matching %>% ungroup() %>% mutate(label=1:nrow(.))
 #   mutate(time_since_inf.secondary=(difftime(adjusted_start, infDay.secondary, units="days")%>%as.numeric()))
 # for_matching 
 
-# for_matching1 <- for_matching%>%filter(Institution%in%1:21)
-# for_matching2 <- for_matching%>%filter(Institution%in%22:28)%>% mutate(label=1:nrow(.))
-# for_matching3 <- for_matching%>%filter(Institution%in%29:36)%>% mutate(label=1:nrow(.))
+for_matching1 <- for_matching%>%filter(Institution%in%1:22)
+for_matching2 <- for_matching%>%filter(Institution%in%23:36)%>% mutate(label=1:nrow(.))
 
 first_match <- matchit(treatment ~ Institution + BuildingId + duration_interval + 
-                         # age.primary + age.secondary + 
-                         # time_since_inf.primary + time_since_inf.secondary + 
                          vacc.primary + inf.primary + inf.secondary, 
-                 data = for_matching,
-                 distance = generate_distance_matrix(for_matching), 
+                 data = for_matching2,
+                 distance = generate_distance_matrix(for_matching2), 
                  exact = treatment ~ Institution + BuildingId + vacc.primary + inf.primary + inf.secondary,
                  ratio = 5, min.controls = 1, max.controls = 6, method="optimal")
 m <- first_match %>% get_matches() %>% arrange(subclass)
@@ -239,4 +236,4 @@ for (i in 1:100) {
 }
 dev.off()
 
-write_csv(m_adjusted, "matching_data_071223/matching_data_allvaccdoses_priorinf_infvacc071223.csv")
+write_csv(m_adjusted, "matching_data_071223/matching_data_allvacc_infvacc071223_part2.csv")
