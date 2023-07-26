@@ -46,8 +46,7 @@ avg_1_test <- over14_noinf %>%
 avg_1_test <- avg_1_test %>% rowwise() %>%
   mutate(primary=case_when(test1&!test2~ResidentId.1,
                            !test1&test2~ResidentId.2,
-                           test1&test2~sample(c(ResidentId.1, ResidentId.2), 1)),
-         secondary=ifelse(primary==ResidentId.1, ResidentId.1, ResidentId.2))
+                           test1&test2~sample(c(ResidentId.1, ResidentId.2), 1)))
 
 avg_1_test%>%select(label, one_unvacc, both_unvacc, ResidentId.1, vacc.1, inf.1, test1, ResidentId.2, vacc.2, inf.2, test2, primary)
 

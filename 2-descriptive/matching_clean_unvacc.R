@@ -8,7 +8,7 @@ library(MatchIt)
 #library(ggbrace)
 library(patchwork)
 
-for_matching <- read_csv("full_data_prematching_allvacc_stricttesting.csv")
+for_matching <- read_csv("full_data_prematching_unvacc_relaxtesting.csv")
 
 # for_matching <- for_matching %>% ungroup() %>% mutate(label=1:nrow(.))
 # vacc <- read_csv("cleaned_vaccination_data.csv")
@@ -190,10 +190,10 @@ for_matching <- for_matching %>% ungroup() %>% mutate(label=1:nrow(.))
 # for_matching2 <- for_matching%>%filter(Institution%in%23:36)%>% mutate(label=1:nrow(.))
 
 first_match <- matchit(treatment ~ Institution + BuildingId + duration_interval + 
-                        vacc.primary + inf.primary + inf.secondary, 
+                        inf.primary + inf.secondary, 
                  data = for_matching,
                  distance = generate_distance_matrix(for_matching), 
-                 exact = treatment ~ Institution + BuildingId + vacc.primary + inf.primary + inf.secondary,
+                 exact = treatment ~ Institution + BuildingId + inf.primary + inf.secondary,
                  ratio = 5, min.controls = 1, max.controls = 6, method="optimal")
 m <- first_match %>% get_matches() %>% arrange(subclass)
 
@@ -207,10 +207,10 @@ filtered_matches <- m %>% group_by(subclass) %>% arrange(subclass, desc(treatmen
 match_adjusted <- matchit(treatment ~ Institution + BuildingId + duration_interval + 
                             # age.primary + age.secondary + 
                             # time_since_inf.primary + time_since_inf.secondary + 
-                            vacc.primary + inf.primary + inf.secondary, 
+                            inf.primary + inf.secondary, 
                           data = filtered_matches,
                           distance = generate_distance_matrix(filtered_matches), 
-                          exact = treatment ~ Institution + BuildingId + vacc.primary + inf.primary + inf.secondary, 
+                          exact = treatment ~ Institution + BuildingId + inf.primary + inf.secondary, 
                           ratio = 5, min.controls = 1, max.controls = 6, method="optimal") 
 
 m_adjusted <- match_adjusted %>% 
@@ -236,4 +236,4 @@ for (i in 1:100) {
 }
 dev.off()
 
-write_csv(m_adjusted, "matching_data_071223/matching_data_novacc_stricttest_072323.csv")
+write_csv(m_adjusted, "matching_data_071223/matching_data_novacc_relaxtest_072323.csv")

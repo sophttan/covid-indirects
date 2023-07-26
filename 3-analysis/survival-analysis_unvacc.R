@@ -9,7 +9,7 @@ library(survival)
 library(ggfortify)
 library(gtsummary)
 
-d <- read_csv("survival_data/novacc_stricttest_072323.csv")
+d <- read_csv("survival_data/novacc_relaxtest_072323.csv")
 d <- d %>% mutate(InstBuild=as.factor(InstBuild), subclass=as.factor(subclass))
 
 d <- d %>% mutate(time_since_vacc.primary.cat=cut(time_since_vacc.primary, right=F, seq(0,30,3)))
@@ -50,12 +50,13 @@ tbl_regression(results, exponentiate = T,
 
 results <- coxph(Surv(survival_time, status) ~ 
                    treatment +
+                   age.primary + age.secondary + risk.primary + risk.secondary +
                    inf.primary + inf.secondary + InstBuild + frailty(subclass), 
                  data=d)
 
 tbl_regression(results, exponentiate = T, 
-               include = c("treatment", "vacc.primary", 
-                           "time_since_inf.primary", "time_since_inf.secondary",
+               include = c("treatment", 
+                           "inf.primary", "inf.secondary",
                            "age.primary", "age.secondary", "risk.primary", "risk.secondary", "frailty(subclass)"),
                label = list("treatment"="*Vaccination in secondary resident",
                             "inf.primary"="Prior infection in primary resident",

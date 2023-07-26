@@ -12,7 +12,7 @@ d <- d %>% mutate(id=1:n()) %>%
   mutate(subclass=cur_group_id())
 
 
-d <- read_csv("matching_data_071223/matching_data_novacc_stricttest_072323.csv")
+d <- read_csv("matching_data_071223/matching_data_novacc_relaxtest_072323.csv")
 
 fix_intersection <- function(v) {
   v%>%str_extract_all("[0-9]{4}-[0-9]{2}-[0-9]{2}", simplify = T)
@@ -198,5 +198,5 @@ all_survival_inf_clean_vacc_demo_risk <- all_survival_inf_clean_vacc_demo_risk %
   select(!c(risk_interval, overlap_risk, days_risk, Value))
 
 
-write_csv(all_survival_inf_clean_vacc_demo_risk, "survival_data/novacc_stricttest_072323.csv")
+write_csv(all_survival_inf_clean_vacc_demo_risk, "survival_data/novacc_relaxtest_072323.csv")
 
