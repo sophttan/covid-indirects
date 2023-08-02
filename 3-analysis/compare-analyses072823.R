@@ -87,9 +87,17 @@ d %>% ggplot(aes(time_since_inf.secondary, group=as.factor(treatment), fill=as.f
   scale_y_continuous("Density") +
   scale_fill_discrete("Treatment (vaccination)")
 
+d %>% ggplot(aes(time_since_vacc.primary, group=as.factor(inf.primary), fill=as.factor(inf.primary))) + 
+  geom_histogram(aes(y=..density..), position="identity", alpha=0.5) + 
+  # geom_histogram(d=d2, aes(y=..density.., fill="Main"), position="identity", alpha=0.3) + 
+  scale_x_continuous("Time since most recent vaccination in primary resident") + 
+  scale_y_continuous("Density") +
+  scale_fill_discrete("Prior infection")
+t.test((d%>%filter(inf.primary==0))$time_since_vacc.primary, (d%>%filter(inf.primary==1))$time_since_vacc.primary)
+
 d %>% ggplot(aes(time_since_vacc.secondary, group=as.factor(inf.secondary), fill=as.factor(inf.secondary))) + 
   geom_histogram(aes(y=..density..), position="identity", alpha=0.5) + 
-  geom_histogram(d=d2, aes(y=..density.., fill="Main"), position="identity", alpha=0.3) + 
+  # geom_histogram(d=d2, aes(y=..density.., fill="Main"), position="identity", alpha=0.3) + 
   scale_x_continuous("Time since most recent vaccination in secondary resident") + 
   scale_y_continuous("Density") +
   scale_fill_discrete("Prior infection")
@@ -109,7 +117,7 @@ t.test(d$time_since_inf_vacc.primary, d2$time_since_inf_vacc.primary)
 d <- d %>% mutate(vacc_recent.primary = time_since_inf.primary > time_since_vacc.primary | (inf.primary==0 & vacc.primary>0),
                   vacc_recent.secondary = time_since_inf.secondary > time_since_vacc.secondary | (inf.secondary==0 & vacc.secondary>0)) %>% 
   replace_na(list(vacc_recent.primary=F, vacc_recent.secondary=F))
-d2 <- d2 %>% mutate(vacc_recent.primary = time_since_inf.primary > time_since_vacc.primary | (inf.primary==0 & vacc.primaryhttp://127.0.0.1:14991/graphics/plot_zoom_png?width=480&height=353>0),
+d2 <- d2 %>% mutate(vacc_recent.primary = time_since_inf.primary > time_since_vacc.primary | (inf.primary==0 & vacc.primary>0),
                   vacc_recent.secondary = time_since_inf.secondary > time_since_vacc.secondary | (inf.secondary==0 & vacc.secondary>0)) %>% 
   replace_na(list(vacc_recent.primary=F, vacc_recent.secondary=F))
 
