@@ -5,14 +5,16 @@ setwd("D:/CCHCS_premium/st/indirects/cleaned-data/")
 library(lubridate)
 library(tidyverse)
 
-d <- read_csv("matching_data_071223/matching_data_allvacc_dose_infvacc072023_part1.csv") %>% 
-  rbind(read_csv("matching_data_071223/matching_data_allvacc_dose_infvacc072023_part2.csv"))
+d1 <- read_csv("matching_data_071223/matching_data_allvacc_dose_infvacc072023_part1.csv")
+d2 <- read_csv("matching_data_071223/matching_data_allvacc_dose_infvacc072023_part2.csv")
+d <- d1 %>% 
+  rbind(d2)
 d <- d %>% mutate(id=1:n()) %>%
   group_by(Institution, subclass) %>% 
   mutate(subclass=cur_group_id())
 
 
-d <- read_csv("matching_data_071223/matching_data_novacc_stricttest_072323.csv")
+d <- read_csv("matching_data_071223/matching_data_allvaccdoses_noincarcreq_priorinf_infvacc071223.csv")
 
 fix_intersection <- function(v) {
   v%>%str_extract_all("[0-9]{4}-[0-9]{2}-[0-9]{2}", simplify = T)
@@ -75,8 +77,8 @@ all <- control %>% rbind(treatment_filter) %>% arrange(subclass, id)
 all <- all %>% rename("group_start"="best_start")
 
 all %>% group_by(treatment) %>% summarise(n=n(), observation=sum((end-group_start)%>%as.numeric()))
- 
-all <- all %>% mutate(final_start = group_start+5, final_end = end + 5)
+
+all <- all %>% rowwise() %>% mutate(final_start = group_start+5, final_end = min(as.Date("2022-12-15"), end + 5))
 all %>% names()
 
 
@@ -124,6 +126,7 @@ all_survival%>%
 
 all_survival <- all_survival %>% 
   select(id, subclass, treatment, primary, secondary, Institution, BuildingId, InstBuild, inf.primary, inf.secondary, 
+         vacc.primary, vacc.secondary,
          final_start, final_end, survival_time, status) %>%
   mutate(intersection=interval(final_start, final_end))
 
@@ -138,7 +141,8 @@ all_survival_inf_clean <- all_survival_inf %>%
   filter(infDay.primary <= final_start|inf.primary==0) %>% 
   arrange(id, desc(infDay.primary)) %>% 
   summarise_all(first) %>% 
-  mutate(time_since_inf.primary=(difftime(final_start, infDay.primary, units="days")%>%as.numeric())/30.417)
+  mutate(time_since_inf.primary=(difftime(final_start, infDay.primary, units="days")%>%as.numeric())/30.417) %>%
+  mutate(time_since_inf.primary=ifelse(inf.primary==0, NA, time_since_inf.primary))
 all_survival_inf_clean     
 
 all_survival_inf_clean <- all_survival_inf_clean %>%
@@ -148,7 +152,9 @@ all_survival_inf_clean <- all_survival_inf_clean %>%
   filter(infDay.secondary <= final_start|inf.secondary==0) %>% 
   arrange(id, desc(infDay.secondary)) %>% 
   summarise_all(first) %>% 
-  mutate(time_since_inf.secondary=(difftime(final_start, infDay.secondary, units="days")%>%as.numeric())/30.417)
+  mutate(time_since_inf.secondary=(difftime(final_start, infDay.secondary, units="days")%>%as.numeric())/30.417) %>%
+  mutate(time_since_inf.secondary=ifelse(inf.secondary==0, NA, time_since_inf.secondary))
+
 all_survival_inf_clean   
 
 vacc <- read_csv("cleaned_vaccination_data.csv") %>% select(ResidentId, num_dose, Date)
@@ -159,8 +165,8 @@ all_survival_inf_clean_vacc <- all_survival_inf_clean_vacc %>%
   left_join(vacc, by=c("secondary"="ResidentId", "vacc.secondary"="num_dose")) %>% 
   rename("vaccday.secondary"="Date")
 all_survival_inf_clean_vacc <- all_survival_inf_clean_vacc %>% 
-  mutate(vaccday.primary=if_else(vacc.primary==0, as.Date("2020-03-01"), vaccday.primary),
-         vaccday.secondary=if_else(vaccday.secondary==0, as.Date("2020-03-01"), vaccday.secondary)) %>% 
+  mutate(vaccday.primary=if_else(vacc.primary==0, as.Date(NA), vaccday.primary),
+         vaccday.secondary=if_else(vaccday.secondary==0, as.Date(NA), vaccday.secondary)) %>% 
   mutate(time_since_vacc.primary = ((final_start-vaccday.primary)%>%as.numeric())/30.417,
          time_since_vacc.secondary = ((final_start-vaccday.secondary)%>%as.numeric())/30.417)
 
@@ -168,7 +174,7 @@ demo <- read_csv("demographic_data_clean.csv")
 demo <- demo %>% mutate(age=2022-BirthYear)
 demo
 
-all_survival_inf_clean_vacc_demo <- all_survival_inf_clean %>% left_join(demo, by=c("primary"="ResidentId"))
+all_survival_inf_clean_vacc_demo <- all_survival_inf_clean_vacc %>% left_join(demo, by=c("primary"="ResidentId"))
 all_survival_inf_clean_vacc_demo <- all_survival_inf_clean_vacc_demo %>% left_join(demo, by=c("secondary"="ResidentId"), suffix=c(".primary", ".secondary"))
 all_survival_inf_clean_vacc_demo
 
@@ -198,5 +204,5 @@ all_survival_inf_clean_vacc_demo_risk <- all_survival_inf_clean_vacc_demo_risk %
   select(!c(risk_interval, overlap_risk, days_risk, Value))
 
 
-write_csv(all_survival_inf_clean_vacc_demo_risk, "survival_data/novacc_stricttest_072323.csv")
+write_csv(all_survival_inf_clean_vacc_demo_risk, "survival_data/allvacc_dose_noincarcreq_priorinf_infvacc080823.csv")
 
