@@ -12,7 +12,7 @@ library(survminer)
 library(autoReg)
 
 
-d <- read_csv("survival_data/allvacc_dose_noincarcreq_priorinf_infvacc071223.csv")
+d <- read_csv("survival_data/allvacc_dose_infvacc08023.csv")
 d <- d %>% mutate(Institution=as.factor(Institution),
                   InstBuild=as.factor(InstBuild), subclass=as.factor(subclass))
 d <- d %>% mutate(vacc.primary.binary=(vacc.primary>0)%>%as.numeric())
@@ -20,13 +20,14 @@ d <- d %>% rowwise() %>%
   mutate(time_since_inf_vacc.primary = min(time_since_inf.primary, time_since_vacc.primary, na.rm=T),
          time_since_inf_vacc.secondary = min(time_since_inf.secondary, time_since_vacc.secondary, na.rm=T))
 
+d <- d %>% mutate(time_since_start=(difftime(final_start, as.Date("2022-12-15"))%>%as.numeric())/30.417)
 
 results <- coxph(Surv(survival_time, status) ~ 
                    treatment + vacc.primary + 
                    inf.primary + inf.secondary + 
-                   age.primary + age.secondary + risk.primary + risk.secondary + 
-                   InstBuild + frailty(subclass), 
-                 data=d)
+                   age.primary + age.secondary + risk.primary + risk.secondary + tt(time_since_start) +
+                   Institution + frailty(subclass), 
+                 data=d, tt=function(x,t,...){time_since_start<-x+t})
 tbl_regression(results, exponentiate = T, 
                include = c("treatment", "vacc.primary", 
                            "inf.primary", "inf.secondary",
