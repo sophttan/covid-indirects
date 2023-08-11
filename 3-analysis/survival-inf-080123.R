@@ -13,21 +13,65 @@ library(autoReg)
 
 
 d <- read_csv("survival_data/allvacc_dose_infvacc08023.csv")
-d <- d %>% mutate(Institution=as.factor(Institution),
-                  InstBuild=as.factor(InstBuild), subclass=as.factor(subclass))
-d <- d %>% mutate(vacc.primary.binary=(vacc.primary>0)%>%as.numeric())
-d <- d %>% rowwise() %>% 
-  mutate(time_since_inf_vacc.primary = min(time_since_inf.primary, time_since_vacc.primary, na.rm=T),
-         time_since_inf_vacc.secondary = min(time_since_inf.secondary, time_since_vacc.secondary, na.rm=T))
 
-d <- d %>% mutate(time_since_start=(difftime(final_start, as.Date("2022-12-15"))%>%as.numeric())/30.417)
+# add time-varying month
+# create time dataset
+dates <- data.frame(date=seq(as.Date("2021-12-15"), as.Date("2022-12-15"), by=1))
+# dates <- dates %>% mutate(day=0:(n()-1), month=floor(day/30.5)) %>% rowwise() %>% mutate(month=min(month, 11))
+dates <- dates %>% mutate(day=0:(n()-1), month=floor(day/91.5)) %>% rowwise() %>% mutate(month=min(month, 11))
 
-results <- coxph(Surv(survival_time, status) ~ 
-                   treatment + vacc.primary + 
+full <- expand.grid(id=d$id, date=dates$date) %>% left_join(dates, by="date") 
+
+# join time dataset with data
+dtime <- d %>% left_join(full, by="id") %>% 
+  filter(date>=final_start&date<=final_end) # keep only days included in eligible observation period
+
+dtime_filtered <- dtime %>% select(!c(date, day)) %>% 
+  mutate(survival_time=survival_time-1) %>% # fix survival time estimate (1 day too long)
+  group_by(id) %>% mutate(survival_time1=0:(n()-1)) %>% filter(survival_time1<=survival_time) %>% # remove days after censoring
+  group_by(id, month) %>% mutate(time1=first(survival_time1), time2=min(last(survival_time1)+1, first(survival_time))) %>% 
+  distinct(id, month, .keep_all = T)
+
+dtime_filtered <- dtime_filtered %>%
+  group_by(id) %>%
+  mutate(status=if_else(time2!=first(survival_time), 0, status)) %>% 
+  filter(time1<time2)
+
+dtime_filtered <- dtime_filtered %>% mutate(month=factor(month, levels=0:3),
+                                            Institution=as.factor(Institution),
+                                            InstBuild=as.factor(InstBuild), 
+                                            subclass=as.factor(subclass))
+
+dtime_filtered <- dtime_filtered %>% mutate(vacc.primary.binary=(vacc.primary>0)%>%as.numeric())
+# d <- d %>% rowwise() %>% 
+#   mutate(time_since_inf_vacc.primary = min(time_since_inf.primary, time_since_vacc.primary, na.rm=T),
+#          time_since_inf_vacc.secondary = min(time_since_inf.secondary, time_since_vacc.secondary, na.rm=T))
+# 
+
+vacc <- read_csv("cleaned_vaccination_data.csv") %>% select(ResidentId, num_dose, full_vacc)
+dtime_filtered <- dtime_filtered %>% left_join(vacc, by=c("primary"="ResidentId", "vacc.primary"="num_dose")) %>%
+  mutate(vacc.primary.cat = case_when(vacc.primary==0~"unvacc",
+                                      vacc.primary<=full_vacc~"primary",
+                                      vacc.primary>full_vacc~"boosted") %>% factor(levels=c("unvacc", "primary", "boosted")))
+
+clean_results <- function(results) {
+  summary(results)%>%coef()%>%as.data.frame()%>%
+    mutate(lb=(coef-2*`se(coef)`)%>%exp(), ub=(coef+2*`se(coef)`)%>%exp(), coef=coef%>%exp()) %>%
+    select(coef, lb, ub, p) %>% round(4)
+}
+
+ggsurvplot(fit  = survfit(Surv(time1, time2, status) ~ vacc.primary.binary, dtime_filtered), 
+           fun = "cloglog")
+ggsurvplot(fit  = survfit(Surv(time1, time2, status) ~ vacc.primary.cat, dtime_filtered), 
+           fun = "cloglog")
+
+results <- coxph(Surv(time1, time2, status) ~ 
+                   treatment + vacc.primary + tt(vacc.primary) + 
                    inf.primary + inf.secondary + 
-                   age.primary + age.secondary + risk.primary + risk.secondary + tt(time_since_start) +
-                   Institution + frailty(subclass), 
-                 data=d, tt=function(x,t,...){time_since_start<-x+t})
+                   age.primary + age.secondary + risk.primary + risk.secondary +
+                   month + Institution + frailty(subclass), 
+                 data=dtime_filtered, tt=function(x,t,...){x*t/30.417})
+clean_results(results)
 tbl_regression(results, exponentiate = T, 
                include = c("treatment", "vacc.primary", 
                            "inf.primary", "inf.secondary",

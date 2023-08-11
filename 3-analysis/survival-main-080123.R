@@ -11,15 +11,12 @@ library(gtsummary)
 library(rms)
 
 d <- read_csv("survival_data/allvacc_dose_noincarcreq_priorinf_infvacc080823.csv")
-test <- read_csv("testing_vacc_clean.csv") 
-test%>%group_by(ResidentId, num_pos) %>% filter(num_pos>0) %>% summarise_all(first) %>% group_by(Day) %>% 
-  summarise(cases=n()) %>% filter(Day >= "2021-12-01") %>% 
-  ggplot(aes(Day, cases)) + geom_line()
 
 # add time-varying month
 # create time dataset
 dates <- data.frame(date=seq(as.Date("2021-12-15"), as.Date("2022-12-15"), by=1))
-dates <- dates %>% mutate(day=0:(n()-1), month=floor(day/30.5)) %>% rowwise() %>% mutate(month=min(month, 11))
+# dates <- dates %>% mutate(day=0:(n()-1), month=floor(day/30.5)) %>% rowwise() %>% mutate(month=min(month, 11))
+dates <- dates %>% mutate(day=0:(n()-1), month=floor(day/91.5)) %>% rowwise() %>% mutate(month=min(month, 11))
 
 full <- expand.grid(id=d$id, date=dates$date) %>% left_join(dates, by="date") 
 
@@ -38,7 +35,7 @@ dtime_filtered <- dtime_filtered %>%
   mutate(status=if_else(time2!=first(survival_time), 0, status)) %>% 
   filter(time1<time2)
 
-dtime_filtered <- dtime_filtered %>% mutate(month=factor(month, levels=0:11),
+dtime_filtered <- dtime_filtered %>% mutate(month=factor(month, levels=0:3),
                                             Institution=as.factor(Institution),
                                             InstBuild=as.factor(InstBuild), 
                                             subclass=as.factor(subclass))
@@ -64,14 +61,54 @@ clean_results <- function(results) {
 
 dtime_filtered <- dtime_filtered %>% mutate(obs_time=time2-time1)
 
-# no time or institution
+# exploring ph violation
+dtime_filtered %>% distinct(id, .keep_all = T) %>% ggplot(aes(vacc.primary.cat)) + geom_bar() + 
+  scale_x_discrete("Vaccination in primary resident", labels=c("Unvaccinated", "Primary series only", "Boosted"))
+
+# for plotting log-log plots
+ggsurvplot(fit  = survfit(Surv(time1, time2, status) ~ treatment, dtime_filtered), 
+           fun = "cloglog")
+ggsurvplot(fit  = survfit(Surv(time1, time2, status) ~ factor(vacc.primary), dtime_filtered), 
+           fun = "cloglog")
+ggsurvplot(fit  = survfit(Surv(time1, time2, status) ~ vacc.primary.binary, dtime_filtered), 
+           fun = "cloglog")
+ggsurvplot(fit  = survfit(Surv(time1, time2, status) ~ vacc.primary.cat, dtime_filtered), 
+           fun = "cloglog")
+
+dtime_filtered <- dtime_filtered%>%cbind(model.matrix(~-1+vacc.primary.cat, data=dtime_filtered)[,2:3])
 results <- coxph(Surv(time1, time2, status) ~ 
-                   treatment + vacc.primary +
-                   tt(time_since_inf.primary) + tt(time_since_inf.secondary) + 
+                   treatment + vacc.primary.catprimary + vacc.primary.catboosted +
+                   time_since_inf.primary + time_since_inf.secondary + 
                    age.primary + age.secondary + risk.primary + risk.secondary + 
+                   month + Institution +
                    frailty(subclass), 
                  data=dtime_filtered, 
                  tt=list(function(x,t,...){time_since_inf.primary<-x+t/30.417}, 
+                         function(x,t,...){time_since_inf.secondary<-x+t/30.417}))
+clean_results(results)
+
+results <- coxph(Surv(time1, time2, status) ~ 
+                   treatment + vacc.primary.catprimary + vacc.primary.catboosted +
+                   tt(vacc.primary.catboosted) + 
+                   tt(time_since_inf.primary) + tt(time_since_inf.secondary) + 
+                   age.primary + age.secondary + risk.primary + risk.secondary + 
+                   month + Institution +
+                   frailty(subclass), 
+                 data=dtime_filtered, 
+                 tt=list(function(x,t,...) x*t,
+                         function(x,t,...){time_since_inf.primary<-x+t/30.417}, 
+                         function(x,t,...){time_since_inf.secondary<-x+t/30.417}))
+clean_results(results)
+
+results <- coxph(Surv(time1, time2, status) ~ 
+                   treatment + vacc.primary + tt(vacc.primary) + 
+                   tt(time_since_inf.primary) + tt(time_since_inf.secondary) + 
+                   age.primary + age.secondary + risk.primary + risk.secondary + 
+                   month + Institution +
+                   frailty(subclass), 
+                 data=dtime_filtered, 
+                 tt=list(function(x,t,...) x*t/30.417,
+                         function(x,t,...){time_since_inf.primary<-x+t/30.417}, 
                          function(x,t,...){time_since_inf.secondary<-x+t/30.417}))
 clean_results(results)
 
@@ -90,7 +127,7 @@ clean_results(results)
 # adjust for month and institution 
 results <- coxph(Surv(time1, time2, status) ~ 
                    treatment + vacc.primary +
-                   tt(time_since_inf.primary) + tt(time_since_inf.secondary) + 
+                   time_since_inf.primary + time_since_inf.secondary + 
                    age.primary + age.secondary + risk.primary + risk.secondary + 
                    month + Institution +
                    frailty(subclass), 
@@ -120,7 +157,7 @@ clean$var <- clean$var %>%
 clean %>% ggplot(aes(coef, var)) + geom_point() + 
   geom_errorbarh(aes(xmin=lb, xmax=ub, height=0.5)) + 
   geom_vline(aes(xintercept=1)) + 
-  scale_x_continuous("Hazard Ratio", limits=c(0.1, 1.5), breaks=seq(0.3, 1.3, 0.2), expand = c(0, 0)) + 
+  scale_x_continuous("Hazard Ratio", expand = c(0.05, 0)) + 
   scale_y_discrete(element_blank()) + 
   facet_wrap(~group) # ADDED
 
@@ -163,20 +200,6 @@ results <- coxph(Surv(time1, time2, status) ~
 clean_results(results)
 
 
-
-d %>% ggplot(aes(vacc.primary.cat)) + geom_bar() + 
-  scale_x_discrete("Vaccination in primary resident", labels=c("Unvaccinated", "Primary series only", "Boosted"))
-
-
-# for plotting log-log plots
-ggsurvplot(fit  = survfit(Surv(survival_time, status) ~ treatment, d), 
-           fun = "cloglog")
-ggsurvplot(fit  = survfit(Surv(survival_time, status) ~ factor(vacc.primary), d), 
-           fun = "cloglog")
-ggsurvplot(fit  = survfit(Surv(survival_time, status) ~ vacc.primary.binary, d), 
-           fun = "cloglog")
-ggsurvplot(fit  = survfit(Surv(survival_time, status) ~ vacc.primary.cat, d), 
-           fun = "cloglog")
 
 # original analysis
 results <- coxph(Surv(survival_time, status) ~ 
