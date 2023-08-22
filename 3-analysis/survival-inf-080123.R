@@ -64,6 +64,10 @@ ggsurvplot(fit  = survfit(Surv(time1, time2, status) ~ vacc.primary.binary, dtim
            fun = "cloglog")
 ggsurvplot(fit  = survfit(Surv(time1, time2, status) ~ vacc.primary.cat, dtime_filtered), 
            fun = "cloglog")
+ggsurvplot(fit  = survfit(Surv(time1, time2, status) ~ inf.primary, dtime_filtered), 
+           fun = "cloglog")
+ggsurvplot(fit  = survfit(Surv(time1, time2, status) ~ inf.secondary, dtime_filtered), 
+           fun = "cloglog")
 
 results <- coxph(Surv(time1, time2, status) ~ 
                    treatment + vacc.primary + tt(vacc.primary) + 

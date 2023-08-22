@@ -8,8 +8,14 @@ library(MatchIt)
 #library(ggbrace)
 library(patchwork)
 
-for_matching <- read_csv("full_data_prematching_allvacc_stricttesting.csv")
+for_matching <- read_csv("allvacc_full_data_prematching_relaxincarceration_priorinf_bydose_052423.csv")
 
+vacc <- read_csv("cleaned_vaccination_data.csv") %>% select(ResidentId, num_dose, full_vacc)
+for_matching <- for_matching %>% left_join(vacc, by=c("primary"="ResidentId", "vacc.primary"="num_dose")) %>%
+  mutate(vacc.primary.grouped = case_when(vacc.primary==0~0,
+                                          vacc.primary<=full_vacc~1,
+                                          vacc.primary-full_vacc==1~2,
+                                          T~3) %>% as.numeric())
 # for_matching <- for_matching %>% ungroup() %>% mutate(label=1:nrow(.))
 # vacc <- read_csv("cleaned_vaccination_data.csv")
 # for_matching <- for_matching %>% left_join(vacc %>% select(ResidentId, num_dose, Date_offset),
@@ -190,10 +196,10 @@ for_matching <- for_matching %>% ungroup() %>% mutate(label=1:nrow(.))
 # for_matching2 <- for_matching%>%filter(Institution%in%23:36)%>% mutate(label=1:nrow(.))
 
 first_match <- matchit(treatment ~ Institution + BuildingId + duration_interval + 
-                        vacc.primary + inf.primary + inf.secondary, 
+                        vacc.primary.grouped + inf.primary + inf.secondary, 
                  data = for_matching,
                  distance = generate_distance_matrix(for_matching), 
-                 exact = treatment ~ Institution + BuildingId + vacc.primary + inf.primary + inf.secondary,
+                 exact = treatment ~ Institution + BuildingId + vacc.primary.grouped + inf.primary + inf.secondary,
                  ratio = 5, min.controls = 1, max.controls = 6, method="optimal")
 m <- first_match %>% get_matches() %>% arrange(subclass)
 
@@ -207,10 +213,10 @@ filtered_matches <- m %>% group_by(subclass) %>% arrange(subclass, desc(treatmen
 match_adjusted <- matchit(treatment ~ Institution + BuildingId + duration_interval + 
                             # age.primary + age.secondary + 
                             # time_since_inf.primary + time_since_inf.secondary + 
-                            vacc.primary + inf.primary + inf.secondary, 
+                            vacc.primary.grouped + inf.primary + inf.secondary, 
                           data = filtered_matches,
                           distance = generate_distance_matrix(filtered_matches), 
-                          exact = treatment ~ Institution + BuildingId + vacc.primary + inf.primary + inf.secondary, 
+                          exact = treatment ~ Institution + BuildingId + vacc.primary.grouped + inf.primary + inf.secondary, 
                           ratio = 5, min.controls = 1, max.controls = 6, method="optimal") 
 
 m_adjusted <- match_adjusted %>% 
@@ -236,4 +242,4 @@ for (i in 1:100) {
 }
 dev.off()
 
-write_csv(m_adjusted, "matching_data_071223/matching_data_allvacc_stricttest_072323.csv")
+write_csv(m_adjusted, "matching_data_071223/matching_data_allvacc_groupeddoses_noincarcreq_priorinf_infvacc_081623.csv")

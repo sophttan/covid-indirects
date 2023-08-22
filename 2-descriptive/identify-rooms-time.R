@@ -11,14 +11,21 @@ library(readr)
 library(lubridate)
 
 # load in all housing, testing, vaccination data
-d <- read_csv("complete-data.csv") 
-d <- d %>% select(ResidentId, Day, Institution, BuildingId, RoomType, RoomId, num_pos, num_dose_adjusted)
+d <- read_csv("complete-data-081423.csv") 
 infections <- d %>% group_by(ResidentId, num_pos) %>% filter(!num_pos %>% is.na()) %>% 
   summarise(Day_inf=first(Day))
 
 d <- d %>% group_by(ResidentId, num_pos) %>% mutate(num_pos_adjusted=ifelse(Day==first(Day), num_pos-1, num_pos))
 d <- d %>% replace_na(list(num_pos_adjusted=0))
 d
+
+d <- d %>% 
+  mutate(num_dose_grouped = case_when(num_dose_adjusted==0~0,
+                                      num_dose_adjusted<=full_vacc~1,
+                                      num_dose_adjusted-full_vacc==1~2,
+                                      T~3))
+
+d <- d %>% select(ResidentId, Day, Institution, BuildingId, RoomType, RoomId, num_pos_adjusted, num_dose_adjusted, num_dose_grouped)
 
 # keep data only for Omicron period
 group_room <- d %>% filter(!is.na(Institution) & !is.na(RoomId)) %>% filter(Day >= "2021-12-15") %>%
@@ -65,18 +72,18 @@ group_room_summary_entirepandemic <- group_room_summary_entirepandemic %>%
   mutate(inf_90_days = difftime(Day, Day_inf, units="days") + 1 < 90)
 
 # check inf_90_days coding
-group_room_summary_entirepandemic %>% group_by(ResidentId) %>% filter(any(num_pos>=1)) %>% 
-  select(ResidentId, Day, num_pos, num_pos_adjusted, Day_inf, inf_90_days) %>% head(1000) %>% view()
+group_room_summary_entirepandemic %>% group_by(ResidentId) %>% filter(any(num_pos_adjusted>=1)) %>% 
+  select(ResidentId, Day, num_pos_adjusted, Day_inf, inf_90_days) %>% head(1000) %>% view()
 
 # label residents in rooms
 group_room_2 <- group_room_summary_entirepandemic %>% mutate(num=as.factor(1:n())) %>%
   arrange(Institution, RoomId, Day)
 group_room_2 <- group_room_2 %>%
   select(Institution, BuildingId, RoomType, RoomId, Day, ResidentId, 
-         num, num_pos, num_pos_adjusted, inf_90_days, num_dose_adjusted)
+         num, num_pos_adjusted, inf_90_days, num_dose_adjusted, num_dose_grouped)
 
 # label vaccination and prior infection in each resident
-group_room_2 <- group_room_2 %>% mutate(vacc=ifelse(num_dose_adjusted>0,1,0), 
+group_room_2 <- group_room_2 %>% mutate(vacc=ifelse(num_dose_grouped>0,1,0), 
                                         inf=num_pos_adjusted>0)
 group_room_2
 
@@ -93,7 +100,7 @@ building_room <- group_room_2 %>% group_by(Institution, RoomId, BuildingId) %>% 
 group_room_2_wide <- group_room_2 %>% select(!c(BuildingId)) %>%
   reshape(idvar = c("Institution", "RoomId", "Day"),
           timevar = "num",
-          v.names = c("ResidentId", "num_pos", "num_pos_adjusted", "num_dose_adjusted", "vacc", "inf", "inf_90_days"),
+          v.names = c("ResidentId", "num_pos_adjusted", "num_dose_adjusted", "num_dose_grouped", "vacc", "inf", "inf_90_days"),
           direction = "wide")
 
 # add building type
@@ -103,4 +110,4 @@ group_room_2_wide <- group_room_2_wide %>% select(Institution, BuildingId, every
   replace_na(list(inf_90_days.1=F, inf_90_days.2=F)) %>% 
   mutate(prior_inf_90 = inf_90_days.1|inf_90_days.2)
 
-write_csv(group_room_2_wide, "wide_housing_2room051923.csv")
+write_csv(group_room_2_wide, "wide_housing_2room_noincarcreq081423.csv")

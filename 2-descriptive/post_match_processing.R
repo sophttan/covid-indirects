@@ -14,7 +14,7 @@ d <- d %>% mutate(id=1:n()) %>%
   mutate(subclass=cur_group_id())
 
 
-d <- read_csv("matching_data_071223/matching_data_allvaccdoses_noincarcreq_priorinf_infvacc071223.csv")
+d <- read_csv("matching_data_071223/matching_data_allvacc_groupeddoses_noincarcreq_priorinf_infvacc_081623.csv")
 
 fix_intersection <- function(v) {
   v%>%str_extract_all("[0-9]{4}-[0-9]{2}-[0-9]{2}", simplify = T)
@@ -81,6 +81,42 @@ all %>% group_by(treatment) %>% summarise(n=n(), observation=sum((end-group_star
 all <- all %>% rowwise() %>% mutate(final_start = group_start+5, final_end = min(as.Date("2022-12-15"), end + 5))
 all %>% names()
 
+plot_matches <- function(d, title="", subtitle="") {
+  d <- d %>% mutate(subclass1=match(subclass, unique(subclass)))
+  d <- d %>% group_by(subclass1) %>% 
+    mutate(subclass1=subclass1*5-0.4*0:(n()-1)) %>% ungroup()
+  
+  p <- d %>%
+    ggplot(aes(x = as.POSIXct(final_start), y = subclass1, 
+               colour = as.factor(treatment))) +
+    geom_point(aes(x = as.POSIXct(first)), size = 1.5, alpha=0.7, color="grey70") +
+    geom_point(aes(x = as.POSIXct(last)), size = 1.5, alpha=0.7, color="grey70") +
+    geom_segment(aes(x = as.POSIXct(first), xend = as.POSIXct(last), yend = subclass1, group = num_inf, color=as.factor(treatment)), alpha=0.7, color="grey70") +
+    geom_point(size = 1) +
+    geom_point(aes(x = as.POSIXct(final_end)), size = 1) +
+    geom_segment(aes(xend = as.POSIXct(final_end), yend = subclass1, group = num_inf, color=as.factor(treatment))) +
+    scale_x_datetime("Duration of co-residence", 
+                     limits = c(as.POSIXct("2021-11-30"), as.POSIXct("2022-12-31")), 
+                     date_breaks = "1 month", date_labels ="%b-%y", expand=c(0,0)) + 
+    scale_color_discrete(name="Unit type", labels=c("Treatment", "Control")) +
+    guides(color = guide_legend(reverse=TRUE)) + 
+    labs(title=title, 
+         subtitle=subtitle) + 
+    theme(axis.text.y = element_blank(),
+          axis.title.y = element_blank(), axis.ticks.y = element_blank(), 
+          axis.text.x = element_text(angle=90)) 
+  
+  p
+}
+
+pdf("D:/CCHCS_premium/st/indirects/testing/matching081623.pdf")
+set.seed(70)
+for (i in sample(all$subclass%>%unique(), 100)) {
+  print(plot_matches(all %>% filter(subclass==i),
+                     title=paste("Subclass", i),
+                     subtitle="Matched by building, time, and number of vaccine doses in the primary resident"))
+}
+dev.off()
 
 testing <- read_csv("testing_vacc_clean.csv") %>% 
   select(ResidentId, Day, Result, num_pos) %>% filter(!Result%>%is.na())
@@ -126,7 +162,7 @@ all_survival%>%
 
 all_survival <- all_survival %>% 
   select(id, subclass, treatment, primary, secondary, Institution, BuildingId, InstBuild, inf.primary, inf.secondary, 
-         vacc.primary, vacc.secondary,
+         vacc.primary, vacc.secondary, vacc.primary.grouped, 
          final_start, final_end, survival_time, status) %>%
   mutate(intersection=interval(final_start, final_end))
 
@@ -159,10 +195,10 @@ all_survival_inf_clean
 
 vacc <- read_csv("cleaned_vaccination_data.csv") %>% select(ResidentId, num_dose, Date)
 all_survival_inf_clean_vacc <- all_survival_inf_clean %>% 
-  left_join(vacc, by=c("primary"="ResidentId", "vacc.primary"="num_dose")) %>% 
+  left_join(vacc, by=c("primary"="ResidentId", "vacc.primary.doses"="num_dose")) %>% 
   rename("vaccday.primary"="Date")
 all_survival_inf_clean_vacc <- all_survival_inf_clean_vacc %>% 
-  left_join(vacc, by=c("secondary"="ResidentId", "vacc.secondary"="num_dose")) %>% 
+  left_join(vacc, by=c("secondary"="ResidentId", "vacc.secondary.doses"="num_dose")) %>% 
   rename("vaccday.secondary"="Date")
 all_survival_inf_clean_vacc <- all_survival_inf_clean_vacc %>% 
   mutate(vaccday.primary=if_else(vacc.primary==0, as.Date(NA), vaccday.primary),
@@ -204,5 +240,5 @@ all_survival_inf_clean_vacc_demo_risk <- all_survival_inf_clean_vacc_demo_risk %
   select(!c(risk_interval, overlap_risk, days_risk, Value))
 
 
-write_csv(all_survival_inf_clean_vacc_demo_risk, "survival_data/allvacc_dose_noincarcreq_priorinf_infvacc080823.csv")
+write_csv(all_survival_inf_clean_vacc_demo_risk, "survival_data/allvacc_dose_noincarcreq_priorinf_infvacc081423v2.csv")
 

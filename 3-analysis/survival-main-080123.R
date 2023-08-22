@@ -9,8 +9,10 @@ library(survival)
 library(ggfortify)
 library(gtsummary)
 library(rms)
-
-d <- read_csv("survival_data/allvacc_dose_noincarcreq_priorinf_infvacc080823.csv")
+ggcoxfunctional(Surv(time1, time2, status) ~ time_since_inf.primary + time_since_inf.secondary + 
+                  +                   age.primary + age.secondary + 
+                  +                   risk.primary + risk.secondary, data=dtime_filtered, ylim=c(0.5, 1))
+d <- read_csv("survival_data/allvacc_dose_noincarcreq_priorinf_infvacc081423.csv")
 
 # add time-varying month
 # create time dataset
@@ -47,10 +49,11 @@ dtime_filtered <- dtime_filtered %>% mutate(vacc.primary.binary=(vacc.primary>0)
 # 
 
 vacc <- read_csv("cleaned_vaccination_data.csv") %>% select(ResidentId, num_dose, full_vacc)
-dtime_filtered <- dtime_filtered %>% left_join(vacc, by=c("primary"="ResidentId", "vacc.primary"="num_dose")) %>%
-  mutate(vacc.primary.cat = case_when(vacc.primary==0~"unvacc",
-                                      vacc.primary<=full_vacc~"primary",
-                                      vacc.primary>full_vacc~"boosted") %>% factor(levels=c("unvacc", "primary", "boosted")))
+dtime_filtered <- dtime_filtered %>% left_join(vacc, by=c("primary"="ResidentId", "vacc.primary.doses"="num_dose")) %>%
+  mutate(vacc.primary.cat = case_when(vacc.primary.doses==0~"unvacc",
+                                      vacc.primary.doses<=full_vacc~"primary",
+                                      vacc.primary.doses-full_vacc==1~"boosted1",
+                                      T~"boosted2+") %>% factor(levels=c("unvacc", "primary", "boosted1", "boosted2+")))
 
 clean_results <- function(results) {
   summary(results)%>%coef()%>%as.data.frame()%>%
@@ -63,16 +66,14 @@ dtime_filtered <- dtime_filtered %>% mutate(obs_time=time2-time1)
 
 # exploring ph violation
 dtime_filtered %>% distinct(id, .keep_all = T) %>% ggplot(aes(vacc.primary.cat)) + geom_bar() + 
-  scale_x_discrete("Vaccination in primary resident", labels=c("Unvaccinated", "Primary series only", "Boosted"))
+  scale_x_discrete("Vaccination in primary resident", labels=c("Unvaccinated", "Primary series only", "1 Booster", "2+ Boosters"))
 
 # for plotting log-log plots
 ggsurvplot(fit  = survfit(Surv(time1, time2, status) ~ treatment, dtime_filtered), 
            fun = "cloglog")
-ggsurvplot(fit  = survfit(Surv(time1, time2, status) ~ factor(vacc.primary), dtime_filtered), 
+ggsurvplot(fit  = survfit(Surv(time1, time2, status) ~ vacc.primary, dtime_filtered), 
            fun = "cloglog")
 ggsurvplot(fit  = survfit(Surv(time1, time2, status) ~ vacc.primary.binary, dtime_filtered), 
-           fun = "cloglog")
-ggsurvplot(fit  = survfit(Surv(time1, time2, status) ~ vacc.primary.cat, dtime_filtered), 
            fun = "cloglog")
 
 dtime_filtered <- dtime_filtered%>%cbind(model.matrix(~-1+vacc.primary.cat, data=dtime_filtered)[,2:3])
@@ -88,23 +89,22 @@ results <- coxph(Surv(time1, time2, status) ~
 clean_results(results)
 
 results <- coxph(Surv(time1, time2, status) ~ 
-                   treatment + vacc.primary.catprimary + vacc.primary.catboosted +
-                   tt(vacc.primary.catboosted) + 
-                   tt(time_since_inf.primary) + tt(time_since_inf.secondary) + 
+                   treatment + vacc.primary + 
+                   time_since_inf.primary + time_since_inf.secondary + 
                    age.primary + age.secondary + risk.primary + risk.secondary + 
                    month + Institution +
                    frailty(subclass), 
                  data=dtime_filtered, 
-                 tt=list(function(x,t,...) x*t,
-                         function(x,t,...){time_since_inf.primary<-x+t/30.417}, 
+                 tt=list(function(x,t,...){time_since_inf.primary<-x+t/30.417}, 
                          function(x,t,...){time_since_inf.secondary<-x+t/30.417}))
 clean_results(results)
+cox.zph(results)
 
 results <- coxph(Surv(time1, time2, status) ~ 
                    treatment + vacc.primary + tt(vacc.primary) + 
                    tt(time_since_inf.primary) + tt(time_since_inf.secondary) + 
                    age.primary + age.secondary + risk.primary + risk.secondary + 
-                   month + Institution +
+                   month +Institution +
                    frailty(subclass), 
                  data=dtime_filtered, 
                  tt=list(function(x,t,...) x*t/30.417,
@@ -114,7 +114,7 @@ clean_results(results)
 
 # adjust for month only
 results <- coxph(Surv(time1, time2, status) ~ 
-                   treatment + vacc.primary +
+                   treatment + vacc.primary + 
                    tt(time_since_inf.primary) + tt(time_since_inf.secondary) + 
                    age.primary + age.secondary + risk.primary + risk.secondary + 
                    month + 

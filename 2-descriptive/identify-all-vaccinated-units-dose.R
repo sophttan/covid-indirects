@@ -10,7 +10,7 @@ library(readr)
 library(lubridate)
 
 # read in dataset
-group_room_2_wide <- read_csv("wide_housing_2room_noincarcreq051823.csv") 
+group_room_2_wide <- read_csv("wide_housing_2room_noincarcreq081423.csv") 
 
 group_room_2_wide %>% head(20)
 
@@ -65,5 +65,5 @@ group_room_2_final <- group_room_2_wide_summary %>% select(!label) %>%
   select(Institution, BuildingId, RoomId, RoomType, everything())
 
 
-write_csv(group_room_2_final, "allunits_noincarcreq_vaccinationdose_analysis052423.csv")
+write_csv(group_room_2_final, "allunits_noincarcreq_vaccinationdose_analysis081423.csv")
 

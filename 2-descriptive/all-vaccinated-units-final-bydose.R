@@ -9,7 +9,7 @@ library(tidyverse)
 library(readr)
 library(lubridate)
 
-d <- read_csv("allunits_noincarcreq_vaccinationdose_analysis052423.csv")
+d <- read_csv("allunits_noincarcreq_vaccinationdose_analysis081423.csv")
 testing <- read_csv("testing_vacc_clean.csv")
 duration <- read_csv("housing_duration.csv")
 
@@ -54,8 +54,10 @@ matching <- avg_1_test %>%
   mutate(secondary = ifelse(primary==ResidentId.1, ResidentId.2, ResidentId.1),
          inf.primary=ifelse(primary==ResidentId.1, inf.1, inf.2), 
          inf.secondary=ifelse(primary==ResidentId.1, inf.2, inf.1), 
-         vacc.primary=ifelse(primary==ResidentId.1, num_dose_adjusted.1, num_dose_adjusted.2),
-         vacc.secondary=ifelse(primary==ResidentId.1, num_dose_adjusted.2, num_dose_adjusted.1))
+         vacc.primary=ifelse(primary==ResidentId.1, num_dose_grouped.1, num_dose_grouped.2),
+         vacc.secondary=ifelse(primary==ResidentId.1, num_dose_grouped.2, num_dose_grouped.1),
+         vacc.primary.doses=ifelse(primary==ResidentId.1, num_dose_adjusted.1, num_dose_adjusted.2),
+         vacc.secondary.doses=ifelse(primary==ResidentId.1, num_dose_adjusted.2, num_dose_adjusted.1))
 
 matching <- matching %>% 
   mutate(treatment = ifelse(vacc.secondary==0, 1, 0))
@@ -66,8 +68,8 @@ matching %>% group_by(vacc.primary, vacc.secondary) %>% summarise(n=n())
 
 matching$treatment %>% table()
 
-matching <- matching %>% rowwise() %>% mutate(adjusted_start=first+5,
-                                              adjusted_end=min(as.Date("2022-12-15"), last + 5))
+# matching <- matching %>% rowwise() %>% mutate(adjusted_start=first+5,
+#                                               adjusted_end=min(as.Date("2022-12-15"), last + 5))
 
-write_csv(matching, "allvacc_full_data_prematching_relaxincarceration_priorinf_bydose_052423.csv")
+write_csv(matching, "allvacc_full_data_prematching_relaxincarceration_priorinf_bydose_081423v2.csv")
 
