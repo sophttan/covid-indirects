@@ -301,7 +301,7 @@ regression <- function(d) {
 sample_sizes <- NULL
 regression_res <- NULL
 ph_test <- NULL
-for (i in 1:10) {
+for (i in 11:50) {
   print(i)
   avg_1_test <- avg_1_test %>% rowwise() %>%
     mutate(primary=case_when(test1&!test2~ResidentId.1,
@@ -338,12 +338,8 @@ for (i in 1:10) {
   ph_test <- rbind(ph_test, test_ph_assumptions(final_data_month) %>% mutate(i=i))
 }
 
-sample_sizes %>% write_csv("results/sample_sizes_10.csv")
-regression_res %>% write_csv("results/regression_10.csv")
-ph_test %>% write_csv("results/ph_test_10.csv")
+sample_sizes %>% write_csv("results/sample_sizes_50.csv")
+regression_res %>% write_csv("results/regression_50.csv")
+ph_test %>% write_csv("results/ph_test_50.csv")
 
-# matching <- matching %>% rowwise() %>% mutate(adjusted_start=first+5,
-#                                               adjusted_end=min(as.Date("2022-12-15"), last + 5))
-
-write_csv(matching, "allvacc_full_data_prematching_relaxincarceration_priorinf_bydose_081423v2.csv")
 
