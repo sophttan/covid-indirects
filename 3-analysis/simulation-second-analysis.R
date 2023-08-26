@@ -18,7 +18,7 @@ library(MatchIt)
 
 registerDoParallel(4)
 
-d <- read_csv("allvacc_full_data_prematching_relaxincarceration_priorinf_bydose_082523.csv") %>% group_by(id)
+d <- read_csv("allvacc_full_data_prematching_bydose_082523.csv") %>% group_by(id)
 testing <- read_csv("complete_testing_data.csv") %>% select(ResidentId, Day, Result)
 
 # add time-varying month
@@ -38,7 +38,7 @@ risk$start <- intersection[,1]%>%as.vector()%>%as.Date()
 risk$end <- intersection[,2]%>%as.vector()%>%as.Date()
 risk <- risk %>% mutate(risk_interval=interval(start=start, end=end)) %>% select(!c(start, end, interval))
 
-unit_info <- d %>% select(id, Institution, BuildingId, RoomId, Day, first, last, duration) %>% summarise_all(first) %>% select(!Day)
+unit_info <- d %>% select(id, Institution, BuildingId, RoomId, first, last, duration) %>% summarise_all(first)
 resident_info <- d %>% select(!names(unit_info)) %>% arrange(id, desc(test)) 
 
 generate_distance_matrix <- function(tbl) {
@@ -63,10 +63,10 @@ matching_specifications <- function(tbl) {
   sets <- list(1:10, 11:20, 21:27, 28:35)
   foreach(set=1:4, .packages=c("dplyr","lubridate","MatchIt"), .combine=rbind) %do%  {
     a <- tbl %>% filter(Institution %in% sets[[set]]) %>% mutate(label=1:n())
-    matchit(treatment ~ Institution + BuildingId + duration_interval + vacc.primary,
+    matchit(treatment ~ Institution + BuildingId + duration_interval + vacc.primary + inf.primary + inf.secondary,
             data = a,
             distance = generate_distance_matrix(a), 
-            exact = treatment ~ Institution + BuildingId + vacc.primary, 
+            exact = treatment ~ Institution + BuildingId + vacc.primary + inf.primary + inf.secondary, 
             ratio = 5, min.controls = 1, max.controls = 6, method="optimal") %>%
       get_matches()
   }
@@ -139,7 +139,7 @@ save_sample_size <- function(i, tbl) {
     summarise(units=n(), cases=sum(status), obs_time=sum(survival_time))%>%
     mutate(inc_rate=cases/obs_time*100000, i=i) %>% 
     pivot_wider(id_cols=i, names_from = treatment, names_sep = ".", values_from =c(units, cases, obs_time, inc_rate))
-  }
+}
 
 find_survival <- function(tbl) {
   add_testing <- function(tbl) {
@@ -217,7 +217,7 @@ prepare_month_survival_data <- function(tbl) {
 test_ph_assumptions <- function(d) {
   results <- coxph(Surv(time1, time2, status) ~ 
                      treatment + vacc.primary + 
-                     time_since_inf.primary + time_since_inf.secondary + 
+                     inf.primary + inf.secondary + 
                      age.primary + age.secondary + risk.primary + risk.secondary + 
                      month + Institution +
                      frailty(subclass), 
@@ -236,13 +236,11 @@ regression <- function(d) {
   
   results <- coxph(Surv(time1, time2, status) ~ 
                      treatment + vacc.primary + 
-                     tt(time_since_inf.primary) + tt(time_since_inf.secondary) + 
+                     inf.primary + inf.secondary + 
                      age.primary + age.secondary + risk.primary + risk.secondary + 
                      month + Institution +
                      frailty(subclass), 
-                   data=d, 
-                   tt=list(function(x,t,...){time_since_inf.primary<-x+t/30.417}, 
-                           function(x,t,...){time_since_inf.secondary<-x+t/30.417}))
+                   data=d)
   res <- clean_results(results) %>% mutate(var=row.names(.))
   row.names(res) <- NULL
   res
@@ -251,9 +249,8 @@ regression <- function(d) {
 sample_sizes <- NULL
 regression_res <- NULL
 ph_test <- NULL
-for (i in 51:100) {
+for (i in 11:100) {
   print(i)
-  start <- Sys.time()
   resident_info_primary <- resident_info %>%  
     mutate(primary=if_else(!all(test), "primary", sample(c("primary", "secondary"), 1))) %>% 
     mutate(type=case_when(ResidentId==first(ResidentId)~primary,
@@ -271,23 +268,22 @@ for (i in 51:100) {
   data <- data %>% ungroup() %>%
     mutate(treatment = ifelse(vacc.secondary==0, 1, 0)) %>% 
     mutate(duration_interval = interval(first, last)) 
-
+  
   matched <- matching(data) 
   
   processed <- post_match_processing(matched)
   
   final_data <- survival_data(processed)
-
+  
   final_data_month <- prepare_month_survival_data(final_data)
   
   sample_sizes <- rbind(sample_sizes, save_sample_size(i, final_data))
   regression_res <- rbind(regression_res, regression(final_data_month) %>% mutate(i=i))
   ph_test <- rbind(ph_test, test_ph_assumptions(final_data_month) %>% mutate(i=i))
-  end <- Sys.time()
 }
 
-sample_sizes %>% write_csv("results/sample_sizes_100.csv")
-regression_res %>% write_csv("results/regression_100.csv")
-ph_test %>% write_csv("results/ph_test_100.csv")
+sample_sizes %>% write_csv("results/second_sample_sizes_10.csv")
+regression_res %>% write_csv("results/second_regression_10.csv")
+ph_test %>% write_csv("results/second_ph_test_10.csv")
 
 

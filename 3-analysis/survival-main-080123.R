@@ -104,7 +104,7 @@ results <- coxph(Surv(time1, time2, status) ~
                    treatment + vacc.primary + tt(vacc.primary) + 
                    tt(time_since_inf.primary) + tt(time_since_inf.secondary) + 
                    age.primary + age.secondary + risk.primary + risk.secondary + 
-                   month +Institution +
+                   month + Institution +
                    frailty(subclass), 
                  data=dtime_filtered, 
                  tt=list(function(x,t,...) x*t/30.417,

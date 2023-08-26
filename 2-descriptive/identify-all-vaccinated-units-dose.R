@@ -28,16 +28,6 @@ g <- g %>% fill(unit_label, .direction="down")
 # distinct rooms if any resident receives first vaccination or there is a new infection
 group_room_2_wide_distinct <- g %>%
   distinct(Institution,RoomId,ResidentId.1,ResidentId.2,unit_label,
-           vacc.1,vacc.2,prior_inf_90,.keep_all=T) %>% ungroup() %>% 
-  mutate(label=1:n())
-
-check_vacc <- g %>% left_join(group_room_2_wide_distinct) %>% fill(label, .direction="down")
-check_vacc %>% group_by(label) %>% summarise(num_dose_adjusted.1=length(unique(num_dose_adjusted.1)), 
-                                             num_dose_adjusted.2=length(unique(num_dose_adjusted.2)), duration=n()) %>%
-  filter(num_dose_adjusted.1>1|num_dose_adjusted.2>1) %>% summary()
-
-group_room_2_wide_distinct <- g %>%
-  distinct(Institution,RoomId,ResidentId.1,ResidentId.2,unit_label,
            num_dose_adjusted.1,num_dose_adjusted.2,prior_inf_90,.keep_all=T) %>% ungroup() %>% 
   mutate(label=1:n())
 
