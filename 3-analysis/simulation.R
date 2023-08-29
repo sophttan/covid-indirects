@@ -67,7 +67,7 @@ matching_specifications <- function(tbl) {
             data = a,
             distance = generate_distance_matrix(a), 
             exact = treatment ~ Institution + BuildingId + vacc.primary, 
-            ratio = 5, min.controls = 1, max.controls = 6, method="optimal") %>%
+            ratio = 7, min.controls = 1, max.controls = 8, method="optimal") %>%
       get_matches()
   }
 }
@@ -289,5 +289,4 @@ for (i in 51:100) {
 sample_sizes %>% write_csv("results/sample_sizes_100.csv")
 regression_res %>% write_csv("results/regression_100.csv")
 ph_test %>% write_csv("results/ph_test_100.csv")
-
 

@@ -25,6 +25,7 @@ regression_p$treatment %>% hist(main="HR of treatment variable p-value")
 regression_p$treatment %>% summary()
 
 regression_coef %>% summary()
+regression_p %>% summary()
 
 regression_p%>%summary()
 ph_test %>% select(i, var, p) %>% pivot_wider(id_cols=i, names_from = var, values_from = p) %>% summary()

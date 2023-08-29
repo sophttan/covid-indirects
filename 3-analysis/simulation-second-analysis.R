@@ -67,7 +67,7 @@ matching_specifications <- function(tbl) {
             data = a,
             distance = generate_distance_matrix(a), 
             exact = treatment ~ Institution + BuildingId + vacc.primary + inf.primary + inf.secondary, 
-            ratio = 5, min.controls = 1, max.controls = 6, method="optimal") %>%
+            ratio = 7, min.controls = 1, max.controls = 8, method="optimal") %>%
       get_matches()
   }
 }
@@ -282,8 +282,13 @@ for (i in 11:100) {
   ph_test <- rbind(ph_test, test_ph_assumptions(final_data_month) %>% mutate(i=i))
 }
 
-sample_sizes %>% write_csv("results/second_sample_sizes_10.csv")
-regression_res %>% write_csv("results/second_regression_10.csv")
-ph_test %>% write_csv("results/second_ph_test_10.csv")
+sample_sizes %>% write_csv("results/second_sample_sizes_100.csv")
+regression_res %>% write_csv("results/second_regression_100.csv")
+ph_test %>% write_csv("results/second_ph_test_100.csv")
 
 
+matching_78 <- matching(data) 
+processed_78 <- post_match_processing(matching_78)
+final_data_78 <- survival_data(processed_78)
+final_data_month_78 <- prepare_month_survival_data(final_data_78)
+regression(final_data_month_78) %>% mutate(i=i)
