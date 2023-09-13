@@ -61,7 +61,7 @@ matching_specifications <- function(tbl) {
   # And print the square of each number
   # Using parallelism
   sets <- list(1:10, 11:20, 21:27, 28:35)
-  foreach(set=1:4, .packages=c("dplyr","lubridate","MatchIt"), .combine=rbind) %do%  {
+  foreach(set=1:4, .packages=c("dplyr","lubridate","MatchIt"), .combine=rbind) %dopar%  {
     a <- tbl %>% filter(Institution %in% sets[[set]]) %>% mutate(label=1:n())
     matchit(treatment ~ Institution + BuildingId + duration_interval + vacc.primary,
             data = a,
