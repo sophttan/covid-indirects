@@ -16,17 +16,15 @@ library(rms)
 library(MatchIt)
 library(gtools)
 
-registerDoParallel(4)
+registerDoParallel(7)
 
 d <- read_csv("allvacc_full_data_prematching_relaxincarceration_priorinf_bydose_082523.csv") %>% 
   group_by(id) %>%
-  mutate(both_test = all(test)) 
-
-d_subset <- d %>% filter(Institution==2) 
-buildings <- d_subset$BuildingId %>% unique()
+  mutate(both_test_diff_vacc = all(test)&num_dose_grouped[1]!=num_dose_grouped[2]) %>%
+  mutate(possible_control=all(vacc==0)|any(!vacc&!test)|(any(!vacc)&all(test))) 
 
 risk <- read_csv("covid_risk_score.csv") %>% 
-  filter(ResidentId %in% d_subset$ResidentId)
+  filter(ResidentId %in% d$ResidentId)
 fix_intersection <- function(v) {
   v%>%str_extract_all("[0-9]{4}-[0-9]{2}-[0-9]{2}", simplify = T)
 }
@@ -36,43 +34,51 @@ risk$end <- intersection[,2]%>%as.vector()%>%as.Date()
 risk <- risk %>% 
   mutate(risk_interval=interval(start=start, end=end)) %>% 
   select(!c(start, end, interval)) %>% rename("risk"="Value")
-d_subset <- d_subset %>% left_join(risk, by=c("ResidentId")) %>% 
+d <- d %>% left_join(risk, by=c("ResidentId")) %>% 
   filter(first%within%risk_interval) %>% 
   select(!c(risk_interval))
-d_subset <- d_subset %>% mutate(time_since_inf = (difftime(first, Day_inf)%>%as.numeric())/30.417,
-                                time_since_vacc = (difftime(first, Day_vacc)%>%as.numeric())/30.417) %>%
+
+rm(risk) 
+gc()
+
+d <- d %>% mutate(time_since_inf = (difftime(first, Day_inf)%>%as.numeric())/30.417,
+                  time_since_vacc = (difftime(first, Day_vacc)%>%as.numeric())/30.417) %>%
   replace_na(list(time_since_vacc=50))
+
+d <- d %>% ungroup()
+ps <- glm(vacc ~ time_since_inf, data = d, family = binomial(link='logit'))
+d <- d %>% mutate(logodds = predict.glm(ps), ps=exp(logodds)/(1+exp(logodds)))
+
+d <- d %>%
+  mutate(time_since_inf_scaled = scale(time_since_inf)%>%as.numeric(),
+         ps_scaled = scale(ps)%>%as.numeric()) %>% group_by(id)
+
 
 
 generate_distance_matrix <- function(tbl) {
   # estimate propensity scores (age, COVID-19 risk, and prior infection history)
-  distance_primary <- tbl %>% select(time_since_inf.primary, age.primary, risk.primary) %>% mutate_all(scale) %>% dist(diag = T, upper = T) %>% as.matrix()
-  distance_primary <- (distance_primary - min(distance_primary))/(max(distance_primary)-min(distance_primary))
-  
-  distance_propensity <- dist(as.matrix(tbl%>%select(ps)), diag = T, upper = T) %>% as.matrix()
-  distance_propensity <- (distance_propensity - min(distance_propensity))/(max(distance_propensity)-min(distance_propensity))
-  
+  distance_primary <- tbl %>% select(time_since_inf_scaled.primary) %>% dist(diag = T, upper = T) %>% as.matrix()
+
+  distance_propensity <- dist(as.matrix(tbl%>%select(ps_scaled.secondary)), diag = T, upper = T) %>% as.matrix()
+
   total_distance <- distance_primary + distance_propensity
 
-  overlap <- expand.grid(x=tbl$label,y=tbl$label) %>% 
-    left_join(tbl %>% dplyr::select(label, first, duration_interval), by=c("x"="label")) %>% 
-    left_join(tbl %>% dplyr::select(label, first, duration_interval), by=c("y"="label")) %>% 
-    mutate(eligible=abs(first.x-first.y)<=6) %>%
+  overlap <- cross_join(tbl %>% select(label, first, duration_interval),
+                        tbl %>% select(label, first, duration_interval)) %>% 
+    mutate(eligible=abs(first.x-first.y)<=13) %>%
     mutate(overlap=!(intersect(duration_interval.x, duration_interval.y)%>%time_length())%>%is.na())
   
   eligible_wide <- overlap%>% 
-    dplyr::select(x,y,eligible) %>% 
-    pivot_wider(id_cols = x, names_from = y, values_from = eligible)
-  eligible_wide <- eligible_wide %>% 
-    as.data.frame(row.names = .$x) %>% dplyr::select(!x)
-  
+    select(label.x,label.y,eligible) %>% 
+    pivot_wider(id_cols = label.x, names_from = label.y, values_from = eligible) %>% as.data.frame() %>% select(!label.x)
+
   overlap_wide <- overlap%>% 
-    dplyr::select(x,y,overlap) %>% 
-    pivot_wider(id_cols = x, names_from = y, values_from = overlap)
-  overlap_wide <- overlap_wide %>% 
-    as.data.frame(row.names = .$x) %>% dplyr::select(!x)
-  
-  total_distance[!overlap_wide|!eligible_wide] <- 1000
+    select(label.x,label.y,overlap) %>% 
+    pivot_wider(id_cols = label.x, names_from = label.y, values_from = overlap) %>% as.data.frame() %>% select(!label.x)
+
+  total_distance[!overlap_wide|!eligible_wide] <- Inf
+  rownames(total_distance) <- 1:nrow(tbl)
+  colnames(total_distance) <- 1:nrow(tbl)
   total_distance
 }
 
@@ -97,21 +103,45 @@ filter_data <- function(tbl) {
 }
 
 matching_specifications <- function(tbl) {
-  a <- tbl %>% mutate(label=1:n())
+  test <- tbl %>% group_by(num_dose_grouped.primary) %>% summarise(has_matches=any(treatment==0)&any(treatment==1))
+  if(!any(test$has_matches)) {
+    print("no matches")
+    print(tbl%>%select(id_stable, first, num_dose_grouped.primary, num_dose_grouped.secondary))
+    return()}
+  
+  tbl <- tbl %>% mutate(label=1:n())
+  
+  if(sum(tbl$treatment==0)==1){
+    tbl <- tbl %>% arrange(treatment) %>%
+      filter(num_dose_grouped.primary %in% (test%>%filter(has_matches))$num_dose_grouped.primary) 
+    
+    print("single control group")
+    print(tbl%>%select(id_stable, first, num_dose_grouped.primary, num_dose_grouped.secondary))
+    
+    distance <- tbl %>% 
+      generate_distance_matrix()
+    tbl$distance <- distance[,1]
+    tbl <- (tbl %>% arrange(distance))[1:2,] %>% select(!distance)
+    return(cbind(id=1:2, subclass=c(1,1), tbl))
+  }
+  
   matchit(treatment ~ Institution + BuildingId + num_dose_grouped.primary + 
             age.primary + risk.primary + time_since_inf.primary +
             age.secondary + risk.secondary + time_since_inf.secondary,
-          data = a,
-          distance = generate_distance_matrix(a), 
+          data = tbl,
+          distance = generate_distance_matrix(tbl), 
           exact = treatment ~ Institution + BuildingId + num_dose_grouped.primary,
-          ratio = 1, method="optimal")  %>%
-    get_matches()
-  
+          ratio = 1, method="nearest")  %>%
+    get_matches() %>% select(!c(weights))
 }
 
 matching <- function(tbl) {
   m <- tbl %>% 
-    matching_specifications() %>% 
+    matching_specifications()
+  
+  if(is.null(m)) {return()}
+  
+  m <- m %>% 
     group_by(subclass) %>% 
     mutate(subclass=cur_group_id())
   
@@ -119,7 +149,7 @@ matching <- function(tbl) {
     group_by(subclass) %>% 
     arrange(subclass, desc(treatment)) %>% 
     filter(!intersect(first(duration_interval), duration_interval)%>%time_length()%>%is.na())%>%
-    filter(abs(first(first)-first)<=6) %>% filter(n()>1) %>% 
+    filter(abs(first(first)-first)<=13) %>% filter(n()>1) %>% 
     ungroup()
   
   if(nrow(m)==0){return()}
@@ -134,17 +164,15 @@ post_match_processing <- function(tbl) {
            final_end = int_end(first(overlap))+5)
 }
 
-fix_assignment <- function(i, assignments, data_mixed, data_other) {
-  matched <- matching(generate_assignment(i, assignments, data_mixed, data_other)%>% mutate(label=1:n())) 
-  
-  post_match_processing(matched) 
-}
-
 generate_assignment <- function(i, assignments, data_mixed, data_other) {
   assignment_full <- c(rbind(abs(assignments[i,]-1), assignments[i,]))
   a <- data_mixed %>% ungroup() %>% mutate(type=factor(assignment_full, labels =c("primary","secondary")))
   full <- a %>% rbind(data_other) 
-  data <- full %>% as.data.frame() %>% 
+  full
+}
+
+data_reshape <- function(d) {
+  data <- d %>% as.data.frame() %>% 
     reshape(idvar = "id",
             timevar = "type",
             direction = "wide") %>% 
@@ -152,38 +180,34 @@ generate_assignment <- function(i, assignments, data_mixed, data_other) {
   
   data <- data %>% left_join(unit_info) %>% rename("id_stable"="id") 
   
-  data <- data %>% ungroup() %>%
-    mutate(treatment = ifelse(vacc.secondary==0, 1, 0)) %>% 
+  data %>% ungroup() %>%
+    mutate(treatment = ifelse(vacc.secondary==0, 0, 1)) %>% 
     mutate(duration_interval = interval(first, last)) 
-  
-  filtered <- data %>% filter_data() 
-  
-  filtered
 }
 
 test_assignment <- function(data) {
   if(nrow(data)==0){return()}
 
-  ps <- glm(treatment ~ age.secondary + risk.secondary + 
-              time_since_inf.secondary, data = data, family = binomial(link='logit'))
-  data <- data %>% mutate(logodds = predict.glm(ps), ps=exp(logodds)/(1+exp(logodds)))
-  
   matched <- matching(data%>% mutate(label=1:n())) 
   
   if(matched%>%is.null()){return()}
   
-  processed <- post_match_processing(matched) %>% mutate(i=i)
+  processed <- post_match_processing(matched) 
   
   processed 
 }
 
+d_subset <- d %>% filter(Institution==4) 
+buildings <- d_subset$BuildingId %>% unique()
+
+prematch <- NULL
 results <- NULL
 for (building in buildings) {
   print(building)
   # remove treatment units that don't overlap with any possible control units
   # can do the same for any control units but they cannot overlap with any other units
   d_building <- d_subset %>% filter(BuildingId==building)
-  
+
   if(n_groups(d_building)==1|all(d_building$vacc>0)){next}
   
   test <- d_building %>% 
@@ -196,7 +220,7 @@ for (building in buildings) {
     cross_join(test%>%filter(possible_control)) %>% 
     mutate(eligible = abs(first.x-first.y), 
            overlap=(intersect(duration_interval.x, duration_interval.y)%>%time_length("day")%>%as.numeric())+1) %>% 
-    group_by(id.x) %>% filter(all(overlap<1, na.rm=T) & all(eligible>6)) %>% group_keys()
+    group_by(id.x) %>% filter(all(overlap<1, na.rm=T) & all(eligible>13)) %>% group_keys()
   
   filter_subset <- test %>% cross_join(test) %>% 
     mutate(eligible = abs(first.x-first.y), 
@@ -204,15 +228,15 @@ for (building in buildings) {
     replace_na(list(overlap=0)) %>% 
     filter(id.x!=id.y) %>% 
     group_by(id.x) %>%
-    mutate(remove_control=all(possible_control.x) & all(eligible>6)) %>%
-    mutate(remove_treatment=all(!possible_control.x) & sum(possible_control.y & eligible <= 6)==0) %>%
-    mutate(fix_control=all(possible_control.x) & sum(possible_control.y & eligible <= 6)==0) %>% summarise_all(first)
+    mutate(remove_control=all(possible_control.x) & all(eligible>13)) %>%
+    mutate(remove_treatment=all(!possible_control.x) & sum(possible_control.y & eligible <= 13)==0) %>%
+    mutate(fix_control=all(possible_control.x) & sum(possible_control.y & eligible <= 13)==0) %>% summarise_all(first)
   
   remove <- filter_subset%>%filter(remove_control|remove_treatment) 
   fix <- filter_subset%>%filter(fix_control)
   d_building <- d_building %>% filter(!id %in% remove$id.x) %>% 
-    mutate(test=if_else(id%in%fix$id.x & vacc==0, F, test), 
-           both_test = if_else(id %in% fix$id.x, F, both_test))
+    mutate(test=if_else(id%in%fix$id.x & !all(vacc==0) & vacc==0, F, test), 
+           both_test_diff_vacc = if_else(id %in% fix$id.x & !all(vacc==0), F, both_test_diff_vacc))
   
   if(nrow(d_building)==0){next}
   
@@ -223,70 +247,130 @@ for (building in buildings) {
     arrange(id, desc(test), num_dose_grouped) %>% 
     mutate(type=c("primary", "secondary"))
   
-  all_mixed <- resident_info %>% filter(both_test&any(!vacc))
+  all_mixed <- resident_info %>% filter(both_test_diff_vacc&any(!vacc))
   all_other <- resident_info %>% filter(!id %in% all_mixed$id)
   
-  res <- permutations(n=2,r=all_mixed%>%n_groups(),v=0:1,repeats.allowed=T)
-  final_processed <- foreach(i=1:nrow(res), .packages=c("tidyverse","lubridate","MatchIt"), .combine=rbind) %dopar%  {
-    for_matching <- generate_assignment(i, res, all_mixed, all_other)
-    test_assignment(for_matching)
+  if (all_mixed%>%nrow()==0){
+    best <- all_other%>%data_reshape()%>%filter_data()%>%test_assignment() 
+  } else {
+    res <- permutations(n=2,r=all_mixed%>%n_groups(),v=0:1,repeats.allowed=T)
+    print(nrow(res))
+    final_processed <- matrix()
+    final_processed <- foreach(i=1:nrow(res), .packages=c("tidyverse","lubridate","MatchIt"), .combine=rbind) %dopar%  {
+      gc()
+      for_matching <- generate_assignment(i, res, all_mixed, all_other)%>%data_reshape()%>%filter_data()
+      check <- test_assignment(for_matching) 
+      if(!is.null(check)) {
+        check %>% group_by(subclass)%>% 
+          summarise(distance=abs(diff(ps_scaled.secondary))**2+abs(diff(time_since_inf_scaled.primary))**2) %>% 
+          mutate(i=i) %>% group_by(i) %>% 
+          summarise(control=n(), meandist=mean(distance), dist=sum(distance))}
+    } 
+    
+    optimum <- (final_processed%>%arrange(desc(control), meandist))
+    
+    best <- generate_assignment(optimum$i[1], res, all_mixed, all_other)%>%data_reshape()%>%filter_data()%>%test_assignment()
+    
+    fix_control <- all_mixed %>% filter(!all(vacc==0))
+    fix_control <- fix_control$id[!fix_control$id%in%best$id_stable]%>%unique()
+    
+    assignment <- c(rbind(abs(res[optimum$i[1],]-1), res[optimum$i[1],]))
+    all_mixed <- all_mixed %>% ungroup() %>% 
+      mutate(type=factor(assignment, labels =c("primary","secondary"))) %>%
+      group_by(id) %>%
+      mutate(type=if_else(id %in% fix_control & first(vacc)==0, c("secondary", "primary"), type))
   }
+
+  if(best%>%is.null()) {next}
   
-  summary_data <- final_processed%>%group_by(i, subclass)%>%
-    summarise(ps=abs(diff(ps))) %>% 
-    group_by(i) %>%
-    summarise(control=unique(subclass)%>%length(), meanps=mean(ps), ps=sum(ps)) 
-  print(head(summary_data))
-  
-  optimum <- (summary_data%>%arrange(desc(control), ps))
-  print(optimum)
-  
-  assignment <- c(rbind(abs(res[optimum,]-1), res[optimum,]))
-  all_mixed <- all_mixed %>% ungroup() %>% mutate(type=factor(assignment, labels =c("primary","secondary")))
   all_updated <- all_mixed %>% rbind(all_other) %>% group_by(id)
-  
-  all_mixed <- all_updated %>% filter(both_test&all(vacc>0))
+  all_mixed <- all_updated %>% filter(both_test_diff_vacc&(all(vacc>0)))
   all_other <- all_updated %>% filter(!id%in%(all_mixed$id)%>%unique())
   
-  res <- permutations(n=2,r=all_mixed%>%n_groups(),v=0:1,repeats.allowed=T)
-  final_processed4 <- foreach(i=1:nrow(res), .packages=c("tidyverse","lubridate","MatchIt"), .combine=rbind) %dopar%  {
-    for_matching <- generate_assignment(i, res, all_mixed, all_other)
-    test_assignment(for_matching)
+  if (all_mixed%>%nrow()==0){
+    best <- all_other%>%data_reshape()%>%filter_data()
+    final <- best %>% test_assignment()
+  } else {
+    res <- permutations(n=2,r=all_mixed%>%n_groups(),v=0:1,repeats.allowed=T)
+    print(nrow(res))
+    final_processed4 <- matrix()
+    final_processed4 <- foreach(i=1:nrow(res), .packages=c("tidyverse","lubridate","MatchIt"), .combine=rbind) %dopar%  {
+      gc()
+      for_matching <- generate_assignment(i, res, all_mixed, all_other)%>%data_reshape()%>%filter_data()
+      check <- test_assignment(for_matching) 
+      if(!is.null(check)) {
+        check %>% group_by(subclass)%>% 
+          summarise(distance=abs(diff(ps_scaled.secondary))**2+abs(diff(time_since_inf_scaled.primary))**2) %>% 
+          mutate(i=i) %>% group_by(i) %>% 
+          summarise(control=n(), meandist=mean(distance), dist=sum(distance))}
+    } 
+    optimum <- (final_processed4%>%arrange(desc(control), meandist))
+    
+    best <- generate_assignment(optimum$i[1], res, all_mixed, all_other)%>%data_reshape()%>%filter_data()
+    final <- best %>% test_assignment()
   }
-  
-  summary_data4 <- final_processed4%>%group_by(i, subclass)%>%
-    summarise(ps=abs(diff(ps))) %>% 
-    group_by(i) %>%
-    summarise(control=unique(subclass)%>%length(), meanps=mean(ps), ps=sum(ps)) 
-  print(head(summary_data4))
-  
-  optimum <- (summary_data4%>%arrange(desc(control), meanps))
-  print(optimum)
-  
-  results <- rbind(results, fix_assignment(optimum, res, all_mixed, all_other))
+  prematch <- rbind(prematch, best)
+  results <- rbind(results, final)
 } 
 
-for (a in head(optimum)$i) {
+d_subset %>% filter(id %in% results$id_stable[results$treatment==0]|!possible_control) %>%
+  filter(first <= "2022-06-30") %>%
+  plot_all_units()
+d_subset %>% filter(!id %in% results$id_stable[results$treatment==0]|!possible_control) %>%
+  filter(first <= "2022-06-30") %>%
+  plot_all_units()
+d_subset %>% filter(!id %in% results$id_stable[results$treatment==0]|!possible_control) %>%
+  filter(first > "2022-06-30") %>%
+  plot_all_units()
+results <- results %>% group_by(Institution, BuildingId, subclass) %>% mutate(subclass=cur_group_id())
+results %>% plot_matches()
+
+(d_subset%>%summarise_all(first))$possible_control %>% table()
+(prematch$treatment) %>% table()
+results$treatment %>% table()
+
+(d_subset%>%summarise_all(first))$duration%>%sum()
+(prematch$duration) %>% sum()
+(results$final_end-results$final_start+1) %>% sum()
+
+library(smd)
+prematch %>% ungroup() %>% 
+  summarize_at(
+    .vars = c("time_since_inf.primary", "time_since_inf.secondary",
+              "age.primary", "age.secondary",
+              "risk.primary", "risk.secondary"),
+    .funs = list(smd = ~ smd(., g = treatment)$estimate))
+
+results %>% ungroup() %>% 
+  summarize_at(
+    .vars = c("time_since_inf.primary", "time_since_inf.secondary",
+              "age.primary", "age.secondary",
+              "risk.primary", "risk.secondary"),
+    .funs = list(smd = ~ smd(., g = treatment)$estimate))
+
+write_csv(results, "matching_data_092223/institution8.csv")
+
+for (a in optimum$i[c(1:6)]) {
   print(plot_matches(final_processed%>%filter(i==a)%>%ungroup()))
+  print(final_processed%>%filter(i==a)%>%filter(treatment==1))
 }
 
-a <- generate_assignment(1184, res, all_mixed, all_other)
-ps <- glm(treatment ~ age.secondary + risk.secondary + time_since_inf.secondary, data = a, family = binomial(link='logit'))
-a <- a %>% mutate(logodds = predict.glm(ps), ps=exp(logodds)/(1+exp(logodds)))
+a <- generate_assignment(305, res, all_mixed, all_other)
 a <- a %>% mutate(label=1:n())
 matched <- matchit(treatment ~ Institution + BuildingId + num_dose_grouped.primary + 
-                     age.primary + risk.primary + time_since_inf.primary +
-                     age.secondary + risk.secondary + time_since_inf.secondary + ps,
-                   data = a,
-                   distance = generate_distance_matrix(a), 
+                     time_since_inf.primary + time_since_inf.secondary + ps_scaled.secondary +
+                     age.primary + risk.primary + 
+                     age.secondary + risk.secondary,
+                   data = a%>%filter(num_dose_grouped.primary==1),
+                   distance = generate_distance_matrix(a%>%filter(num_dose_grouped.primary==1)), 
                    exact = treatment ~ Institution + BuildingId + num_dose_grouped.primary,
-                   ratio = 1, method="optimal") 
+                   ratio = 1) 
 summary(matched)
 plot(summary(matched))
 plot_matches <- function(d, title="", subtitle="") {
-  d <- d %>% arrange(first, subclass) %>% mutate(subclass1=match(subclass, unique(subclass)))
+  d <- d %>% arrange(subclass, treatment, first) %>% mutate(subclass1=match(subclass, unique(subclass)))
   d <- d %>% group_by(subclass1) %>% 
-    mutate(subclass1=subclass1*2-0.5*0:(n()-1)) %>% ungroup()
+    mutate(subclass1=subclass1*5-0.5*0:(n()-1)) %>% ungroup()
   
   p <- d %>%
     ggplot(aes(x = as.POSIXct(final_start), y = subclass1, 
@@ -298,11 +382,11 @@ plot_matches <- function(d, title="", subtitle="") {
     geom_point(aes(x = as.POSIXct(final_end)), size = 1) +
     geom_segment(aes(xend = as.POSIXct(final_end), yend = subclass1,  color=as.factor(treatment))) +
     geom_text(aes(x=as.POSIXct(first), label=id_stable), nudge_x = -10*3600*24, size=3) + 
-    geom_text(aes(x=as.POSIXct(last), label=paste0(num_dose_grouped.primary, ", ", round(ps,2))), nudge_x = 18*3600*24, size=3) + 
+    geom_text(aes(x=as.POSIXct(last), label=num_dose_grouped.primary), nudge_x = 18*3600*24, size=3) + 
     scale_x_datetime("Duration of co-residence", 
                      limits = c(as.POSIXct("2021-11-15"), as.POSIXct("2023-02-01")), 
                      date_breaks = "1 month", date_labels ="%b-%y", expand=c(0,0)) + 
-    scale_color_discrete(name="Unit type", labels=c("Treatment", "Control")) +
+    scale_color_discrete(name="Unit type", labels=c("Control", "Treatment")) +
     guides(color = guide_legend(reverse=TRUE)) + 
     labs(title=title, 
          subtitle=subtitle) + 
@@ -314,9 +398,8 @@ plot_matches <- function(d, title="", subtitle="") {
 }
 
 plot_all_units <- function(d) {
-  d %>%
-    mutate(possible_control=all(vacc==0)|any(!vacc&!test)|(any(!vacc)&all(test))) %>% 
-    summarise_all(first) %>%
+  d %>% mutate(vacc = list(num_dose_grouped)) %>% 
+    distinct(id, .keep_all = T) %>%
     ungroup() %>% arrange(first, duration) %>% 
     mutate(label=1:n()) %>% 
     ggplot(aes(first, label, color=possible_control)) + 
@@ -324,6 +407,7 @@ plot_all_units <- function(d) {
     geom_segment(aes(xend=last, yend=label)) + 
     geom_point(aes(x=last)) + 
     geom_text(aes(x=first, label=id), nudge_x = -10, size=3) + 
+    geom_text(aes(x=last, label=vacc), nudge_x = 5, size=3) + 
     scale_x_date("Time") + 
     theme(axis.title.y = element_blank(), axis.text.y = element_blank(), 
           axis.ticks.y = element_blank())
