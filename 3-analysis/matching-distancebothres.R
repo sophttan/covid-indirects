@@ -16,7 +16,8 @@ library(rms)
 library(MatchIt)
 library(gtools)
 
-registerDoParallel(7)
+cl<-makeCluster(detectCores()-1, outfile="parallellog.txt")
+registerDoParallel(cl)
 
 d <- read_csv("allvacc_full_data_prematching_relaxincarceration_priorinf_bydose_082523.csv") %>% 
   group_by(id) %>%
@@ -204,7 +205,7 @@ test_assignment <- function(data) {
   matched
 }
 
-d_subset <- d %>% filter(Institution==4) 
+d_subset <- d %>% filter(Institution==4) %>% filter(id!=8823)
 buildings <- d_subset$BuildingId %>% unique()
 
 prematch <- NULL
@@ -387,8 +388,8 @@ results %>% ungroup() %>%
               "risk.primary", "risk.secondary"),
     .funs = list(smd = ~ smd(., g = treatment)$estimate))
 
-write_csv(prematch, "matching_data_092223/prematch_institution4.csv")
-write_csv(results, "matching_data_092223/institution4.csv")
+write_csv(prematch, "matching_data_092223/prematch_institution9part2.csv")
+write_csv(results, "matching_data_092223/institution9part2.csv")
 
 
 d_subset %>% filter(id %in% results$id_stable[results$treatment==0]|!possible_control) %>%
