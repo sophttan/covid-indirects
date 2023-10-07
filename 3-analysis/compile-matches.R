@@ -186,3 +186,33 @@ autoplot(fit) +
   xlab("Time (days)") + ylab("Survival (no SARS-CoV-2 infection)") + 
   scale_fill_discrete(name=element_blank(), labels=c("Control", "Treatment")) + 
   guides(color=F)
+
+
+results <- coxph(Surv(time1, time2, status) ~ 
+                   treatment + vacc.primary + 
+                   time_since_inf.primary + time_since_inf.secondary + 
+                   age.primary + age.secondary + risk.primary + risk.secondary + 
+                   month + Institution +
+                   frailty(subclass), 
+                 data=final_data_month)
+res <- (cox.zph(results))$table %>% as.data.frame() %>% mutate(var=row.names(.))
+res
+
+clean_results <- function(results) {
+  summary(results)%>%coef()%>%as.data.frame()%>%
+    mutate(lb=(coef-2*`se(coef)`)%>%exp(), ub=(coef+2*`se(coef)`)%>%exp(), coef=coef%>%exp()) %>%
+    select(coef, lb, ub, p) %>% round(4)
+}
+
+results <- coxph(Surv(time1, time2, status) ~ 
+                   treatment + vacc.primary + 
+                   tt(time_since_inf.primary) + tt(time_since_inf.secondary) + 
+                   age.primary + age.secondary + risk.primary + risk.secondary + 
+                   month + 
+                   frailty(subclass), 
+                 data=final_data_month, 
+                 tt=list(function(x,t,...){time_since_inf.primary<-x+t/30.417}, 
+                         function(x,t,...){time_since_inf.secondary<-x+t/30.417}))
+res <- clean_results(results) %>% mutate(var=row.names(.))
+row.names(res) <- NULL
+res
