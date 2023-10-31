@@ -1,7 +1,7 @@
 d <- read_csv("survival_data/allvacc_dose_noincarcreq_priorinf_infvacc081423.csv")
 d_sum <- d %>% group_by(Institution, treatment) %>% summarise(n=n())
 
-setwd("D:/CCHCS_premium/st/indirects/cleaned-data/matching_data_092223")
+setwd("D:/CCHCS_premium/st/indirects/cleaned-data/matching_data_092223/")
 files  <- list.files(pattern = "prematch_institution.+\\.csv")
 tables <- lapply(files, read_csv)
 prematched <- do.call(rbind , tables)
@@ -16,7 +16,7 @@ summary_pre <- prematched %>% ungroup() %>%
     .vars = c("time_since_inf.primary", "time_since_inf.secondary",
               "age.primary", "age.secondary",
               "risk.primary", "risk.secondary", "ps.secondary"),
-    .funs = list(smd = ~ smd(., g = treatment)$estimate)) %>% 
+    .funs = list(smd = ~ smd(., g = treatment,na.rm=T)$estimate)) %>% 
   pivot_longer(cols=names(.),
                values_to = "smd before", 
                names_to = "variable")
@@ -26,7 +26,7 @@ summary_post <- matched %>% ungroup() %>%
     .vars = c("time_since_inf.primary", "time_since_inf.secondary",
               "age.primary", "age.secondary",
               "risk.primary", "risk.secondary", "ps.secondary"),
-    .funs = list(smd = ~ smd(., g = treatment)$estimate))%>% 
+    .funs = list(smd = ~ smd(., g = treatment,na.rm=T)$estimate))%>% 
   pivot_longer(cols=names(.),
                values_to = "smd after", 
                names_to = "variable")
@@ -35,6 +35,26 @@ summary_pre%>%full_join(summary_post)%>%mutate_at(c("smd before","smd after"), r
 
 matched <- matched %>% 
   mutate(treatment=factor(treatment, labels=c("Control", "Treatment")))
+matched1 <- matched %>% select(id, num_dose_grouped.primary, Sex.primary, Sex.secondary,
+                               Race.primary, Race.secondary, age.primary, age.secondary, risk.primary, risk.secondary,
+                               time_since_vacc.primary, time_since_inf.primary, time_since_inf.secondary, treatment) %>%
+  pivot_longer(cols=c(num_dose_grouped.primary, Sex.primary, Sex.secondary,
+                      Race.primary, Race.secondary, age.primary, age.secondary, 
+                      risk.primary, risk.secondary, time_since_vacc.primary, time_since_inf.primary, time_since_inf.secondary), 
+               cols_vary = "slowest",
+               names_to=c("num_dose_grouped", "Sex", "Race", "age", "risk", "time_since_inf"), 
+               names_sep = c(21, 2, 4, 6, 8, 10, 11))
+
+matched$Sex.primary[matched$Sex.primary==F] <- "F"
+library(tableone)
+tbl1 <- CreateTableOne(vars = c("Sex.primary", "Sex.secondary", 
+                                "Race.primary", "Race.secondary", 
+                                "age.primary", "age.secondary",
+                                "risk.primary", "risk.secondary",
+                                "num_dose_grouped.primary", "time_since_vacc.primary",
+                                "time_since_inf.primary", "time_since_inf.secondary"), 
+               data = matched, strata = "treatment", test = F) %>% print()
+tbl1 %>% as.data.frame() %>% write_csv("D:/CCHCS_premium/st/covid_indirects/results/allinfreq_tbl1.csv")
 
 prematched %>% group_by(treatment) %>% summarise(n=n())
 matched %>% group_by(treatment) %>% summarise(n=n())
