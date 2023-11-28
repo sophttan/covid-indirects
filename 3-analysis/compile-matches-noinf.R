@@ -1,7 +1,5 @@
-d <- read_csv("survival_data/allvacc_dose_noincarcreq_priorinf_infvacc081423.csv")
-d_sum <- d %>% group_by(Institution, treatment) %>% summarise(n=n())
-
-setwd("D:/CCHCS_premium/st/indirects/cleaned-data/matching_data_092223/")
+library(tidyverse)
+setwd("D:/CCHCS_premium/st/indirects/cleaned-data/matching_data_100623_anyinf/")
 files  <- list.files(pattern = "prematch_institution.+\\.csv")
 tables <- lapply(files, read_csv)
 prematched <- do.call(rbind , tables)
@@ -16,7 +14,7 @@ summary_pre <- prematched %>% ungroup() %>%
     .vars = c("time_since_inf.primary", "time_since_inf.secondary",
               "age.primary", "age.secondary",
               "risk.primary", "risk.secondary", "ps.secondary"),
-    .funs = list(smd = ~ smd(., g = treatment,na.rm=T)$estimate)) %>% 
+    .funs = list(smd = ~ smd(., g = treatment, na.rm=T)$estimate)) %>% 
   pivot_longer(cols=names(.),
                values_to = "smd before", 
                names_to = "variable")
@@ -26,7 +24,7 @@ summary_post <- matched %>% ungroup() %>%
     .vars = c("time_since_inf.primary", "time_since_inf.secondary",
               "age.primary", "age.secondary",
               "risk.primary", "risk.secondary", "ps.secondary"),
-    .funs = list(smd = ~ smd(., g = treatment,na.rm=T)$estimate))%>% 
+    .funs = list(smd = ~ smd(., g = treatment, na.rm=T)$estimate))%>% 
   pivot_longer(cols=names(.),
                values_to = "smd after", 
                names_to = "variable")
@@ -35,26 +33,6 @@ summary_pre%>%full_join(summary_post)%>%mutate_at(c("smd before","smd after"), r
 
 matched <- matched %>% 
   mutate(treatment=factor(treatment, labels=c("Control", "Treatment")))
-matched1 <- matched %>% select(id, num_dose_grouped.primary, Sex.primary, Sex.secondary,
-                               Race.primary, Race.secondary, age.primary, age.secondary, risk.primary, risk.secondary,
-                               time_since_vacc.primary, time_since_inf.primary, time_since_inf.secondary, treatment) %>%
-  pivot_longer(cols=c(num_dose_grouped.primary, Sex.primary, Sex.secondary,
-                      Race.primary, Race.secondary, age.primary, age.secondary, 
-                      risk.primary, risk.secondary, time_since_vacc.primary, time_since_inf.primary, time_since_inf.secondary), 
-               cols_vary = "slowest",
-               names_to=c("num_dose_grouped", "Sex", "Race", "age", "risk", "time_since_inf"), 
-               names_sep = c(21, 2, 4, 6, 8, 10, 11))
-
-matched$Sex.primary[matched$Sex.primary==F] <- "F"
-library(tableone)
-tbl1 <- CreateTableOne(vars = c("Sex.primary", "Sex.secondary", 
-                                "Race.primary", "Race.secondary", 
-                                "age.primary", "age.secondary",
-                                "risk.primary", "risk.secondary",
-                                "num_dose_grouped.primary", "time_since_vacc.primary",
-                                "time_since_inf.primary", "time_since_inf.secondary"), 
-               data = matched, strata = "treatment", test = F) %>% print()
-tbl1 %>% write.csv("D:/CCHCS_premium/st/covid-indirects/results/allinfreq_tbl1.csv")
 
 prematched %>% group_by(treatment) %>% summarise(n=n())
 matched %>% group_by(treatment) %>% summarise(n=n())
@@ -72,13 +50,13 @@ matched %>% ggplot(aes(time_since_inf.primary, group=treatment, fill=treatment))
   xlab("Time since most recent infection primary resident") + 
   ylab("Count")
 matched %>% group_by(treatment) %>% select(time_since_inf.primary) %>% 
-  summarise_all(.funs = list(mean=mean, q1=~quantile(., probs = 0.25), q3=~quantile(., probs = 0.75)))
+  summarise_all(.funs = list(mean=~mean(., na.rm=T), q1=~quantile(., probs = 0.25, na.rm=T), q3=~quantile(., probs = 0.75, na.rm=T)))
 
 matched %>% ggplot(aes(time_since_inf.secondary, group=treatment, fill=treatment)) + geom_histogram(position = "identity", alpha=0.5) + 
   xlab("Time since most recent infection secondary resident") + 
   ylab("Count")
 matched %>% group_by(treatment) %>% select(time_since_inf.secondary) %>% 
-  summarise_all(.funs = list(mean=mean, q1=~quantile(., probs = 0.25), q3=~quantile(., probs = 0.75)))
+  summarise_all(.funs = list(mean=~mean(., na.rm=T), q1=~quantile(., probs = 0.25, na.rm=T), q3=~quantile(., probs = 0.75, na.rm=T)))
 
 matched %>% filter(vacc.primary>0) %>% ggplot(aes(time_since_vacc.primary, group=treatment, fill=treatment)) + geom_histogram(position = "identity", alpha=0.5) + 
   xlab("Time since most recent vaccination primary resident") + 
@@ -104,9 +82,11 @@ matched %>% ggplot(aes(ps.secondary, group=treatment, fill=treatment)) + geom_hi
 matched %>% group_by(treatment) %>% select(ps.secondary) %>% 
   summarise_all(.funs = list(mean=mean, q1=~quantile(., probs = 0.25), q3=~quantile(., probs = 0.75)))
 
-matched_summary <- matched %>% group_by(Institution, treatment) %>% summarise(n=n())
+matched_summary <- matched %>% group_by(Institution, BuildingId, treatment) %>% summarise(n=n())
+d_sum <- d %>% group_by(Institution, BuildingId, treatment) %>% summarise(n=n())
 d_sum <- d_sum %>% mutate(treatment = factor(treatment, labels=c("Control", "Treatment")))
-d_sum %>% inner_join(matched_summary, by=c("Institution", "treatment"), suffix = c(".old", ".new"))
+d_sum %>% full_join(matched_summary, by=c("Institution", "BuildingId", "treatment"), suffix = c(".old", ".new")) %>%
+  filter(treatment=="Control") %>% filter(n.new%>%is.na())
 
 
 testing <- read_csv("D:/CCHCS_premium/st/indirects/cleaned-data/testing_vacc_clean.csv") %>% 
@@ -201,16 +181,19 @@ final_data_month %>% group_by(id_stable)
 
 final_data %>% group_by(treatment) %>% summarise(inc=sum(status)/sum(survival_time)*100000)
 final_data
+
+library(survival)
+library(survminer)
+library(ggfortify)
 fit <- survfit(Surv(survival_time, status, type="right")~treatment, data = final_data)
 autoplot(fit) + 
   xlab("Time (days)") + ylab("Survival (no SARS-CoV-2 infection)") + 
   scale_fill_discrete(name=element_blank(), labels=c("Control", "Treatment")) + 
   guides(color=F)
 
-
 results <- coxph(Surv(time1, time2, status) ~ 
                    treatment + num_dose_grouped.primary + 
-                   time_since_inf.primary + time_since_inf.secondary + 
+                   inf.primary + inf.secondary + 
                    age.primary + age.secondary + risk.primary + risk.secondary + 
                    month + Institution +
                    frailty(subclass), 
@@ -220,13 +203,13 @@ res
 
 clean_results <- function(results) {
   summary(results)%>%coef()%>%as.data.frame()%>%
-    mutate(lb=(coef-2*`se(coef)`)%>%exp(), ub=(coef+2*`se(coef)`)%>%exp(), coef=coef%>%exp()) %>%
+    mutate(lb=((coef-2*`se(coef)`)%>%exp())-1, ub=((coef+2*`se(coef)`)%>%exp())-1, coef=(coef%>%exp())-1) %>%
     select(coef, lb, ub, p) %>% round(4)
 }
 
 results <- coxph(Surv(time1, time2, status) ~ 
                    treatment + vacc.primary + 
-                   tt(time_since_inf.primary) + tt(time_since_inf.secondary) + 
+                   inf.primary + inf.secondary + 
                    age.primary + age.secondary + risk.primary + risk.secondary + 
                    month + Institution + 
                    frailty(subclass), 
@@ -237,20 +220,24 @@ res <- clean_results(results) %>% mutate(var=row.names(.))
 row.names(res) <- NULL
 res
 
+res <- clean_results(results) %>% mutate(var=row.names(.))
+row.names(res) <- NULL
+res
+
 res <- res %>% filter(!grepl("Institution|month|frailty", var)) %>%
   mutate(group=c("Secondary", "Primary", "Primary", "Secondary", "Primary", "Secondary", "Primary", "Secondary"))
 res$var <- factor(res$var, 
-                    levels=c("treatmentTreatment", "vacc.primary", 
-                             "tt(time_since_inf.seconda", "age.secondary", "risk.secondary",
-                             "tt(time_since_inf.primary", "age.primary", "risk.primary"), 
-                    labels=c("Vaccination (any)", 
-                             "Vaccination (any)",
-                             "Time since last infection (months)",
-                             "Age (years)",
-                             "Severe COVID-19 risk",
-                             "Time since last infection (months)",
-                             "Age (years)",
-                             "Severe COVID-19 risk"))
+                  levels=c("treatmentTreatment", "vacc.primary", 
+                           "inf.secondaryTRUE", "age.secondary", "risk.secondary",
+                           "inf.primaryTRUE", "age.primary", "risk.primary"), 
+                  labels=c("Vaccination (any)", 
+                           "Vaccination (any)",
+                           "Prior infection (any)",
+                           "Age (years)",
+                           "Severe COVID-19 risk",
+                           "Prior infection (any)",
+                           "Age (years)",
+                           "Severe COVID-19 risk"))
 res$var <- res$var %>% 
   factor(levels=rev(levels(res$var)))
 
@@ -261,3 +248,64 @@ res %>% ggplot(aes(coef, var)) + geom_point() +
   scale_y_discrete(element_blank()) +
   facet_wrap(~group) # ADDED
 
+
+results <- coxph(Surv(time1, time2, status) ~ 
+                   treatment*inf.secondary + vacc.primary +inf.primary +  
+                   age.primary + age.secondary + risk.primary + risk.secondary + 
+                   month + Institution + 
+                   frailty(subclass), 
+                 data=final_data_month, 
+                 tt=list(function(x,t,...){time_since_inf.primary<-x+t/30.417}, 
+                         function(x,t,...){time_since_inf.secondary<-x+t/30.417}))
+res <- clean_results(results) %>% mutate(var=row.names(.))
+row.names(res) <- NULL
+res
+
+
+
+
+
+
+results <- coxph(Surv(time1, time2, status) ~ 
+                   treatment + vacc.primary + 
+                   inf.primary + inf.secondary + 
+                   age.primary + age.secondary + risk.primary + risk.secondary + 
+                   month + Institution + 
+                   frailty(subclass), 
+                 data=final_data_month %>% filter(month==0))
+res <- clean_results(results) %>% mutate(var=row.names(.))
+row.names(res) <- NULL
+res
+
+final_data_month2 <- final_data_month %>% filter(month!=0) %>%
+  arrange(id,month) %>% 
+  group_by(id) %>% 
+  mutate(time1lag = lag(time1)) %>% 
+  mutate(time1fix=ifelse(time1==first(time1),0,time1-time1lag), 
+         time2fix=time2-time1+time1fix) 
+results <- coxph(Surv(time1, time2, status) ~ 
+                   treatment + vacc.primary + 
+                   inf.primary + inf.secondary + 
+                   age.primary + age.secondary + risk.primary + risk.secondary + 
+                   month + Institution + 
+                   frailty(subclass), 
+                 data=final_data_month2)
+res <- clean_results(results) %>% mutate(var=row.names(.))
+row.names(res) <- NULL
+res
+
+(final_data_month %>% filter(month==0) %>% mutate(survival_time=time2-time1))$survival_time %>% sum()
+(final_data_month %>% filter(month!=0) %>% mutate(survival_time=time2-time1))$survival_time %>% sum()
+
+
+final_data_month %>% filter(treatment==0|time_since_vacc.secondary<=3)
+results <- coxph(Surv(time1, time2, status) ~ 
+                   treatment + vacc.primary + 
+                   inf.primary + inf.secondary + 
+                   age.primary + age.secondary + risk.primary + risk.secondary + 
+                   month + Institution + 
+                   frailty(subclass), 
+                 data=final_data_month %>% filter(treatment=="Control"|time_since_vacc.secondary<=6))
+res <- clean_results(results) %>% mutate(var=row.names(.))
+row.names(res) <- NULL
+res

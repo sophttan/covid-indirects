@@ -2,12 +2,8 @@
 
 rm(list=ls())
 gc()
+source(here::here("3-analysis/noinfreq-matching-functions.R"))
 setwd("D:/CCHCS_premium/st/indirects/cleaned-data/")
-source()
-
-# set up parallelization
-cl<-makeCluster(detectCores()-1)
-registerDoParallel(cl)
 
 d <- read_csv("allvacc_full_data_prematching_bydose_082523.csv") %>% 
   group_by(id) %>%
@@ -49,12 +45,15 @@ d <- d %>%
 
 
 
-d_subset <- d %>% filter(Institution==3) %>% filter(id!=8823)
+d_subset <- d %>% filter(Institution==20) %>% filter(id!=8823)
 buildings <- d_subset$BuildingId %>% unique()
 
-prematch <- NULL
-results <- NULL
+# set up parallelization
+cl<-makeCluster(detectCores()-1)
+registerDoParallel(cl)
+
 for (building in buildings) {
+  gc()
   print(building)
   # remove treatment units that don't overlap with any possible control units
   # can do the same for any control units but they cannot overlap with any other units
@@ -62,60 +61,19 @@ for (building in buildings) {
   
   if(n_groups(d_building)==1|all(d_building$vacc>0)){next}
   
-  test <- d_building %>% 
-    mutate(duration_interval=interval(first, last)) %>%
-    select(id, num_dose_grouped, inf, both_unvacc, possible_control, test, first, duration_interval) %>%
-    mutate(primary_vacc = list(num_dose_grouped[test]),
-           primary_inf = list(inf[test]),
-           secondary_inf = list(inf[!test])) %>%
-    distinct(id, .keep_all = T) %>% select(!test)
+  d_building_cleaned <- d_building %>% pre_processing()
   
-  for_filtering <- test %>% cross_join(test) %>% 
-    mutate(eligible = abs(first.x-first.y) <= 13, 
-           overlap=(intersect(duration_interval.x, duration_interval.y)%>%time_length("day")%>%as.numeric())+1) %>% 
-    replace_na(list(overlap=0)) %>% 
-    filter(id.x!=id.y) %>% rowwise() %>%
-    mutate(overlap_vacc = list(intersect(primary_vacc.x, primary_vacc.y)),
-           possible_vacc_match = length(overlap_vacc)>0) %>%
-    group_by(id.x)
+  if(nrow(d_building_cleaned)==0){next}
   
-  remove <- for_filtering%>%
-    # remove controls if they don't have matches (by time or vaccine status)
-    # remove treatments if they don't have matches (by time or vaccine status)
-    summarise(remove_control = all(possible_control.x) & sum(eligible & possible_vacc_match)==0,
-              remove_treatment = all(!possible_control.x) & sum(possible_control.y & eligible & possible_vacc_match)==0) %>%
-    filter(remove_control|remove_treatment)
-  
-  # fix_control <- for_filtering %>% 
-  #   # fix mixed units as control if they don't overlap with any units with 2 unvaccinated residents
-  #   summarise(new_fix_control=all(possible_control.x) & sum(both_unvacc.y & eligible)==0) %>% 
-  #   filter(new_fix_control)
-  
-  # fix_treatment <- for_filtering %>% 
-  #   filter(!possible_control.x) %>% filter(!id.x %in% remove$id.x) %>%
-  #   filter(possible_control.y & eligible & possible_vacc_match) %>% unnest(overlap_vacc) %>% 
-  #   filter(unique(overlap_vacc)%>%length()==1) %>% select(!c(primary_vacc.x, primary_vacc.y, primary_inf.x, primary_inf.y, secondary_inf.x, secondary_inf.y)) %>% 
-  #   summarise_all(first) %>% select(id.x, overlap_vacc)
-  
-  d_building <- d_building %>% filter(!id %in% remove$id.x) %>%
-    mutate(both_test_diff_vacc_inf = all(test)&((num_dose_grouped[1]!=num_dose_grouped[2])|inf[1]!=inf[2]))
-    # left_join(fix_treatment, by=c("id"="id.x")) %>% 
-    # mutate(test=case_when(id%in%fix_control$id.x & !all(vacc==0) & vacc==0~F, 
-    #                       # num_dose_grouped[1]!=num_dose_grouped[2] & overlap_vacc!=num_dose_grouped~F,
-    #                       T~test), 
-    #        both_test_diff_vacc_inf = all(test)&((num_dose_grouped[1]!=num_dose_grouped[2])|inf[1]!=inf[2])) 
-    # select(!overlap_vacc)
-  
-  if(nrow(d_building)==0){next}
-  
-  groups <- d_building %>% summarise_all(first) %>% ungroup() %>% arrange(first) %>% mutate(diff=c(0, diff(first))) %>% select(id, first, diff)
+  groups <- d_building_cleaned %>% summarise_all(first) %>% ungroup() %>% arrange(first) %>% mutate(diff=c(0, diff(first))) %>% select(id, first, diff)
   groups_summary <- groups %>% mutate(new=id==first(id)|diff>13) %>% filter(new) %>% mutate(group=1:n()) %>% select(id,group)
-  d_building <- d_building %>% left_join(groups_summary) %>% ungroup() %>% fill(group, .direction="down") %>% group_by(id)
+  d_building_cleaned <- d_building_cleaned %>% left_join(groups_summary) %>% ungroup() %>% fill(group, .direction="down") %>% group_by(id)
   
   prematch_building <- NULL
   building_results <- NULL
   for (g in 1:nrow(groups_summary)) {
-    d_building_sub <- d_building %>% filter(group==g)
+    gc()
+    d_building_sub <- d_building_cleaned %>% filter(group==g)
     
     unit_info <- d_building_sub %>% 
       select(id, Institution, BuildingId, RoomId, first, last, duration, group, fixed_assignment, fixed_control, possible_control) %>% 
@@ -229,11 +187,14 @@ for (building in buildings) {
   
   if(!building_results%>%is.null()){
     building_results <- building_results %>% group_by(group, subclass) %>% mutate(subclass=cur_group_id())
-  }
   
-  prematch <- rbind(prematch, prematch_building)
-  results <- rbind(results, building_results)
+    write_csv(prematch_building, paste0("matching_data_100623_anyinf/prematch_institution9", building, ".csv"))
+    write_csv(building_results, paste0("matching_data_100623_anyinf/institution9", building, ".csv"))
+  }
 } 
+
+registerDoSEQ()
+stopCluster(cl)
 
 results <- results %>% group_by(Institution, BuildingId, subclass) %>% mutate(subclass=cur_group_id())
 results %>% plot_matches()
@@ -261,8 +222,6 @@ results %>% ungroup() %>%
               "risk.primary", "risk.secondary"),
     .funs = list(smd = ~ smd(., na.rm = T, g = treatment)$estimate))
 
-write_csv(prematch, "matching_data_100623_anyinf/prematch_institution2.csv")
-write_csv(results, "matching_data_100623_anyinf/institution2.csv")
 
 
 d_subset %>% filter(id %in% results$id_stable[results$treatment==0]|!possible_control) %>%

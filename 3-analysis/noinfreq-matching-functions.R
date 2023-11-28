@@ -13,6 +13,80 @@ library(rms)
 library(MatchIt)
 library(gtools)
 
+prep_data_cleaning <- function(d) {
+  
+  # test overlap between units
+  # prep data so we can remove units that cannot be matched and 
+  # variability in assignments when possible
+  
+  test <- d %>% 
+    mutate(duration_interval=interval(first, last)) %>%
+    select(id, num_dose_grouped, inf, both_unvacc, 
+           possible_control, test, first, duration_interval) %>%
+    mutate(primary_vacc = list(num_dose_grouped[test]),
+           primary_inf = list(inf[test]),
+           secondary_inf = list(inf[!test]),
+           num_unique = length(inf%>%unique()),
+           num_secondary_unique = length(inf[!test])) %>%
+    distinct(id, .keep_all = T) %>% select(!test)
+  
+  for_filtering <- test %>% cross_join(test) %>% 
+    mutate(eligible = abs(first.x-first.y) <= 13, 
+           overlap=!intersect(duration_interval.x, duration_interval.y)%>%is.na()) %>% 
+    filter(id.x!=id.y) %>% rowwise() %>%
+    mutate(overlap_vacc = list(intersect(primary_vacc.x, primary_vacc.y)), # can units be matched by vaccination status?
+           overlap_inf.primary = list(intersect(primary_inf.x, primary_inf.y)), # can units be matched by infection status?
+           overlap_inf.secondary = case_when(num_secondary_unique.x==0~list(intersect(primary_inf.x, secondary_inf.y)),
+                                             num_secondary_unique.y==0~list(intersect(secondary_inf.x, primary_inf.y)),
+                                             T~list(intersect(secondary_inf.x, secondary_inf.y))),
+           unique_overlap = list(union(overlap_inf.primary, overlap_inf.secondary)),
+           possible_vacc_match = length(overlap_vacc)>0,
+           possible_inf_match = length(unique_overlap)==max(num_unique.x, num_unique.y)) %>%
+    group_by(id.x) 
+  
+  for_filtering
+}
+
+pre_processing <- function(d) {
+  
+  # uses prep_data_cleaning
+  # filters d to remove units that cannot be matched
+  # fixes vaccination assignment in mixed units in d that have only 1 assignment with a valid match
+  
+  test_match <- d %>% prep_data_cleaning()
+  
+  # remove controls if they don't have matches (by time or vaccine status)
+  # remove treatments if they don't have matches (by time or vaccine status)
+  remove <- test_match%>%
+    summarise(remove_control = all(possible_control.x) & sum(eligible & overlap & possible_vacc_match & possible_inf_match)==0,
+              remove_treatment = all(!possible_control.x) & sum(possible_control.y & eligible & overlap & possible_vacc_match & possible_inf_match)==0) %>%
+    filter(remove_control|remove_treatment)
+
+  # fix mixed units as control if they don't overlap with any units with 2 unvaccinated residents
+  fix_control <- test_match %>%
+    summarise(new_fix_control=all(possible_control.x) & sum(both_unvacc.y & eligible & overlap & possible_inf_match)==0) %>%
+    filter(new_fix_control)
+  
+  # fix mixed treatment units if only 1 assignment will lead to valid matches
+  fix_treatment <- test_match %>%
+    filter(!possible_control.x) %>% filter(!id.x %in% remove$id.x) %>%
+    filter(possible_control.y & eligible & overlap & possible_vacc_match & possible_inf_match) %>% unnest(overlap_vacc) %>%
+    filter(unique(overlap_vacc)%>%length()==1) %>% 
+    select(!c(primary_vacc.x, primary_vacc.y, primary_inf.x, primary_inf.y, secondary_inf.x, secondary_inf.y, overlap_inf.primary, overlap_inf.secondary, unique_overlap)) %>%
+    summarise_all(first) %>% select(id.x, overlap_vacc)
+  
+  d <- d %>% filter(!id %in% remove$id.x) %>%
+    mutate(test=case_when(id%in%fix_control$id.x & !all(vacc==0) & vacc==0~F, 
+                          T~test)) %>%
+    left_join(fix_treatment, by=c("id"="id.x")) %>% 
+    mutate(test=case_when(num_dose_grouped[1]!=num_dose_grouped[2] & overlap_vacc!=num_dose_grouped~F,
+                          T~test)) %>%  
+    select(!overlap_vacc) %>%
+    mutate(both_test_diff_vacc_inf = all(test)&((num_dose_grouped[1]!=num_dose_grouped[2])|inf[1]!=inf[2]))
+  
+  d
+}
+
 generate_distance_matrix <- function(tbl) {
   inf_primary <- tbl %>% select(inf.primary) %>% dist(diag = T, upper = T) %>% as.matrix()
   inf_secondary <- tbl %>% select(inf.secondary) %>% dist(diag = T, upper = T) %>% as.matrix()
