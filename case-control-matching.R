@@ -43,4 +43,25 @@ total_vacc_security <- total_vacc_security %>% filter(Starting<=test.Day) %>% fi
 total_vacc_security <- total_vacc_security %>% mutate(num_dose=if_else(Date_offset%>%is.na(), 0, num_dose))
 total_vacc_security <- total_vacc_security %>% select(!c(Starting, Ending))
 
-match
+distance <- function(tbl) {
+  test_matrix <- tbl %>% select(test.Day) %>% dist(diag = T, upper = T) %>% as.matrix()
+  test_matrix[test_matrix>2] <- Inf
+  
+  same_room <- tbl %>% select(RoomId) %>% dist(diag = T, upper = T) %>% as.matrix()
+
+  test_matrix[same_room==0] <- Inf
+  
+  test_matrix
+}
+
+match <- NULL
+for (i in 1:36) {
+  for_matching_inst <- total_vacc_security %>% filter(Institution==i)
+  matched_data <- matchit(case ~ Institution + BuildingId + num_dose + has.prior.inf + level,
+                          data = for_matching_inst, 
+                          distance = distance(for_matching_inst),
+                          exact = case ~ Institution + BuildingId + num_dose + has.prior.inf + level)
+  print(matched_data %>% summary())
+  match <- rbind(match, matched_data %>% get_matches())
+}
+
