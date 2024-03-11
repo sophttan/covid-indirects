@@ -47,9 +47,15 @@ inf_housing_full <- inf_eligible %>% full_join(housing_relevant, by=c("ResidentI
 inf_housing_full_withroommate <- inf_housing_full %>% left_join(housing_relevant %>% rename("Roommate"="ResidentId"))
 inf_housing_full_withroommate <- inf_housing_full_withroommate %>% filter(n==1 | Roommate != ResidentId)
 
-inf_2_same_roommate <- inf_housing_full_withroommate %>% group_by(ResidentId, num_pos) %>% filter(all(n==2)) %>% filter(all(Roommate==first(Roommate)))
-cases_final <- inf_2_same_roommate %>% filter(n()==7)
-write_csv(cases_final, "D:/CCHCS_premium/st/indirects/cases7day.csv")
+inf_2 <- inf_housing_full_withroommate %>% group_by(ResidentId, num_pos) %>% 
+  filter(all(n<=2)&!all(n==1)) %>% 
+  filter(n()==7) %>%
+  arrange(ResidentId, num_pos, Day) 
+
+cases_final <- inf_2 %>%
+  filter(first(n)!=1&all(Roommate[1:4]==first(Roommate)))
+write_csv(cases_final, "D:/CCHCS_premium/st/indirects/cases3-7daysame.csv")
+
 
 library(doParallel)
 library(foreach)
@@ -58,18 +64,23 @@ library(foreach)
 cl<-makeCluster(detectCores()-1)
 registerDoParallel(cl)
 
+testing_eligible <- testing_eligible %>% select(!c(Result, Details, pcr, antigen, unknown, last_inf))
 test_final <- NULL
 for(i in seq(1,36)) {
   gc()
   testing_sub <- testing_eligible[(i*25000):min(((i+1)*25000-1), nrow(testing_eligible)),]
-  test_housing_full <- testing_sub %>% full_join(housing_relevant, by=c("ResidentId")) %>% filter(Day.x-Day.y<14 & Day.y<=Day.x) %>% 
+  test_housing_full <- testing_sub %>% full_join(housing_relevant, by=c("ResidentId")) %>% filter(Day.x-Day.y<7 & Day.y<=Day.x) %>% 
     select(!c(Night)) %>% rename("Day"="Day.y", "test.Day"="Day.x")
   test_housing_full_withroommate <- test_housing_full %>% left_join(housing_relevant %>% rename("Roommate"="ResidentId"))
   test_housing_full_withroommate <- test_housing_full_withroommate %>% filter(n==1 | Roommate != ResidentId)
   
-  test_2_same_roommate <- test_housing_full_withroommate %>% group_by(ResidentId, test.Day) %>% filter(all(n==2)) %>% filter(all(Roommate==first(Roommate)))
-  tests <- test_2_same_roommate %>% filter(n()==14)
+  test_2 <- test_housing_full_withroommate %>% group_by(ResidentId, test.Day) %>% 
+    filter(all(n<=2)&!all(n==1)) %>% 
+    filter(n()==7) %>%
+    arrange(ResidentId, num_pos, Day) 
+  tests <- test_2 %>%
+    filter(first(n)!=1&all(Roommate[1:4]==first(Roommate)))
   test_final <- test_final %>% rbind(tests)
 }
-write_csv(test_final %>% select(!c(Result, Details, pcr, antigen, unknown, last_inf)), "D:/CCHCS_premium/st/indirects/control.csv")
+write_csv(test_final, "D:/CCHCS_premium/st/indirects/control3-7daysame.csv")
 

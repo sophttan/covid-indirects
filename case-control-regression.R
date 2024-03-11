@@ -9,16 +9,24 @@ library(readr)
 library(lubridate)
 library(survival)
 
-matched <- read_csv("D:/CCHCS_premium/st/indirects/matched_building_withagerisk_030524.csv")
+matched <- read_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days_030724.csv")
 matched_keys <- matched %>% group_by(key, subclass) %>% group_keys() %>% mutate(group = 1:n())
 matched <- matched %>% left_join(matched_keys) %>% mutate(id=1:n())
+
+inf <- read_csv("D:/CCHCS_premium/st/cleaned-data/infection_data022624.csv") %>% filter(CollectionDate <= "2022-12-15") %>%
+  select(ResidentId, CollectionDate) %>% rename(last.inf.roommate=CollectionDate)
+matched_inf_roommate <- matched %>% left_join(inf, by=c("Roommate"="ResidentId")) %>%
+  group_by(id) %>% 
+  filter(last.inf.roommate%>%is.na()|all(test.Day-last.inf.roommate<14)|test.Day-last.inf.roommate>=14) %>%
+  mutate(last.inf.roommate=if_else(is.na(last.inf.roommate)|test.Day-last.inf.roommate<14, NA, last.inf.roommate)) %>%
+  summarise_all(last)
 
 vaccine <- read_csv("D:/CCHCS_premium/st/leaky/cleaned-data/complete_vaccine_data121523.csv") %>% 
   filter(Date <= "2022-12-15") %>% select(ResidentId, Date_offset, num_dose) %>%
   rename(last.vacc.roommate=Date_offset,
          dose.roommate=num_dose)
 
-matched_infvacc_roommate <- matched %>% left_join(vaccine, by=c("Roommate"="ResidentId")) %>%
+matched_infvacc_roommate <- matched_inf_roommate %>% left_join(vaccine, by=c("Roommate"="ResidentId")) %>%
   group_by(id) %>% 
   filter(last.vacc.roommate%>%is.na()|all(last.vacc.roommate>=test.Day)|last.vacc.roommate<test.Day) %>%
   mutate(last.vacc.roommate=if_else(last.vacc.roommate>=test.Day, NA, last.vacc.roommate)) %>% 
@@ -36,6 +44,11 @@ model <- glm(case ~ has.vacc.roommate.binary + has.prior.inf.roommate +
                has.prior.inf + num_dose + level + age + age.roommate + risk + risk.roommate +
                factor(Institution) + factor(variant), data=matched_infvacc_roommate, family="binomial")
 summary(model)
+
+model <- clogit(case ~ has.vacc.roommate.binary + has.prior.inf.roommate + 
+                  age + age.roommate + risk + risk.roommate + factor(variant) + strata(group), data=matched_infvacc_roommate)
+summary(model)
+
 
 matched_infvacc_roommate <- matched_infvacc_roommate %>% 
   mutate(time_since_vacc = (test.Day-Date_offset)%>%as.numeric(),
@@ -67,22 +80,26 @@ matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_infva
 
 
 model <- glm(case ~ time_since_vacc_cut.roommate + time_since_inf_cut.roommate + 
-               has.prior.inf + num_dose + level + age + age.roommate + risk + risk.roommate +
+               has.prior.inf + num_dose_adjusted + level + age + age.roommate + risk + risk.roommate +
                factor(Institution) + factor(variant), data=matched_infvacc_roommate, family="binomial")
 summary(model)
 
+model <- clogit(case ~ time_since_inf_cut.roommate + has.vacc.roommate.binary + 
+                  age + age.roommate + risk + risk.roommate + factor(variant) + strata(group), data=matched_infvacc_roommate)
+summary(model)
+
 model <- glm(case ~ time_since_vacc_cut.roommate*has.prior.inf.roommate + 
-               has.prior.inf + num_dose + level + age + age.roommate + risk + risk.roommate +
+               has.prior.inf + num_dose_adjusted + level + age + age.roommate + risk + risk.roommate +
                factor(Institution) + factor(variant), data=matched_infvacc_roommate, family="binomial")
 summary(model)
 
 model <- glm(case ~ time_since_inf_cut.roommate*has.vacc.roommate.binary + 
-               has.prior.inf + num_dose + level + age + age.roommate + risk + risk.roommate +
+               has.prior.inf + num_dose_adjusted + level + age + age.roommate + risk + risk.roommate +
                factor(Institution) + factor(variant), data=matched_infvacc_roommate, family="binomial")
 summary(model)
 
 model <- glm(case ~ time_since_infvacc_cut.roommate + 
-               has.prior.inf + num_dose + level + age + age.roommate + risk + risk.roommate +
+               has.prior.inf + num_dose_adjusted + level + age + age.roommate + risk + risk.roommate +
                factor(Institution) + factor(variant), data=matched_infvacc_roommate, family="binomial")
 summary(model)
 
@@ -90,15 +107,24 @@ model <- clogit(case ~ time_since_infvacc_cut.roommate +
                   age + age.roommate + risk + risk.roommate + factor(variant) + strata(group), data=matched_infvacc_roommate)
 summary(model)
 
-model <- clogit(case ~ time_since_vacc_cut.roommate + time_since_inf_cut.roommate + 
+
+model <- clogit(case ~ time_since_vacc_cut.roommate*has.prior.inf.roommate + 
                   age + age.roommate + risk + risk.roommate + factor(variant) + strata(group), data=matched_infvacc_roommate)
 summary(model)
 
-model <- clogit(case ~ has.vacc.roommate.binary*has.prior.inf.roommate + 
+model <- clogit(case ~ time_since_inf_cut.roommate*has.vacc.roommate.binary + 
                   age + age.roommate + risk + risk.roommate + factor(variant) + strata(group), data=matched_infvacc_roommate)
 summary(model)
 
 # descriptive statistics on roommates
+matched_infvacc_roommate %>% ggplot(aes(risk.roommate, group=factor(case), fill=factor(case))) + geom_bar(position="identity", alpha=0.5) + 
+  scale_fill_discrete("Control v. case") + 
+  scale_x_continuous("Roommate's risk for severe COVID-19")
+matched_infvacc_roommate %>% ggplot(aes(age.roommate, group=factor(case), fill=factor(case))) + geom_histogram(position="identity", alpha=0.5) + 
+  scale_fill_discrete("Control v. case") + 
+  scale_x_continuous("Roommate's age")
+
+
 # vaccine
 matched_infvacc_roommate %>% ggplot(aes(has.vacc.roommate.binary, group=factor(case), fill=factor(case))) + geom_bar(position="identity", alpha=0.5) + 
   scale_fill_discrete("Control v. case") + 
@@ -178,3 +204,28 @@ summary(model)
 model <- clogit(case ~ has.vacc.roommate.binary*has.prior.inf.roommate + 
                   age + age.roommate + risk + risk.roommate + factor(variant) + strata(group), data=remove_recent_roommate)
 summary(model)
+
+
+
+
+
+# mechanism 
+relevant<- matched_infvacc_roommate %>% select(id, group, ResidentId, num_dose_adjusted, test.Day, case, Roommate, last.inf.roommate, last.vacc.roommate, dose.roommate, has.vacc.roommate.binary, has.prior.inf.roommate)
+relevant
+
+relevant %>% group_by(case, has.vacc.roommate.binary|has.prior.inf.roommate) %>% summarise(n=n())
+check_test <- relevant %>% group_by(group) %>% filter(any(case==0&has.vacc.roommate.binary==1)&any(case==1&has.vacc.roommate.binary==0))
+
+check_test %>% group_by(case) %>% summarise(n=n())
+check_test %>% group_by(case, num_dose_adjusted, has.vacc.roommate.binary) %>% summarise(n=n()) %>% group_by(case) %>% mutate(prop=n/sum(n))
+
+test_data <- read_csv("D:/CCHCS_premium/st/cleaned-data/complete_testing_data022624.csv") %>% select(ResidentId,Day,Result,num_pos)
+check_test <- relevant %>% left_join(test_data, by=c("Roommate"="ResidentId")) %>% group_by(id)
+
+check_test %>% 
+  filter(all(Day>test.Day|test.Day-Day>=14)) %>% summarise_all(first) %>% group_by(case) %>% summarise(n=n())
+
+check_test %>% filter(Day-test.Day<2 & test.Day-Day<14) %>% select(id, group, case, Roommate, test.Day, Day, Result) %>%
+  summarise(case=first(case), roommate_pos=any(Result=="Positive")) %>%
+  group_by(case, roommate_pos) %>% summarise(n=n()) %>%
+  group_by(case) %>% mutate(prop=n/sum(n))

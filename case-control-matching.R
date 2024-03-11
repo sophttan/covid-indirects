@@ -9,16 +9,16 @@ library(readr)
 library(lubridate)
 library(MatchIt)
 
-cases <- read_csv("D:/CCHCS_premium/st/indirects/cases.csv")%>%mutate(case=1)%>%rename("test.Day"="inf.Day")
-controls <- read_csv("D:/CCHCS_premium/st/indirects/control.csv")%>%mutate(case=0)%>%select(names(cases))
+cases <- read_csv("D:/CCHCS_premium/st/indirects/cases3-7daysame.csv")%>%mutate(case=1)%>%rename("test.Day"="inf.Day")
+controls <- read_csv("D:/CCHCS_premium/st/indirects/control3-7daysame.csv")%>%mutate(case=0)%>%select(names(cases))
 
 cases
 controls
 
 total <- rbind(cases, controls)
 total
-total <- total %>% group_by(ResidentId, test.Day) %>% filter(all(BuildingId==first(BuildingId)))
-total <- total %>% distinct(ResidentId, test.Day, .keep_all = T)
+total <- total %>% group_by(ResidentId, test.Day) %>% filter(all(Institution[1:4]==first(Institution)) & all(BuildingId[1:4]==first(BuildingId)))
+total <- total %>% summarise_all(first)
 total$case %>% table()
 
 total <- total %>% mutate(has.prior.inf=case_when(case==1&num_pos>1~1,
@@ -27,13 +27,13 @@ total <- total %>% mutate(has.prior.inf=case_when(case==1&num_pos>1~1,
                                                   T~0))
 total
 
-inf <- read_csv("D:/CCHCS_premium/st/cleaned-data/infection_data022624.csv") %>% filter(CollectionDate <= "2022-12-15") %>% 
-  select(ResidentId, CollectionDate) %>% rename(last.inf.roommate=CollectionDate)
-total <- total %>% left_join(inf, by=c("Roommate"="ResidentId")) %>%
-  filter(last.inf.roommate%>%is.na()|all(last.inf.roommate>=test.Day)|last.inf.roommate<test.Day) %>%
-  mutate(last.inf.roommate=if_else(last.inf.roommate>=test.Day, NA, last.inf.roommate)) %>% 
-  summarise_all(last) 
-total <- total %>% group_by(ResidentId, test.Day) %>% filter(last.inf.roommate %>% is.na()|test.Day-last.inf.roommate>=14)
+# inf <- read_csv("D:/CCHCS_premium/st/cleaned-data/infection_data022624.csv") %>% filter(CollectionDate <= "2022-12-15") %>% 
+#   select(ResidentId, CollectionDate) %>% rename(last.inf.roommate=CollectionDate)
+# total <- total %>% left_join(inf, by=c("Roommate"="ResidentId")) %>%
+#   filter(last.inf.roommate%>%is.na()|all(last.inf.roommate>=test.Day)|last.inf.roommate<test.Day) %>%
+#   mutate(last.inf.roommate=if_else(last.inf.roommate>=test.Day, NA, last.inf.roommate)) %>% 
+#   summarise_all(last) 
+# total <- total %>% group_by(ResidentId, test.Day) %>% filter(last.inf.roommate %>% is.na()|test.Day-last.inf.roommate>=14)
 
 vaccine <- read_csv("D:/CCHCS_premium/st/leaky/cleaned-data/complete_vaccine_data121523.csv") %>% filter(Date <= "2022-12-15")
 security <- read_csv("D:/CCHCS_premium/st/leaky/cleaned-data/cleaned_security_data021324.csv") %>% filter(Starting <= "2022-12-15")
@@ -143,4 +143,4 @@ for (i in keep$key) {
 match
 
 match_update <- match %>% group_by(key, subclass) %>% filter(abs(test.Day[1]-test.Day[2])<=2 & ResidentId[1]!=Roommate[2])
-match_update %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_withagerisk_030524.csv")
+match_update %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days_030724.csv")
