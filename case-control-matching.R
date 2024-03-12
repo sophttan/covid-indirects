@@ -10,7 +10,7 @@ library(lubridate)
 library(MatchIt)
 
 cases <- read_csv("D:/CCHCS_premium/st/indirects/cases3-7daysame.csv")%>%mutate(case=1)%>%rename("test.Day"="inf.Day")
-controls <- read_csv("D:/CCHCS_premium/st/indirects/control3-7daysame.csv")%>%mutate(case=0)%>%select(names(cases))
+controls <- read_csv("D:/CCHCS_premium/st/indirects/control3-7daysame031124.csv")%>%mutate(case=0)%>%select(names(cases))
 
 cases
 controls
