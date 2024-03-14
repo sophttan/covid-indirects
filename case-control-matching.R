@@ -9,15 +9,15 @@ library(readr)
 library(lubridate)
 library(MatchIt)
 
-cases <- read_csv("D:/CCHCS_premium/st/indirects/cases3-7daysame.csv")%>%mutate(case=1)%>%rename("test.Day"="inf.Day")
-controls <- read_csv("D:/CCHCS_premium/st/indirects/control3-7daysame031124.csv")%>%mutate(case=0)%>%select(names(cases))
+cases <- read_csv("D:/CCHCS_premium/st/indirects/cases3daysame.csv")%>%mutate(case=1)%>%rename("test.Day"="inf.Day")
+controls <- read_csv("D:/CCHCS_premium/st/indirects/control3same031224.csv")%>%mutate(case=0)%>%select(names(cases))
 
 cases
 controls
 
 total <- rbind(cases, controls)
 total
-total <- total %>% group_by(ResidentId, test.Day) %>% filter(all(Institution[1:4]==first(Institution)) & all(BuildingId[1:4]==first(BuildingId)))
+total <- total %>% group_by(ResidentId, test.Day)# %>% filter(all(Institution[1:4]==first(Institution)) & all(BuildingId[1:4]==first(BuildingId)))
 total <- total %>% summarise_all(first)
 total$case %>% table()
 
@@ -40,7 +40,7 @@ security <- read_csv("D:/CCHCS_premium/st/leaky/cleaned-data/cleaned_security_da
 demo <- read_csv("D:/CCHCS_premium/st/leaky/cleaned-data/demographic121523.csv") %>% mutate(age=2022-BirthYear) %>% select(ResidentId, age)
 risk <- read_csv("D:/CCHCS_premium/st/leaky/cleaned-data/covid_risk_score012324.csv")
 
-total_vacc <- total %>% 
+total_vacc <- total %>% group_by(ResidentId, test.Day) %>%
   left_join(vaccine%>%select(ResidentId, Date_offset, num_dose, full_vacc), by=c("ResidentId")) %>% 
   mutate(Date_offset=if_else(Date_offset>test.Day, NA, Date_offset)) 
 total_vacc <- total_vacc %>% 
@@ -143,4 +143,4 @@ for (i in keep$key) {
 match
 
 match_update <- match %>% group_by(key, subclass) %>% filter(abs(test.Day[1]-test.Day[2])<=2 & ResidentId[1]!=Roommate[2])
-match_update %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days_030724.csv")
+match_update %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_3days.csv")
