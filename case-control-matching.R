@@ -9,15 +9,15 @@ library(readr)
 library(lubridate)
 library(MatchIt)
 
-cases <- read_csv("D:/CCHCS_premium/st/indirects/cases3daysame.csv")%>%mutate(case=1)%>%rename("test.Day"="inf.Day")
-controls <- read_csv("D:/CCHCS_premium/st/indirects/control3same031224.csv")%>%mutate(case=0)%>%select(names(cases))
+cases <- read_csv("D:/CCHCS_premium/st/indirects/cases3-7daysame-roommate.csv")%>%mutate(case=1)%>%rename("test.Day"="inf.Day")
+controls <- read_csv("D:/CCHCS_premium/st/indirects/control3-7daysame-roommate.csv")%>%mutate(case=0)%>%select(names(cases))
 
 cases
 controls
 
 total <- rbind(cases, controls)
 total
-total <- total %>% group_by(ResidentId, test.Day)# %>% filter(all(Institution[1:4]==first(Institution)) & all(BuildingId[1:4]==first(BuildingId)))
+total <- total %>% group_by(ResidentId, test.Day) 
 total <- total %>% summarise_all(first)
 total$case %>% table()
 
@@ -143,4 +143,4 @@ for (i in keep$key) {
 match
 
 match_update <- match %>% group_by(key, subclass) %>% filter(abs(test.Day[1]-test.Day[2])<=2 & ResidentId[1]!=Roommate[2])
-match_update %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_3days.csv")
+match_update %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-roommate.csv")

@@ -45,61 +45,72 @@ housing_relevant <- housing_relevant %>% group_by(Night, Institution, BuildingId
 housing_relevant <- housing_relevant %>% mutate(Day=Night+1)
 gc()
 
-inf_housing_full <- inf_eligible %>% full_join(housing_relevant, by=c("ResidentId")) %>% filter(Day.x-Day.y==3) %>% 
-  select(!c(Night)) %>% rename("Day"="Day.y", "inf.Day"="Day.x") %>% group_by(ResidentId, num_pos) #%>% filter(n()==4) 
+inf_housing_full <- inf_eligible %>% full_join(housing_relevant, by=c("ResidentId")) %>% filter(Day.x-Day.y<7 & Day.x-Day.y>=3) %>% 
+  select(!c(Night)) %>% rename("Day"="Day.y", "inf.Day"="Day.x") %>% group_by(ResidentId, num_pos) %>% filter(n()==4) 
 inf_housing_full_withroommate <- inf_housing_full %>% left_join(housing_relevant %>% rename("Roommate"="ResidentId"))
-inf_housing_full_withroommate <- inf_housing_full_withroommate %>% filter(n==2 & Roommate != ResidentId)
+inf_housing_full_withroommate <- inf_housing_full_withroommate %>% filter(n==1 | Roommate != ResidentId)
 
-# inf_2 <- inf_housing_full_withroommate %>% group_by(ResidentId, num_pos) %>% 
-#   arrange(ResidentId, num_pos, Day) %>% 
-#   filter(all(n==2))
-# 
-# 
-# cases_final <- inf_2 %>%
-#   filter(all(Roommate==first(Roommate)))
-write_csv(inf_housing_full_withroommate, "D:/CCHCS_premium/st/indirects/cases3daysame.csv")
+inf_2 <- inf_housing_full_withroommate %>% group_by(ResidentId, num_pos) %>%
+  arrange(ResidentId, num_pos, Day) %>%
+  filter(all(n==2))
 
+cases_final <- inf_2 %>%
+  filter(all(Roommate==first(Roommate)) & first(Roommate) %in% included) %>% 
+  filter(all(Institution==first(Institution))) %>%
+  filter(all(BuildingId==first(BuildingId)))
 
-library(doParallel)
-library(foreach)
+write_csv(cases_final, "D:/CCHCS_premium/st/indirects/cases3-7daysame-roommate.csv")
 
-# set up parallelization
-cl<-makeCluster(detectCores()-1)
-registerDoParallel(cl)
 
 testing_eligible <- testing_eligible %>% select(!c(Result, Details, pcr, antigen, unknown, last_inf))
 test_final <- NULL
-# total_excluded_housing <- 0
-# total_excluded_isolation <- 0
-# total_excluded_group <- 0
-# total_excluded_movement <- 0
+total_excluded_housing <- 0
+total_excluded_isolation <- 0
+total_excluded_group <- 0
+total_excluded_movement <- 0
+total_excluded_roommate <- 0
 
 for(i in seq(1,35)) {
+  print(total_excluded_housing)
+  print(total_excluded_isolation)
+  print(total_excluded_group)
+  print(total_excluded_movement)
+  print(total_excluded_roommate)
+  
   gc()
+  
   testing_sub <- testing_eligible[(i*25000):min(((i+1)*25000-1), nrow(testing_eligible)),]
-  # n_total <- testing_sub %>% nrow()
+  n_total <- testing_sub %>% nrow()
   test_housing_full <- testing_sub %>% full_join(housing_relevant, by=c("ResidentId")) 
-  test_housing_full <- test_housing_full %>% filter(Day.x-Day.y==3) %>% 
+  
+  test_housing_full <- test_housing_full %>% filter(Day.x-Day.y<7 & Day.x-Day.y>=3) %>% 
     group_by(ResidentId, Day.x) %>%
+    filter(n()==4) %>%
     select(!c(Night)) %>% 
     rename("Day"="Day.y", "test.Day"="Day.x")
-  # total_excluded_housing <- total_excluded_housing + n_total-(test_housing_full%>%group_keys()%>%nrow())
+  
+  total_excluded_housing <- total_excluded_housing + n_total-(test_housing_full%>%group_keys()%>%nrow())
   test_housing_full_withroommate <- test_housing_full %>% left_join(housing_relevant %>% rename("Roommate"="ResidentId"))
-  test_housing_full_withroommate <- test_housing_full_withroommate %>% filter(n==2 & Roommate != ResidentId)
+  test_housing_full_withroommate <- test_housing_full_withroommate %>% filter(n==1 | Roommate != ResidentId)
   
-  # test_2 <- test_housing_full_withroommate %>% group_by(ResidentId, test.Day) %>% 
-  #   filter(all(n==2)) %>% 
-  #   arrange(ResidentId, test.Day, Day) 
-  # 
-  # # total_excluded_group <- total_excluded_group + (test_housing_full_withroommate %>%filter(any(n>2))%>%group_keys()%>%nrow())
-  # # total_excluded_isolation <- total_excluded_isolation + (test_housing_full_withroommate %>%filter(all(n<=2)&any(n==1))%>%group_keys()%>%nrow())
-  # 
-  # tests <- test_2 %>%
-  #   filter(all(Roommate==first(Roommate)))
-  # 
-  # # total_excluded_movement <- total_excluded_movement + (test_2 %>%filter(!all(Roommate==first(Roommate)))%>%group_keys()%>%nrow())
+  test_2 <- test_housing_full_withroommate %>% group_by(ResidentId, test.Day) %>% 
+    filter(all(n==2)) %>% 
+    arrange(ResidentId, test.Day, Day) 
   
-  test_final <- test_final %>% rbind(test_housing_full_withroommate)
+  total_excluded_group <- total_excluded_group + (test_housing_full_withroommate %>%filter(any(n>2))%>%group_keys()%>%nrow())
+  total_excluded_isolation <- total_excluded_isolation + (test_housing_full_withroommate %>%filter(all(n<=2)&any(n==1))%>%group_keys()%>%nrow())
+
+  tests <- test_2 %>%
+    filter(all(Roommate==first(Roommate))) %>% 
+    filter(all(Institution==first(Institution))) %>%
+    filter(all(BuildingId==first(BuildingId)))
+
+  total_excluded_movement <- total_excluded_movement + (test_2 %>%filter(!all(Roommate==first(Roommate)))%>%group_keys()%>%nrow())
+  total_excluded_roommate <- total_excluded_roommate + (tests %>%filter(!first(Roommate) %in% included)%>%group_keys()%>%nrow())
+  
+  tests <- tests %>% filter(first(Roommate) %in% included)
+  
+  test_final <- test_final %>% rbind(tests)
 }
-write_csv(test_final, "D:/CCHCS_premium/st/indirects/control3same031224.csv")
+write_csv(test_final, "D:/CCHCS_premium/st/indirects/control3-7daysame-roommate.csv")
 

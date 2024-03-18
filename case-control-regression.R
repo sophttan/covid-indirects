@@ -9,7 +9,7 @@ library(readr)
 library(lubridate)
 library(survival)
 
-matched <- read_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days_030724.csv")
+matched <- read_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-roommate.csv")
 matched_keys <- matched %>% group_by(key, subclass) %>% group_keys() %>% mutate(group = 1:n())
 matched <- matched %>% left_join(matched_keys) %>% mutate(id=1:n())
 
@@ -89,22 +89,23 @@ tbl_regression(model, exp=T, include = c("dose.roommate.adjusted", "has.prior.in
 matched_infvacc_roommate <- matched_infvacc_roommate %>% 
   mutate(time_since_vacc = (test.Day-Date_offset)%>%as.numeric(),
          time_since_vacc.roommate = (test.Day-last.vacc.roommate) %>% as.numeric()) %>%
-  mutate(time_since_vacc_cut=cut(time_since_vacc, breaks=c(0, 90, 182, 365, Inf), right = F),
-         time_since_vacc_cut.roommate=cut(time_since_vacc.roommate, breaks=c(0, 90, 182, 365, Inf), right = F)) 
+  mutate(time_since_vacc_cut=cut(time_since_vacc, breaks=c(0, 90, 182, 365, 730, Inf), right = F),
+         time_since_vacc_cut.roommate=cut(time_since_vacc.roommate, breaks=c(0, 90, 182, 365, 730, Inf), right = F)) 
+
 levels(matched_infvacc_roommate$time_since_vacc_cut)<-c(levels(matched_infvacc_roommate$time_since_vacc_cut), "None") 
 matched_infvacc_roommate$time_since_vacc_cut[is.na(matched_infvacc_roommate$time_since_vacc_cut)] <- "None"
-matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_vacc_cut = factor(time_since_vacc_cut, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
+matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_vacc_cut = factor(time_since_vacc_cut, levels=c("None","[0,90)","[90,182)","[182,365)","[365,730)", "[730,Inf")))
 
 levels(matched_infvacc_roommate$time_since_vacc_cut.roommate)<-c(levels(matched_infvacc_roommate$time_since_vacc_cut.roommate), "None") 
 matched_infvacc_roommate$time_since_vacc_cut.roommate[is.na(matched_infvacc_roommate$time_since_vacc_cut.roommate)] <- "None"
-matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_vacc_cut.roommate = factor(time_since_vacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
+matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_vacc_cut.roommate = factor(time_since_vacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,730)", "[730,Inf")))
 
 matched_infvacc_roommate <- matched_infvacc_roommate %>% 
   mutate(time_since_inf.roommate = (test.Day-last.inf.roommate) %>% as.numeric()) %>%
-  mutate(time_since_inf_cut.roommate=cut(time_since_inf.roommate, breaks=c(0, 182, 365, 730, Inf), right = F)) 
+  mutate(time_since_inf_cut.roommate=cut(time_since_inf.roommate, breaks=c(0, 90, 182, 365, 730, Inf), right = F)) 
 levels(matched_infvacc_roommate$time_since_inf_cut.roommate)<-c(levels(matched_infvacc_roommate$time_since_inf_cut.roommate), "None") 
 matched_infvacc_roommate$time_since_inf_cut.roommate[is.na(matched_infvacc_roommate$time_since_inf_cut.roommate)] <- "None"
-matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_inf_cut.roommate = factor(time_since_inf_cut.roommate, levels=c("None","[0,182)","[182,365)","[365,730)","[730,Inf)")))
+matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_inf_cut.roommate = factor(time_since_inf_cut.roommate, levels=c("None","[0,90)", "[90,182)","[182,365)","[365,730)","[730,Inf)")))
 
 matched_infvacc_roommate <- matched_infvacc_roommate %>% 
   mutate(latest=pmax(last.inf.roommate, last.vacc.roommate,na.rm=T)) %>%
@@ -121,14 +122,14 @@ model <- glm(case ~ time_since_vacc_cut.roommate + time_since_inf_cut.roommate +
 summary(model)
 
 model <- clogit(case ~ time_since_inf_cut.roommate + has.vacc.roommate.binary + 
-                  age + age.roommate + risk + risk.roommate + factor(variant) + strata(group), data=matched_infvacc_roommate)
+                  age + age.roommate + risk + risk.roommate + strata(group), data=matched_infvacc_roommate)
 summary(model)
 
 tbl_regression(model, exp=T, include = c("time_since_inf_cut.roommate"), 
                label = c("time_since_inf_cut.roommate"="Roommate: time since last infection"))
 
 
-model <- clogit(case ~ time_since_vacc_cut.roommate + has.prior.inf.roommate + 
+model <- clogit(case ~ dose.roommate.adjusted*time_since_vacc_cut.roommate + has.prior.inf.roommate + 
                   age + age.roommate + risk + risk.roommate + factor(variant) + strata(group), data=matched_infvacc_roommate)
 summary(model)
 
@@ -175,9 +176,15 @@ matched_infvacc_roommate %>% ggplot(aes(age.roommate, group=factor(case), fill=f
   scale_x_continuous("Roommate's age")
 
 within_match <- matched_infvacc_roommate %>% group_by(group) %>% arrange(group, case) %>%
-  summarise(vacc = dose.roommate.adjusted[1]-dose.roommate.adjusted,
+  summarise(time_since_vacc = abs(time_since_vacc[1]-time_since_vacc[2]),
+            time_since_inf = abs(time_since_inf[1]-time_since_inf[2]),
+            vacc = dose.roommate.adjusted[1]-dose.roommate.adjusted,
             risk=abs(risk.roommate[1]-risk.roommate[2]),
             age=abs(age.roommate[1]-age.roommate[2]))
+within_match %>% ggplot(aes(time_since_vacc)) + geom_histogram(position="identity") + 
+  scale_x_continuous("Absolute difference in risk for severe COVID-19 in matched roommates")
+within_match %>% ggplot(aes(time_since_inf)) + geom_histogram(position="identity") + 
+  scale_x_continuous("Absolute difference in risk for severe COVID-19 in matched roommates")
 within_match %>% ggplot(aes(risk)) + geom_bar(position="identity") + 
   scale_x_continuous("Absolute difference in risk for severe COVID-19 in matched roommates")
 within_match %>% ggplot(aes(age)) + geom_bar(position="identity") + 
@@ -281,7 +288,8 @@ test_data <- read_csv("D:/CCHCS_premium/st/cleaned-data/complete_testing_data022
 check_test <- relevant %>% left_join(test_data, by=c("Roommate"="ResidentId")) %>% group_by(id)
 
 check_test %>% 
-  filter(all(Day>test.Day|test.Day-Day>=14)) %>% summarise_all(first) %>% group_by(case, has.vacc.roommate.binary) %>% summarise(n=n(), prop=n()/4864)
+  filter(all(Day>test.Day|test.Day-Day>=14)) %>% summarise_all(first) %>% group_by(case, has.vacc.roommate.binary) %>% 
+  summarise(n=n())%>%ungroup()%>%mutate(prop=n/c(615, 4319, 699, 4235))
 
 check_test <- check_test %>% group_by(id) %>%
   filter((Day-test.Day<2 & test.Day-Day<14)|!any(Day-test.Day<2 & test.Day-Day<14)) %>% 
