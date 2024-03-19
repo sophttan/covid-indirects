@@ -66,10 +66,13 @@ p1 <- ggplot(results%>%filter(group!="By time"), aes(x=time, y=., color=inf_vacc
   facet_grid2(~inf_vacc, space="free_x", scales="free_x", render_empty = F, switch = "y") + 
   scale_y_continuous(position = "left", "Indirect protection (%)") + 
   scale_color_brewer(palette = "Dark2") + 
-  theme_bw() + 
   theme(axis.title.x = element_blank(),
         legend.position = "none",
-        text=element_text(size=14, family="sans")) 
+        panel.background = element_blank(),
+        panel.border= element_rect(fill=NA),
+        strip.text.x = element_text(face="bold", size=12),
+        strip.background = element_rect(fill=NA,colour="black"),
+        text=element_text(size=12, family="sans")) 
 p1
 ggsave("D:/CCHCS_premium/st/covid-indirects/figures/figure2.jpg", width=8, height=4, dpi=300)
 
@@ -80,6 +83,11 @@ p2 <- ggplot(results%>%filter(group=="By time")%>%filter(!(inf_vacc=="Vaccinatio
   scale_x_discrete("Months") + 
   scale_y_continuous("Indirect protection (%)") + 
   scale_color_brewer(palette = "Dark2") + 
-  theme_bw() + 
-  theme(legend.position = "none") 
+  theme(legend.position = "none",
+        panel.background = element_blank(),
+        panel.border= element_rect(fill=NA),
+        strip.text.x = element_text(face="bold", size=12),
+        strip.background = element_rect(fill=NA,colour="black"),
+        text=element_text(size=12, family="sans")) 
 p2
+ggsave("D:/CCHCS_premium/st/covid-indirects/figures/figure3.jpg", width=11, height=4, dpi=300)
