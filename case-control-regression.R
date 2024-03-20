@@ -33,7 +33,7 @@ matched_infvacc_roommate <- matched_inf_roommate %>% left_join(vaccine, by=c("Ro
   mutate(last.vacc.roommate=if_else(last.vacc.roommate>=test.Day, NA, last.vacc.roommate)) %>% 
   summarise_all(last) %>%
   mutate(has.vacc.roommate.binary=if_else(last.vacc.roommate%>%is.na(), 0, 1)) %>%
-  mutate(dose.roommate.adjusted = case_when(dose.roommate%>%is.na()~0,
+  mutate(dose.roommate.adjusted = case_when(last.vacc.roommate%>%is.na()~0,
                                             dose.roommate<full_vacc.roommate~1,
                                             dose.roommate==full_vacc.roommate~2,
                                             dose.roommate-full_vacc.roommate==1~3,
@@ -89,31 +89,31 @@ tbl_regression(model, exp=T, include = c("dose.roommate.adjusted", "has.prior.in
 matched_infvacc_roommate <- matched_infvacc_roommate %>% 
   mutate(time_since_vacc = (test.Day-Date_offset)%>%as.numeric(),
          time_since_vacc.roommate = (test.Day-last.vacc.roommate) %>% as.numeric()) %>%
-  mutate(time_since_vacc_cut=cut(time_since_vacc, breaks=c(0, 90, 182, 365, 730, Inf), right = F),
-         time_since_vacc_cut.roommate=cut(time_since_vacc.roommate, breaks=c(0, 90, 182, 365, 730, Inf), right = F)) 
+  mutate(time_since_vacc_cut=cut(time_since_vacc, breaks=c(0, 90, 182, 365, Inf), right = F),
+         time_since_vacc_cut.roommate=cut(time_since_vacc.roommate, breaks=c(0, 90, 182, 365, Inf), right = F)) 
 
 levels(matched_infvacc_roommate$time_since_vacc_cut)<-c(levels(matched_infvacc_roommate$time_since_vacc_cut), "None") 
 matched_infvacc_roommate$time_since_vacc_cut[is.na(matched_infvacc_roommate$time_since_vacc_cut)] <- "None"
-matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_vacc_cut = factor(time_since_vacc_cut, levels=c("None","[0,90)","[90,182)","[182,365)","[365,730)", "[730,Inf")))
+matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_vacc_cut = factor(time_since_vacc_cut, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf")))
 
 levels(matched_infvacc_roommate$time_since_vacc_cut.roommate)<-c(levels(matched_infvacc_roommate$time_since_vacc_cut.roommate), "None") 
 matched_infvacc_roommate$time_since_vacc_cut.roommate[is.na(matched_infvacc_roommate$time_since_vacc_cut.roommate)] <- "None"
-matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_vacc_cut.roommate = factor(time_since_vacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,730)", "[730,Inf")))
+matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_vacc_cut.roommate = factor(time_since_vacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 
 matched_infvacc_roommate <- matched_infvacc_roommate %>% 
   mutate(time_since_inf.roommate = (test.Day-last.inf.roommate) %>% as.numeric()) %>%
-  mutate(time_since_inf_cut.roommate=cut(time_since_inf.roommate, breaks=c(0, 90, 182, 365, 730, Inf), right = F)) 
+  mutate(time_since_inf_cut.roommate=cut(time_since_inf.roommate, breaks=c(0, 90, 182, 365, Inf), right = F)) 
 levels(matched_infvacc_roommate$time_since_inf_cut.roommate)<-c(levels(matched_infvacc_roommate$time_since_inf_cut.roommate), "None") 
 matched_infvacc_roommate$time_since_inf_cut.roommate[is.na(matched_infvacc_roommate$time_since_inf_cut.roommate)] <- "None"
-matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_inf_cut.roommate = factor(time_since_inf_cut.roommate, levels=c("None","[0,90)", "[90,182)","[182,365)","[365,730)","[730,Inf)")))
+matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_inf_cut.roommate = factor(time_since_inf_cut.roommate, levels=c("None","[0,90)", "[90,182)","[182,365)","[365,Inf)")))
 
 matched_infvacc_roommate <- matched_infvacc_roommate %>% 
   mutate(latest=pmax(last.inf.roommate, last.vacc.roommate,na.rm=T)) %>%
   mutate(time_since_infvacc.roommate = (test.Day-latest)%>%as.numeric()) %>%
-  mutate(time_since_infvacc_cut.roommate=cut(time_since_infvacc.roommate, breaks=c(0, 90, 182, 365, 730, Inf), right = F)) 
+  mutate(time_since_infvacc_cut.roommate=cut(time_since_infvacc.roommate, breaks=c(0, 90, 182, 365, Inf), right = F)) 
 levels(matched_infvacc_roommate$time_since_infvacc_cut.roommate)<-c(levels(matched_infvacc_roommate$time_since_infvacc_cut.roommate), "None") 
 matched_infvacc_roommate$time_since_infvacc_cut.roommate[is.na(matched_infvacc_roommate$time_since_infvacc_cut.roommate)] <- "None"
-matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_infvacc_cut.roommate = factor(time_since_infvacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,730)", "[730,Inf)")))
+matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_infvacc_cut.roommate = factor(time_since_infvacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 
 
 model <- glm(case ~ time_since_vacc_cut.roommate + time_since_inf_cut.roommate + 

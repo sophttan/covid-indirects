@@ -55,7 +55,11 @@ inf_2 <- inf_housing_full_withroommate %>% group_by(ResidentId, num_pos) %>%
   filter(all(n==2))
 
 cases_final <- inf_2 %>%
-  filter(all(Roommate==first(Roommate)) & first(Roommate) %in% included) %>% 
+  filter(all(Roommate==first(Roommate)))
+
+cases_final <- cases_final %>% filter(first(Roommate) %in% included) 
+
+cases_final <- cases_final %>% 
   filter(all(Institution==first(Institution))) %>%
   filter(all(BuildingId==first(BuildingId)))
 
@@ -67,14 +71,16 @@ test_final <- NULL
 total_excluded_housing <- 0
 total_excluded_isolation <- 0
 total_excluded_group <- 0
-total_excluded_movement <- 0
+total_excluded_movementroommate <- 0
+total_excluded_movementbuild <- 0
 total_excluded_roommate <- 0
 
 for(i in seq(1,35)) {
   print(total_excluded_housing)
   print(total_excluded_isolation)
   print(total_excluded_group)
-  print(total_excluded_movement)
+  print(total_excluded_movementroommate)
+  print(total_excluded_movementbuild)
   print(total_excluded_roommate)
   
   gc()
@@ -93,22 +99,27 @@ for(i in seq(1,35)) {
   test_housing_full_withroommate <- test_housing_full %>% left_join(housing_relevant %>% rename("Roommate"="ResidentId"))
   test_housing_full_withroommate <- test_housing_full_withroommate %>% filter(n==1 | Roommate != ResidentId)
   
+  total_excluded_group <- total_excluded_group + (test_housing_full_withroommate %>%filter(any(n>2))%>%group_keys()%>%nrow())
+  total_excluded_isolation <- total_excluded_isolation + (test_housing_full_withroommate %>%filter(all(n<=2)&any(n==1))%>%group_keys()%>%nrow())
+  
   test_2 <- test_housing_full_withroommate %>% group_by(ResidentId, test.Day) %>% 
     filter(all(n==2)) %>% 
     arrange(ResidentId, test.Day, Day) 
   
-  total_excluded_group <- total_excluded_group + (test_housing_full_withroommate %>%filter(any(n>2))%>%group_keys()%>%nrow())
-  total_excluded_isolation <- total_excluded_isolation + (test_housing_full_withroommate %>%filter(all(n<=2)&any(n==1))%>%group_keys()%>%nrow())
-
+  total_excluded_movementroommate <- total_excluded_movement + (test_2 %>%filter(!all(Roommate==first(Roommate)))%>%group_keys()%>%nrow())
+  
   tests <- test_2 %>%
-    filter(all(Roommate==first(Roommate))) %>% 
-    filter(all(Institution==first(Institution))) %>%
-    filter(all(BuildingId==first(BuildingId)))
+    filter(all(Roommate==first(Roommate))) 
 
-  total_excluded_movement <- total_excluded_movement + (test_2 %>%filter(!all(Roommate==first(Roommate)))%>%group_keys()%>%nrow())
   total_excluded_roommate <- total_excluded_roommate + (tests %>%filter(!first(Roommate) %in% included)%>%group_keys()%>%nrow())
   
   tests <- tests %>% filter(first(Roommate) %in% included)
+  
+  total_excluded_movementbuild <- total_excluded_roommate + (tests %>%filter(any(Institution!=first(Institution))%>%filter(any(Building!=first(BuildingId))))%>%group_keys()%>%nrow())
+  
+  tests <- tests %>% 
+    filter(all(Institution==first(Institution))) %>%
+    filter(all(BuildingId==first(BuildingId)))
   
   test_final <- test_final %>% rbind(tests)
 }

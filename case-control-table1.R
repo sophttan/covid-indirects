@@ -43,4 +43,4 @@ roommates <- tableone::CreateTableOne(vars=c("age.roommate", "Sex.roommate", "Ra
                                       strata = c("case"),
                                       data=matched_infvacc_roommate_demo, addOverall=T)
 
-print(residents)[,1:3] %>% rbind(print(roommates)[,1:3]) %>% as.data.frame() %>% write_csv("D:/CCHCS_premium/st/covid-indirects/tables/demo.csv")
+print(residents)[,1:3] %>% rbind(print(roommates)[,1:3]) %>% as.data.frame() %>% write.csv("D:/CCHCS_premium/st/covid-indirects/tables/demo.csv")
