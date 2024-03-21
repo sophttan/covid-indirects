@@ -46,7 +46,7 @@ matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_infva
 
 
 for (i in 0:2) {
-  d <- matched_infvacc_roommate %>% filter(inf.cat==i) 
+  d <- matched_infvacc_roommate %>% group_by(group) %>% filter(all(inf.cat==i))
   model <- clogit(case ~ time_since_vacc_cut.roommate + has.prior.inf.roommate + 
                     age + age.roommate + risk + risk.roommate + strata(group), data=d)
   basic_results <- (exp(coef(model))%>%cbind(exp(confint(model))) %>% as.data.frame())[1:2,]
@@ -66,7 +66,7 @@ for (i in 0:2) {
   results <- results %>% mutate(x=rownames(results))
   results <- results %>% 
     mutate(inf_vacc=case_when(grepl("infvacc",x)~"Most recent inf or vacc",
-                              grepl("vacc|dose", x)~"Vaccination",
+                              grepl("vacc", x)~"Vaccination",
                               T~"Prior infection") %>% 
              factor(levels=c("Vaccination", "Prior infection","Most recent inf or vacc")), 
            group="By time") %>%
