@@ -91,3 +91,32 @@ p2 <- ggplot(results%>%filter(group=="By time")%>%filter(!(inf_vacc=="Vaccinatio
         text=element_text(size=12, family="sans")) 
 p2
 ggsave("D:/CCHCS_premium/st/covid-indirects/figures/figure3.jpg", width=11, height=4, dpi=300)
+
+
+matched_infvacc_roommate <- matched_infvacc_roommate %>% 
+  mutate(bivalent = case_when(last.vacc.roommate%>%is.na()~0,
+                              last.vacc.roommate<"2022-09-01"~1,
+                              T~2) %>% factor(levels=0:2, labels=c("Unvacc", "Not-bivalent", "Bivalent")))
+matched_infvacc_roommate %>% select(id, group, last.vacc.roommate, dose.roommate.adjusted, bivalent)
+
+model <- clogit(case ~ bivalent + has.prior.inf.roommate + 
+                  age + age.roommate + risk + risk.roommate + strata(group), data=matched_infvacc_roommate)
+
+results <- (exp(coef(model))%>%cbind(exp(confint(model))) %>% as.data.frame())
+results
+
+
+m <- matched_infvacc_roommate %>% group_by(group) %>% filter(!any(test.Day>="2022-09-01"))
+
+m <- m %>% 
+  mutate(time_since_vacc.roommate = (test.Day-last.vacc.roommate) %>% as.numeric()) %>%
+  mutate(time_since_vacc_cut.roommate=cut(time_since_vacc.roommate, breaks=c(0, 30, 90, 182, 365, Inf), right = F)) 
+
+levels(m$time_since_vacc_cut.roommate)<-c(levels(m$time_since_vacc_cut.roommate), "None") 
+m$time_since_vacc_cut.roommate[is.na(m$time_since_vacc_cut.roommate)] <- "None"
+m <- m %>% mutate(time_since_vacc_cut.roommate = factor(time_since_vacc_cut.roommate, levels=c("None","[0,30)","[30,90)","[90,182)","[182,365)","[365,Inf)")))
+
+model <- clogit(case ~ time_since_vacc_cut.roommate + has.prior.inf.roommate + 
+                  age + age.roommate + risk + risk.roommate + strata(group), data=m)
+summary(model)
+
