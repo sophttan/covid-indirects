@@ -9,8 +9,8 @@ library(readr)
 library(lubridate)
 library(MatchIt)
 
-cases <- read_csv("D:/CCHCS_premium/st/indirects/cases3-7daysame-roommate.csv")%>%mutate(case=1)%>%rename("test.Day"="inf.Day")
-controls <- read_csv("D:/CCHCS_premium/st/indirects/control3-7daysame-roommate.csv")%>%mutate(case=0)%>%select(names(cases))
+cases <- read_csv("D:/CCHCS_premium/st/indirects/cases3-7daysame-roommate-may.csv")%>%mutate(case=1)%>%rename("test.Day"="inf.Day")
+controls <- read_csv("D:/CCHCS_premium/st/indirects/control3-7daysame-roommate-decmay.csv")%>%mutate(case=0)%>%select(names(cases))
 
 cases
 controls
@@ -35,8 +35,10 @@ total
 #   summarise_all(last) 
 # total <- total %>% group_by(ResidentId, test.Day) %>% filter(last.inf.roommate %>% is.na()|test.Day-last.inf.roommate>=14)
 
-vaccine <- read_csv("D:/CCHCS_premium/st/leaky/cleaned-data/complete_vaccine_data121523.csv") %>% filter(Date <= "2022-12-15")
-security <- read_csv("D:/CCHCS_premium/st/leaky/cleaned-data/cleaned_security_data021324.csv") %>% filter(Starting <= "2022-12-15")
+total <- total %>% filter(test.Day>"2022-12-15")
+
+vaccine <- read_csv("D:/CCHCS_premium/st/leaky/cleaned-data/complete_vaccine_data121523.csv") #%>% filter(Date < "2023-03-01")
+security <- read_csv("D:/CCHCS_premium/st/leaky/cleaned-data/cleaned_security_data021324.csv") #%>% filter(Starting < "2023-03-01")
 demo <- read_csv("D:/CCHCS_premium/st/leaky/cleaned-data/demographic121523.csv") %>% mutate(age=2022-BirthYear) %>% select(ResidentId, age)
 risk <- read_csv("D:/CCHCS_premium/st/leaky/cleaned-data/covid_risk_score012324.csv")
 
@@ -44,8 +46,8 @@ total_vacc <- total %>% group_by(ResidentId, test.Day) %>%
   left_join(vaccine%>%select(ResidentId, Date_offset, num_dose, full_vacc), by=c("ResidentId")) %>% 
   mutate(Date_offset=if_else(Date_offset>test.Day, NA, Date_offset)) 
 total_vacc <- total_vacc %>% 
-  filter(num_dose%>%is.na()|all(Date_offset%>%is.na())|Date_offset==max(Date_offset,na.rm=T)) 
-total_vacc <- total_vacc %>% distinct(ResidentId, test.Day, .keep_all = T)
+  filter(all(Date_offset%>%is.na())|!Date_offset%>%is.na()) %>% 
+  filter(all(Date_offset%>%is.na())|Date_offset==max(Date_offset)) %>% distinct(ResidentId, test.Day, Date_offset, .keep_all = T)
 
 total_vacc_security <- total_vacc %>% left_join(security)
 total_vacc_security <- total_vacc_security %>% filter(Starting<=test.Day) %>% filter(Ending %>% is.na() | Ending > test.Day)
@@ -54,7 +56,13 @@ total_vacc_security <- total_vacc_security %>% mutate(num_dose=if_else(Date_offs
 total_vacc_security <- total_vacc_security %>% select(!c(Starting, Ending))
 
 total_vacc_security_demo <- total_vacc_security %>% left_join(demo, by=c("ResidentId")) %>% left_join(demo, by=c("Roommate"="ResidentId"), suffix=c("", ".roommate"))
-total_vacc_security_demo_risk <- total_vacc_security_demo %>% left_join(risk, by=c("ResidentId")) %>% 
+risk <- risk %>% 
+  group_by(ResidentId) %>%
+  mutate(nochange=any(risk.start=="2022-12-16")) %>%
+  ungroup() %>% 
+  mutate(risk.end=if_else((risk.end=="2022-12-16" & !nochange)|risk.start=="2022-12-16", as.Date("2023-05-26"), risk.end))
+total_vacc_security_demo_risk <- total_vacc_security_demo %>% 
+  left_join(risk, by=c("ResidentId")) %>% 
   filter(risk.start<=test.Day) %>% filter(risk.end > test.Day) %>%
   left_join(risk, by=c("Roommate"="ResidentId"), suffix=c("", ".roommate")) %>% 
   filter(risk.start.roommate<=test.Day) %>% filter(risk.end.roommate > test.Day)
@@ -143,4 +151,4 @@ for (i in keep$key) {
 match
 
 match_update <- match %>% group_by(key, subclass) %>% filter(abs(test.Day[1]-test.Day[2])<=2 & ResidentId[1]!=Roommate[2])
-match_update %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-roommate.csv")
+match_update %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-roommate-decmay.csv")

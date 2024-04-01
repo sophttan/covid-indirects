@@ -9,8 +9,11 @@ library(readr)
 library(lubridate)
 library(survival)
 
-matched <- read_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-roommate.csv")
-matched_keys <- matched %>% group_by(key, subclass) %>% group_keys() %>% mutate(group = 1:n())
+matched <- read_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-roommate.csv") %>% mutate(may=0)
+matched2 <- read_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-roommate-decmay.csv") %>% mutate(may=1)
+matched <- matched %>% rbind(matched2 %>% select(!c(nochange, nochange.roommate)))
+matched_keys <- matched %>% 
+  group_by(may, key, subclass) %>% group_keys() %>% mutate(group = 1:n())
 matched <- matched %>% left_join(matched_keys) %>% mutate(id=1:n())
 
 inf <- read_csv("D:/CCHCS_premium/st/cleaned-data/infection_data022624.csv") %>% filter(CollectionDate <= "2022-12-15") %>%
@@ -101,14 +104,14 @@ matched_infvacc_roommate$time_since_vacc_cut.roommate[is.na(matched_infvacc_room
 matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_vacc_cut.roommate = factor(time_since_vacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 
 matched_infvacc_roommate <- matched_infvacc_roommate %>% 
-  mutate(time_since_inf.roommate = (test.Day-last.inf.roommate) %>% as.numeric()) %>%
+  mutate(time_since_inf.roommate = (test.Day-last.inf.roommate-14) %>% as.numeric()) %>%
   mutate(time_since_inf_cut.roommate=cut(time_since_inf.roommate, breaks=c(0, 90, 182, 365, Inf), right = F)) 
 levels(matched_infvacc_roommate$time_since_inf_cut.roommate)<-c(levels(matched_infvacc_roommate$time_since_inf_cut.roommate), "None") 
 matched_infvacc_roommate$time_since_inf_cut.roommate[is.na(matched_infvacc_roommate$time_since_inf_cut.roommate)] <- "None"
 matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_inf_cut.roommate = factor(time_since_inf_cut.roommate, levels=c("None","[0,90)", "[90,182)","[182,365)","[365,Inf)")))
 
 matched_infvacc_roommate <- matched_infvacc_roommate %>% 
-  mutate(latest=pmax(last.inf.roommate, last.vacc.roommate,na.rm=T)) %>%
+  mutate(latest=pmax(last.inf.roommate, last.vacc.roommate-14,na.rm=T)) %>%
   mutate(time_since_infvacc.roommate = (test.Day-latest)%>%as.numeric()) %>%
   mutate(time_since_infvacc_cut.roommate=cut(time_since_infvacc.roommate, breaks=c(0, 90, 182, 365, Inf), right = F)) 
 levels(matched_infvacc_roommate$time_since_infvacc_cut.roommate)<-c(levels(matched_infvacc_roommate$time_since_infvacc_cut.roommate), "None") 
