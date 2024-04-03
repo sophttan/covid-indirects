@@ -1,66 +1,3 @@
-model <- clogit(case ~ has.vacc.roommate.binary + has.prior.inf.roommate + 
-                  age + age.roommate + risk + risk.roommate + strata(group), data=matched_infvacc_roommate)
-
-results <- (exp(coef(model))%>%cbind(exp(confint(model))) %>% as.data.frame())[1:2,]
-results
-
-model <- clogit(case ~ dose.roommate.adjusted + has.prior.inf.roommate + 
-                  age + age.roommate + risk + risk.roommate + strata(group), data=matched_infvacc_roommate)
-model <- (summary(model)$coefficients)[1,]
-or <- exp(model[1]*1:4)
-low <- exp(model[1]*1:4-1.96*model[3])
-high <- exp(model[1]*1:4+1.96*model[3])
-basic_results <- cbind(or, low, high)
-rownames(basic_results) <- c("dose.1", "dose.2", "dose.3", "dose.4")
-colnames(basic_results) <- colnames(results)
-
-results <- rbind(results, basic_results)
-
-model <- clogit(case ~ time_since_inf_cut.roommate + has.vacc.roommate.binary + 
-                  age + age.roommate + risk + risk.roommate + strata(group), data=matched_infvacc_roommate)
-basic_results <- (exp(coef(model))%>%cbind(exp(confint(model))) %>% as.data.frame())[1:4,]
-
-results <- rbind(results, basic_results)
-results
-
-model <- clogit(case ~ time_since_vacc_cut.roommate + has.prior.inf.roommate + 
-                  age + age.roommate + risk + risk.roommate + strata(group), data=matched_infvacc_roommate)
-summary(model)
-
-basic_results <- (exp(coef(model))%>%cbind(exp(confint(model))) %>% as.data.frame())[1:4,]
-
-results <- rbind(results, basic_results)
-results
-
-model <- clogit(case ~ time_since_infvacc_cut.roommate + 
-                  age + age.roommate + risk + risk.roommate + strata(group), data=matched_infvacc_roommate)
-summary(model)
-
-basic_results <- (exp(coef(model))%>%cbind(exp(confint(model))) %>% as.data.frame())[1:4,]
-
-results <- rbind(results, basic_results)
-results
-
-
-matched_infvacc_roommate <- matched_infvacc_roommate %>% 
-  mutate(time_since_vacc_cut2.roommate=cut(time_since_vacc.roommate, breaks=c(0, 30, 60, 90, 182, 365, Inf), right = F)) 
-
-levels(matched_infvacc_roommate$time_since_vacc_cut2.roommate)<-c(levels(matched_infvacc_roommate$time_since_vacc_cut2.roommate), "None") 
-matched_infvacc_roommate$time_since_vacc_cut2.roommate[is.na(matched_infvacc_roommate$time_since_vacc_cut2.roommate)] <- "None"
-matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_vacc_cut2.roommate = factor(time_since_vacc_cut2.roommate, levels=c("None","[0,30)", "[30,60)", "[60,90)","[90,182)","[182,365)","[365,Inf)")))
-
-model <- clogit(case ~ time_since_vacc_cut2.roommate + 
-                  age + age.roommate + risk + risk.roommate + strata(group), data=matched_infvacc_roommate)
-summary(model)
-
-basic_results <- (exp(coef(model))%>%cbind(exp(confint(model))) %>% as.data.frame())[1:3,]
-
-results <- rbind(results, basic_results)
-results
-
-
-results <- (1-results)*100
-results <- results %>% mutate(x=rownames(results))
 
 results <- results %>% mutate(inf_vacc=case_when(grepl("infvacc", x)~"Most recent vaccination or infection",
                                                  grepl("vacc|dose", x)~"Vaccination",
@@ -177,7 +114,7 @@ results2 <- (exp(coef(model))%>%cbind(exp(confint(model))) %>% as.data.frame())[
 results2 <- (1-results2)*100
 
 colors <- RColorBrewer::brewer.pal(11, "BrBG")[c(10,8)]
-ggplot(results2%>%mutate(bivalent=c("Not bivalent", "Not bivalent","Bivalent"), 
+ggplot(results2%>%mutate(bivalent=c("Monovalent", "Monovalent","Bivalent"), 
                               time=c("<90", "90+", "<90")%>%factor(levels=c("<90","90+"))), 
        aes(x=time, y=., group=bivalent, color=bivalent)) + geom_point(position = position_dodge(width=0.1)) + 
   geom_errorbar(aes(ymin=`97.5 %`, ymax=`2.5 %`), position=position_dodge(width=0.1), width=0.2) + 

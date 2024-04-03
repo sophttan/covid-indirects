@@ -162,23 +162,3 @@ match
 match_update <- match %>% group_by(key, subclass) %>% filter(abs(test.Day[1]-test.Day[2])<=2 & ResidentId[1]!=Roommate[2])
 match_update %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-roommate040224-nonewinf.csv")
 
-
-grouped <- match_update %>% group_by(key,subclass) %>% arrange(key, subclass, desc(case)) %>% 
-  summarise(age_diff=diff(age),
-            risk_diff=diff(risk),
-            age_diff.roommate=diff(age.roommate),
-            risk_diff.roommate=diff(risk.roommate),
-            vacc_diff=diff(time_since_vacc),
-            inf_diff=diff(time_since_inf))
-
-grouped$vacc_diff%>%hist(main = "Difference in time since vaccine\nbetween matched case and control", xlab="Days")
-grouped$vacc_diff%>%summary()
-
-grouped$inf_diff%>%hist(main = "Difference in time since infection\nbetween matched case and control", xlab="Days")
-grouped$inf_diff%>%summary()
-
-grouped$age_diff%>%hist(main = "Difference in age\nbetween matched case and control", xlab="Days")
-grouped$age_diff%>%summary()
-
-grouped$risk_diff%>%hist(main = "Difference in risk\nbetween matched case and control", xlab="Days")
-grouped$risk_diff%>%summary()
