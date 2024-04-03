@@ -9,11 +9,9 @@ library(readr)
 library(lubridate)
 library(survival)
 
-matched <- read_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-roommate.csv") %>% mutate(may=0)
-matched2 <- read_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-roommate-decmay.csv") %>% mutate(may=1)
-matched <- matched %>% rbind(matched2 %>% select(!c(nochange, nochange.roommate)))
+matched <- read_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-roommate040224-nonewinf.csv")
 matched_keys <- matched %>% 
-  group_by(may, key, subclass) %>% group_keys() %>% mutate(group = 1:n())
+  group_by(key, subclass) %>% group_keys() %>% mutate(group = 1:n())
 matched <- matched %>% left_join(matched_keys) %>% mutate(id=1:n())
 
 inf <- read_csv("D:/CCHCS_premium/st/cleaned-data/infection_data022624.csv") %>% filter(CollectionDate <= "2022-12-15") %>%
