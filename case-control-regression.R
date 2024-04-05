@@ -138,7 +138,7 @@ write_csv(format_results(model), here::here("results/vacc-results-3months.csv"))
 # bivalent
 matched_infvacc_roommate <- matched_infvacc_roommate %>% 
   mutate(bivalent = case_when(last.vacc.roommate%>%is.na()~0,
-                              last.vacc.roommate<"2022-09-01"~1,
+                              last.vacc.roommate-14<"2022-09-01"~1,
                               T~2) %>% factor(levels=0:2, labels=c("Unvacc", "Monovalent", "Bivalent")))
 matched_infvacc_roommate %>% select(id, group, last.vacc.roommate, dose.roommate.adjusted, bivalent)
 
@@ -148,7 +148,7 @@ format_results(model)
 
 matched_infvacc_roommate <- matched_infvacc_roommate %>% 
   mutate(bivalent_time = case_when(last.vacc.roommate%>%is.na()~"Unvacc",
-                                   last.vacc.roommate>="2022-09-01"~"Bivalent",
+                                   last.vacc.roommate-14>="2022-09-01"~"Bivalent",
                                    time_since_vacc.roommate<90~"Monovalent<90",
                                    time_since_vacc.roommate>=90~"Monovalent>=90") %>% factor(levels=c("Unvacc", "Monovalent<90", "Monovalent>=90", "Bivalent")))
 

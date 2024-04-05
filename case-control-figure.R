@@ -114,12 +114,12 @@ results2 <- (exp(coef(model))%>%cbind(exp(confint(model))) %>% as.data.frame())[
 results2 <- (1-results2)*100
 
 colors <- RColorBrewer::brewer.pal(11, "BrBG")[c(10,8)]
-ggplot(results2%>%mutate(bivalent=c("Monovalent", "Monovalent","Bivalent"), 
-                              time=c("<90", "90+", "<90")%>%factor(levels=c("<90","90+"))), 
-       aes(x=time, y=., group=bivalent, color=bivalent)) + geom_point(position = position_dodge(width=0.1)) + 
-  geom_errorbar(aes(ymin=`97.5 %`, ymax=`2.5 %`), position=position_dodge(width=0.1), width=0.2) + 
+ggplot(results[1:3,]%>%mutate(bivalent=c("Monovalent", "Monovalent","Bivalent"), 
+                              time=c("<3", "3+", "<3")%>%factor(levels=c("<3", "3+"))), 
+       aes(x=time, y=point, group=bivalent, color=bivalent)) + geom_point(position = position_dodge(width=0.1)) + 
+  geom_errorbar(aes(ymin=lb, ymax=ub), position=position_dodge(width=0.1), width=0.2) + 
   geom_hline(yintercept=0, linetype=2) + 
-  scale_x_discrete("Days") + 
+  scale_x_discrete("Months") + 
   scale_y_continuous("Indirect protection (%)") + 
   scale_color_manual(values=colors) + 
   theme(legend.title=element_blank(),
