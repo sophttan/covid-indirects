@@ -9,7 +9,7 @@ library(readr)
 library(lubridate)
 library(survival)
 
-matched <- read_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-roommate040224-nonewinf.csv")
+matched <- read_csv("D:/CCHCS_premium/st/indirects/matched_building_6-9days-040824.csv") 
 matched_keys <- matched %>% 
   group_by(key, subclass) %>% group_keys() %>% mutate(group = 1:n())
 matched <- matched %>% left_join(matched_keys) %>% mutate(id=1:n())
@@ -86,7 +86,7 @@ format_results <- function(model) {
 
 model <- clogit(case ~ has.vacc.roommate.binary + has.prior.inf.roommate + 
                   age + age.roommate + risk + risk.roommate + strata(group), data=matched_infvacc_roommate)
-write_csv(format_results(model), here::here("results/main-results-binary.csv"))
+write_csv(format_results(model), here::here("results/roommate-6-9day/main-results-binary.csv"))
 
 model <- clogit(case ~ dose.roommate.adjusted + has.prior.inf.roommate + 
                   age + age.roommate + risk + risk.roommate + strata(group), data=matched_infvacc_roommate)
@@ -104,7 +104,7 @@ dose_results <- ((1-dose_results)*100) %>% as.data.frame()
 dose_results <- dose_results %>% mutate(x=rownames(dose_results))
 names(dose_results) <- c("point", "lb", "ub", "x")
 
-write_csv(rbind(dose_results, main), here::here("results/main-results-dose.csv"))
+write_csv(rbind(dose_results, main), here::here("results/roommate-6-9day/main-results-dose.csv"))
 
 
 inf_model <- clogit(case ~ time_since_inf_cut.roommate + has.vacc.roommate.binary + 
@@ -119,7 +119,7 @@ infvacc_model <- clogit(case ~ time_since_infvacc_cut.roommate +
 results <- rbind(format_results(inf_model) %>% mutate(inf_vacc="inf"),
                  format_results(vacc_model) %>% mutate(inf_vacc="vacc"),
                  format_results(infvacc_model) %>% mutate(inf_vacc="infvacc"))
-write_csv(results, here::here("results/main-results-time.csv"))
+write_csv(results, here::here("results/roommate-6-9day/main-results-time.csv"))
 
 
 # first 3 months vaccine
@@ -132,7 +132,7 @@ matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_vacc_
 
 model <- clogit(case ~ time_since_vacc_cut2.roommate + 
                   age + age.roommate + risk + risk.roommate + strata(group), data=matched_infvacc_roommate)
-write_csv(format_results(model), here::here("results/vacc-results-3months.csv"))
+write_csv(format_results(model), here::here("results/roommate-6-9day/vacc-results-3months.csv"))
 
 
 # bivalent
@@ -154,6 +154,6 @@ matched_infvacc_roommate <- matched_infvacc_roommate %>%
 
 model <- clogit(case ~ bivalent_time + has.prior.inf.roommate + 
                   age + age.roommate + risk + risk.roommate + strata(group), data=matched_infvacc_roommate)
-write_csv(format_results(model), here::here("results/main-results-bivalent.csv"))
+write_csv(format_results(model), here::here("results/roommate-6-9day/main-results-bivalent.csv"))
 
 

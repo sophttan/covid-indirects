@@ -81,4 +81,4 @@ vacc <- vacc_summary %>% ggplot(aes(Date, any_cum)) +
 
 library(patchwork)
 inf/vacc
-ggsave("D:/CCHCS_premium/st/covid-indirects/figures/inf_test_vacc.jpg", width=10, height=7, dpi=300)
+ggsave("D:/CCHCS_premium/st/covid-indirects/figures/inf_test_vacc.jpg", width=8, height=7, dpi=300)
