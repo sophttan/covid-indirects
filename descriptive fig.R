@@ -19,13 +19,15 @@ tests_plot_group <- tests_plot %>% group_by(week) %>%
 colors <- c(RColorBrewer::brewer.pal(3, "Paired")[2], RColorBrewer::brewer.pal(8, "Dark2")[8])
 inf <- inf_plot_group %>% 
   ggplot(aes(as.POSIXct(Day), inf)) + 
+  geom_rect(xmin=as.POSIXct("2021-12-15"), xmax=as.POSIXct("2022-12-15"), ymin=0, ymax=6000, fill="grey93", alpha=0.1) + 
+  annotate("text", x=as.POSIXct("2022-06-15"), y=5300, label="Study period", size=4) + 
   geom_line(aes(color="Infections")) + 
   geom_line(data = tests_plot_group, aes(y=resident_tests/20, color="Tests")) +
   scale_y_continuous(name="Total weekly infections", 
                      expand = expansion(mult=c(0, 0.01)),
                      sec.axis = sec_axis(~.*20, name="Total weekly tests", breaks=seq(0, 100000, 25000))) + 
   scale_x_datetime("Time", date_labels = "%b %y", 
-                   date_breaks = "2 month", expand = c(0.01,0.01), limits = as.POSIXct(c("2020-03-01", "2023-01-01"))) + 
+                   date_breaks = "2 month", expand = c(0.01,0.01), limits = as.POSIXct(c("2020-03-01", "2022-12-15"))) + 
   scale_color_manual(values=colors) + 
   labs(subtitle = "A") + 
   theme(panel.border = element_rect(fill=NA),
@@ -53,7 +55,7 @@ vacc_summary <- vaccines %>% group_by(Date) %>%
             one=sum(num_dose-full_vacc==1),
             two=sum(num_dose-full_vacc>1))
 
-vacc_summary <- vacc_summary %>% full_join(data.frame(Date=seq(as.Date("2020-12-01"),as.Date("2023-01-01"),1))) %>% arrange(Date) %>%
+vacc_summary <- vacc_summary %>% full_join(data.frame(Date=seq(as.Date("2020-12-01"),as.Date("2022-12-15"),1))) %>% arrange(Date) %>%
   replace_na(list(any=0, full=0, one=0, two=0))
 
 vacc_summary <- vacc_summary %>% mutate(any_cum=cumsum(any)/177319*100,
@@ -61,13 +63,15 @@ vacc_summary <- vacc_summary %>% mutate(any_cum=cumsum(any)/177319*100,
                                         one_cum=cumsum(one)/177319*100,
                                         two_cum=cumsum(two)/177319*100)
 
-colors <- RColorBrewer::brewer.pal(9, "Purples")[c(9, 6, 4, 3)]
+colors <- RColorBrewer::brewer.pal(9, "Purples")[c(9, 6, 4,3)]
 vacc <- vacc_summary %>% ggplot(aes(Date, any_cum)) + 
+  geom_rect(xmin=as.Date("2021-12-15"), xmax=as.Date("2022-12-15"), ymin=0, ymax=100, fill="grey93", alpha=0.1) + 
+  annotate("text", x=as.Date("2022-06-15"), y=94, label="Study period", size=4) + 
   geom_line(aes(color="Any vaccine")) + 
   geom_line(aes(y=full_cum, color="Primary series only")) + 
   geom_line(aes(y=one_cum, color="One booster")) + 
   geom_line(aes(y=two_cum, color="Two or more boosters")) +
-  scale_x_date("Time", date_labels = "%b %y",date_breaks = "2 month", expand=c(0.01, 0.01), limits = as.Date(c("2020-03-01", "2023-01-01"))) + 
+  scale_x_date("Time", date_labels = "%b %y",date_breaks = "2 month", expand=c(0.01, 0.01), limits = as.Date(c("2020-03-01", "2022-12-15"))) + 
   scale_y_continuous("Vaccination coverage (%)", limits=c(0, 100), expand=c(0, 0)) +
   scale_color_manual(values=colors, breaks=c("Any vaccine", "Primary series only", "One booster", "Two or more boosters")) + 
   labs(subtitle="B") + 
