@@ -5,8 +5,8 @@ results <- rbind(read_csv(here::here("results/main/main-results-binary.csv"))[1:
 
 
 results <- results %>% mutate(inf_vacc=case_when(grepl("infvacc", x)~"Most recent vaccination or infection",
-                                                 grepl("vacc|dose", x)~"Vaccine-derived",
-                                                 T~"Infection-acquired"), 
+                                                 grepl("vacc|dose", x)~"Vaccine-derived immunity",
+                                                 T~"Infection-acquired\nimmunity"), 
                               group=case_when(grepl("binary|prior.inf", x)~"Binary",
                                               grepl("dose", x)~"By dose",
                                               T~"By time")) %>%
@@ -17,7 +17,7 @@ results <- results %>% mutate(inf_vacc=case_when(grepl("infvacc", x)~"Most recen
   mutate(value=if_else(inf_vacc=="Vaccination"&group!="By time", 1.5, NA))
 
 results <- results %>% mutate(inf_vacc=if_else(group=="By time"&grepl("30|60",x), "First three months of vaccination", inf_vacc) %>%
-                                factor(levels=c("Vaccine-derived", "Infection-acquired", "Most recent vaccination or infection", "First three months of vaccination")))
+                                factor(levels=c("Vaccine-derived immunity", "Infection-acquired\nimmunity", "Most recent vaccination or infection", "First three months of vaccination")))
 
 library(ggh4x)
 library(RColorBrewer)
@@ -39,7 +39,7 @@ p1
 ggsave("D:/CCHCS_premium/st/covid-indirects/figures/figure2.jpg", width=8, height=4, dpi=300)
 
 p2 <- ggplot(results%>%filter(group=="By time"&inf_vacc!="First three months of vaccination")%>%
-               mutate(inf_vacc=factor(inf_vacc, levels=c("Vaccine-derived", "Infection-acquired", "Most recent vaccination or infection"))), 
+               mutate(inf_vacc=factor(inf_vacc, labels=c("Vaccine-derived immunity", "Infection-acquired immunity", "Most recent vaccination or infection"))), 
              aes(x=time, y=point, color=inf_vacc)) + geom_point() + 
   geom_errorbar(aes(ymin=ub, ymax=lb), width=0.2) + 
   geom_hline(yintercept=0, linetype=2) + 
