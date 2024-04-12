@@ -57,14 +57,14 @@ matched_infvacc_roommate$time_since_vacc_cut.roommate[is.na(matched_infvacc_room
 matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_vacc_cut.roommate = factor(time_since_vacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 
 matched_infvacc_roommate <- matched_infvacc_roommate %>% 
-  mutate(time_since_inf.roommate = (test.Day-last.inf.roommate-14) %>% as.numeric()) %>%
+  mutate(time_since_inf.roommate = (test.Day-(last.inf.roommate-14)) %>% as.numeric()) %>%
   mutate(time_since_inf_cut.roommate=cut(time_since_inf.roommate, breaks=c(0, 90, 182, 365, Inf), right = F)) 
 levels(matched_infvacc_roommate$time_since_inf_cut.roommate)<-c(levels(matched_infvacc_roommate$time_since_inf_cut.roommate), "None") 
 matched_infvacc_roommate$time_since_inf_cut.roommate[is.na(matched_infvacc_roommate$time_since_inf_cut.roommate)] <- "None"
 matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_inf_cut.roommate = factor(time_since_inf_cut.roommate, levels=c("None","[0,90)", "[90,182)","[182,365)","[365,Inf)")))
 
 matched_infvacc_roommate <- matched_infvacc_roommate %>% 
-  mutate(latest=pmax(last.inf.roommate, last.vacc.roommate-14,na.rm=T)) %>%
+  mutate(latest=pmax(last.inf.roommate-14, last.vacc.roommate, na.rm=T)) %>%
   mutate(time_since_infvacc.roommate = (test.Day-latest)%>%as.numeric()) %>%
   mutate(time_since_infvacc_cut.roommate=cut(time_since_infvacc.roommate, breaks=c(0, 90, 182, 365, Inf), right = F)) 
 levels(matched_infvacc_roommate$time_since_infvacc_cut.roommate)<-c(levels(matched_infvacc_roommate$time_since_infvacc_cut.roommate), "None") 

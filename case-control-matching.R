@@ -9,8 +9,8 @@ library(readr)
 library(lubridate)
 library(MatchIt)
 
-cases <- read_csv("D:/CCHCS_premium/st/indirects/cases3-7daysame-roommate.csv")%>%mutate(case=1)%>%rename("test.Day"="inf.Day")
-controls <- read_csv("D:/CCHCS_premium/st/indirects/control3-7daysame-roommate.csv")%>%mutate(case=0)%>%select(names(cases))
+cases <- read_csv("D:/CCHCS_premium/st/indirects/cases6-9daysame-roommate-040824.csv")%>%mutate(case=1)%>%rename("test.Day"="inf.Day")
+controls <- read_csv("D:/CCHCS_premium/st/indirects/control6-9daysame-roommate-040824.csv")%>%mutate(case=0)%>%select(names(cases))
 
 cases
 controls
@@ -21,7 +21,7 @@ total <- total %>% group_by(ResidentId, test.Day)
 total <- total %>% summarise_all(first)
 total$case %>% table()
 
-inf <- read_csv("D:/CCHCS_premium/st/cleaned-data/infection_data022624.csv") %>% filter(CollectionDate <= "2022-12-15") %>%
+inf <- read_csv("D:/CCHCS_premium/st/cleaned-data/infection_data022624.csv") %>%
   select(ResidentId, CollectionDate) %>% rename(new.inf=CollectionDate)
 total_remove <- total %>% left_join(inf, "ResidentId") %>%
   filter(new.inf>test.Day & new.inf-test.Day<14) %>%
@@ -160,5 +160,5 @@ for (i in keep$key) {
 match
 
 match_update <- match %>% group_by(key, subclass) %>% filter(abs(test.Day[1]-test.Day[2])<=2 & ResidentId[1]!=Roommate[2])
-match_update %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-roommate040224-nonewinf.csv")
+match_update %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_6-9days-040824.csv")
 
