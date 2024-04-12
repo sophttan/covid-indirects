@@ -73,39 +73,25 @@ for (i in 0:2) {
     mutate(time=rep(c("<6", "6+"),3),
            time=factor(time, levels=c("<6", "6+"))) 
 
-
+  final_results <- rbind(final_results, results)
 }
 
 
-if (i==0) {
-  p <- ggplot(results, aes(x=time, y=., color=inf_vacc)) + geom_point() + 
-    geom_errorbar(aes(ymin=`97.5 %`, ymax=`2.5 %`), width=0.2) + 
-    geom_hline(yintercept=0, linetype=2) + 
-    facet_grid2(render_empty = F, switch = "y", rows=vars(inf_vacc), cols=NULL) + 
-    scale_x_discrete("Months") + 
-    scale_y_continuous("Indirect protection (%)", limits = c(-50,80), breaks=seq(-50, 75, 25)) +
-    scale_color_brewer(palette = "Dark2") + 
-    labs(title=i) + 
-    theme(legend.position = "none",
-          panel.background = element_blank(),
-          panel.border= element_rect(fill=NA),
-          strip.text.x = element_text(face="bold", size=12),
-          strip.background = element_rect(fill=NA,colour="black"),
-          text=element_text(size=12, family="sans")) 
-} else {
-  p <- p + ggplot(results, aes(x=time, y=., color=inf_vacc)) + geom_point() + 
-    geom_errorbar(aes(ymin=`97.5 %`, ymax=`2.5 %`), width=0.2) + 
-    geom_hline(yintercept=0, linetype=2) + 
-    facet_grid2(render_empty = F, switch = "y", rows=vars(inf_vacc), cols=NULL) + 
-    scale_x_discrete("Months") + 
-    scale_y_continuous(limits = c(-50,80), breaks=seq(-50, 75, 25)) +
-    scale_color_brewer(palette = "Dark2") + 
-    labs(title=i) + 
-    theme(axis.title.y = element_blank(),
-          legend.position = "none",
-          panel.background = element_blank(),
-          panel.border= element_rect(fill=NA),
-          strip.text.x = element_text(face="bold", size=12),
-          strip.background = element_rect(fill=NA,colour="black"),
-          text=element_text(size=12, family="sans")) 
-}
+final_results <- final_results %>% mutate(inf=factor(inf, labels=c("No confirmed infections", "<4 infections", "4+ infections")))
+
+p <- ggplot(final_results, aes(x=time, y=., color=inf_vacc)) + geom_point() + 
+  geom_errorbar(aes(ymin=`97.5 %`, ymax=`2.5 %`), width=0.2) + 
+  geom_hline(yintercept=0, linetype=2) + 
+  facet_grid2(inf_vacc~inf, scale="free_x", independent = "x", render_empty = F) + 
+  scale_x_discrete("Months") + 
+  scale_y_continuous("Indirect protection (%)", breaks=seq(-50, 80, 25)) + 
+  scale_color_brewer(palette = "Dark2") + 
+  theme(legend.position = "none",
+        panel.background = element_blank(),
+        panel.border= element_rect(fill=NA),
+        strip.text.x = element_text(face="bold", size=12),
+        strip.text.y = element_text(face="bold", size=12),
+        strip.background = element_rect(fill=NA,colour="black"),
+        text=element_text(size=12, family="sans")) 
+p
+ggsave("D:/CCHCS_premium/st/covid-indirects/figures/incidence.jpg", width=8, height=7, dpi=300)
