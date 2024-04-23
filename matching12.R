@@ -9,8 +9,8 @@ library(readr)
 library(lubridate)
 library(MatchIt)
 
-cases <- read_csv("D:/CCHCS_premium/st/indirects/cases3daysame-roommate-040824.csv")%>%mutate(case=1)%>%rename("test.Day"="inf.Day")
-controls <- read_csv("D:/CCHCS_premium/st/indirects/control3daysame-roommate-040824.csv")%>%mutate(case=0)%>%select(names(cases))
+cases <- read_csv("D:/CCHCS_premium/st/indirects/cases3-7daysame-roommate.csv")%>%mutate(case=1)%>%rename("test.Day"="inf.Day")
+controls <- read_csv("D:/CCHCS_premium/st/indirects/control3-7daysame-roommate-041624.csv")%>%mutate(case=0)%>%select(names(cases))
 
 cases
 controls
@@ -71,7 +71,7 @@ total_vacc_security_demo_risk <- total_vacc_security_demo %>%
 total_vacc_security_demo_risk <- total_vacc_security_demo_risk %>% 
   mutate(time_since_vacc = (test.Day-Date_offset)%>%as.numeric(),
          time_since_inf = (test.Day-last.inf) %>% as.numeric()) 
-  
+
 total_vacc_security_demo_risk <- total_vacc_security_demo_risk %>% ungroup() %>%
   mutate(time_since_vacc.scale = (scale(time_since_vacc, T, T)%>%as.vector())*2,
          time_since_inf.scale = (scale(time_since_inf, T, T)%>%as.vector())*2,
@@ -83,7 +83,7 @@ total_vacc_security_demo_risk <- total_vacc_security_demo_risk %>% ungroup() %>%
 total_vacc_security_demo_risk <- total_vacc_security_demo_risk %>% replace_na(list(time_since_vacc.scale=0, time_since_inf.scale=0))
 
 get_distance <- function(tbl) {
-  dist_tbl <- dist(tbl %>% select(risk.scale, risk.roommate.scale, age.scale, age.roommate.scale), diag=T, upper=T) %>% as.matrix()
+  dist_tbl <- dist(tbl %>% select(risk.scale, risk.roommate.scale, age.scale, age.roommate.scale, time_since_vacc.scale, time_since_inf.scale), diag=T, upper=T) %>% as.matrix()
   
   tbl <- tbl %>% mutate(label=1:n()) %>% select(label, ResidentId, Roommate, test.Day) 
   tbl <- cross_join(tbl, tbl) %>% 
@@ -98,7 +98,7 @@ get_distance <- function(tbl) {
   roommate_matrix <- tbl%>% 
     select(label.x, label.y, roommates) %>% 
     pivot_wider(id_cols = label.x, names_from = label.y, values_from = roommates) %>% as.data.frame() %>% select(!label.x)
-
+  
   dist_tbl[roommate_matrix==T] <- Inf
   
   dist_tbl
@@ -133,9 +133,10 @@ for (i in keep$key) {
   if(num_cases==1) {
     for_matching_inst$distance <- distance_matrix[,1]
     
-    for_matching_inst <- (for_matching_inst %>% arrange(distance))[1:2,] %>% select(!distance)
+    num_match <- min(nrow(for_matching_inst%>%filter(!distance%>%is.infinite())), 3)
+    for_matching_inst <- (for_matching_inst %>% arrange(distance))[1:num_match,] %>% select(!distance)
     
-    match <- rbind(match, cbind(id=1:2, subclass=c(1,1), for_matching_inst))
+    match <- rbind(match, cbind(id=1:num_match, subclass=rep(1, num_match), for_matching_inst))
     next
   }
   
@@ -151,7 +152,8 @@ for (i in keep$key) {
   matched_data <- matchit(case ~ Institution + BuildingId + num_dose_adjusted + has.prior.inf + level,
                           data = for_matching_inst, 
                           distance = distance_matrix,
-                          exact = case ~ Institution + BuildingId + num_dose_adjusted + has.prior.inf + level)
+                          exact = case ~ Institution + BuildingId + num_dose_adjusted + has.prior.inf + level, 
+                          ratio=2)
   
   print(matched_data %>% summary())
   match <- rbind(match, matched_data %>% get_matches() %>% select(!weights))
@@ -159,6 +161,6 @@ for (i in keep$key) {
 
 match
 
-match_update <- match %>% group_by(key, subclass) %>% filter(abs(test.Day-first(test.Day))<=2 & first(ResidentId)!=Roommate)
-match_update %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-roommate-notimematch-041924.csv")
+match %>% group_by(key, subclass) %>% arrange(key, subclass, desc(case)) %>% filter(abs(test.Day-first(test.Day))<=2 & first(ResidentId)!=Roommate)
+match %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_3days-12matching-042224.csv")
 

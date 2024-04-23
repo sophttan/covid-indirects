@@ -1,7 +1,7 @@
-results <- rbind(read_csv(here::here("results/main/main-results-binary.csv"))[1:2,],
-                 read_csv(here::here("results/main/main-results-dose.csv"))[1:4,],
-                 (read_csv(here::here("results/main/main-results-time.csv"))[c(1:4, 10:13, 19:22),])%>%select(!inf_vacc),
-                 read_csv(here::here("results/main/vacc-results-3months.csv"))[1:3,])
+results <- rbind(read_csv(here::here("results/match2/main-results-binary.csv"))[1:2,],
+                 read_csv(here::here("results/match2/main-results-dose.csv"))[1:4,],
+                 (read_csv(here::here("results/match2/main-results-time.csv"))[c(1:4, 10:13, 19:22),])%>%select(!inf_vacc),
+                 read_csv(here::here("results/match2/vacc-results-3months.csv"))[1:3,])
 
 
 results <- results %>% mutate(inf_vacc=case_when(grepl("infvacc", x)~"Most recent vaccination or infection",
@@ -36,7 +36,7 @@ p1 <- ggplot(results%>%filter(group!="By time"), aes(x=time, y=point, color=inf_
         strip.background = element_rect(fill=NA,colour="black"),
         text=element_text(size=12, family="sans")) 
 p1
-ggsave("D:/CCHCS_premium/st/covid-indirects/figures/figure2.jpg", width=8, height=4, dpi=300)
+ggsave("D:/CCHCS_premium/st/covid-indirects/figures/figure2.jpg", width=9, height=4, dpi=300)
 
 p2 <- ggplot(results%>%filter(group=="By time"&inf_vacc!="First three months of vaccination")%>%
                mutate(inf_vacc=factor(inf_vacc, labels=c("Vaccine-derived immunity", "Infection-acquired immunity", "Most recent vaccination or infection"))), 
@@ -75,7 +75,7 @@ ggsave("D:/CCHCS_premium/st/covid-indirects/figures/figure4.jpg", width=4, heigh
 
 
 # bivalent
-results <- read_csv(here::here("results/main/main-results-bivalent.csv"))[1:3,]
+results <- read_csv(here::here("results/match2/main-results-bivalent.csv"))[1:3,]
 
 colors <- RColorBrewer::brewer.pal(11, "BrBG")[c(10,8)]
 ggplot(results[1:3,]%>%mutate(bivalent=c("Monovalent", "Monovalent","Bivalent"), 
