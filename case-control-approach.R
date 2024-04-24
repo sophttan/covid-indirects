@@ -11,7 +11,7 @@ library(lubridate)
 inf <- read_csv("D:/CCHCS_premium/st/cleaned-data/infection_data022624.csv")
 testing <- read_csv("D:/CCHCS_premium/st/cleaned-data/complete_testing_data022624.csv") 
 
-inf <- inf %>% filter(CollectionDate>="2021-12-15") %>%
+inf <- inf %>% filter(CollectionDate>="2021-12-15" & CollectionDate<="2022-12-15") %>%
   rename("Day"="CollectionDate") %>% 
   select(ResidentId, num_pos, Day)
 inf
@@ -30,12 +30,17 @@ inf_eligible <- inf %>% filter(ResidentId %in% included)
 
 
 testing <- testing %>% group_by(ResidentId, num_pos) %>% mutate(last_inf=if_else(num_pos==0, NA, min(Day)))
-# testing <- testing %>% filter(Day >= "2021-12-15" & Day < "2023-03-01") 
+testing <- testing %>% filter(Day >= "2021-12-15" & Day <= "2022-12-15") 
 testing_eligible <- testing %>% ungroup() %>% filter(ResidentId %in% included) 
 testing_eligible <- testing_eligible %>%filter(num_pos==0|Day-last_inf>90) %>%
   filter(Result=="Negative")
-testing_eligible_after_december <- testing_eligible %>% filter(Day>"2022-12-15")
 
+inf_full <- read_csv("D:/CCHCS_premium/st/cleaned-data/infection_data022624.csv") %>%
+  select(ResidentId, CollectionDate) %>% rename(new.inf=CollectionDate)
+remove <- testing_eligible %>% left_join(inf_full, "ResidentId") %>%
+  filter(new.inf>Day & new.inf-Day<14) %>%
+  select(ResidentId, Day) %>% mutate(remove=1)
+testing_eligible <- testing_eligible %>% left_join(remove) %>% filter(remove%>%is.na()) %>% select(!remove)
 
 ### add housing data 
 housing_relevant <- housing %>% filter(Night >= "2021-12-01")
@@ -67,7 +72,7 @@ cases_final <- cases_final %>%
 write_csv(cases_final, "D:/CCHCS_premium/st/indirects/cases3-7daysame-roommate-may.csv")
 
 
-testing_eligible  <- testing_eligible_after_december  %>% select(!c(Result, Details, pcr, antigen, unknown, last_inf))
+testing_eligible  <- testing_eligible  %>% select(!c(Result, Details, pcr, antigen, unknown, last_inf))
 test_final <- NULL
 total_excluded_housing <- 0
 total_excluded_isolation <- 0
@@ -76,7 +81,7 @@ total_excluded_movementroommate <- 0
 total_excluded_movementbuild <- 0
 total_excluded_roommate <- 0
 
-for(i in seq(1:7)) {
+for(i in seq(1:34)) {
   print(total_excluded_housing)
   print(total_excluded_isolation)
   print(total_excluded_group)
@@ -116,7 +121,7 @@ for(i in seq(1:7)) {
   
   tests <- tests %>% filter(first(Roommate) %in% included)
   
-  total_excluded_movementbuild <- total_excluded_movementbuild + (tests %>%filter(any(Institution!=first(Institution)))%>%filter(any(BuildingId!=first(BuildingId)))%>%group_keys()%>%nrow())
+  total_excluded_movementbuild <- total_excluded_movementbuild + (tests %>%filter(any(Institution!=first(Institution))|any(BuildingId!=first(BuildingId)))%>%group_keys()%>%nrow())
   
   tests <- tests %>% 
     filter(all(Institution==first(Institution))) %>%
@@ -124,5 +129,5 @@ for(i in seq(1:7)) {
   
   test_final <- test_final %>% rbind(tests)
 }
-write_csv(test_final, "D:/CCHCS_premium/st/indirects/control3-7daysame-roommate-decmay.csv")
+write_csv(test_final, "D:/CCHCS_premium/st/indirects/control3-7daysame-roommate-041624.csv")
 

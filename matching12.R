@@ -83,7 +83,7 @@ total_vacc_security_demo_risk <- total_vacc_security_demo_risk %>% ungroup() %>%
 total_vacc_security_demo_risk <- total_vacc_security_demo_risk %>% replace_na(list(time_since_vacc.scale=0, time_since_inf.scale=0))
 
 get_distance <- function(tbl) {
-  dist_tbl <- dist(tbl %>% select(risk.scale, risk.roommate.scale, age.scale, age.roommate.scale, time_since_vacc.scale, time_since_inf.scale), diag=T, upper=T) %>% as.matrix()
+  dist_tbl <- dist(tbl %>% select(risk.scale, risk.roommate.scale, age.scale, age.roommate.scale), diag=T, upper=T) %>% as.matrix()
   
   tbl <- tbl %>% mutate(label=1:n()) %>% select(label, ResidentId, Roommate, test.Day) 
   tbl <- cross_join(tbl, tbl) %>% 
@@ -162,5 +162,5 @@ for (i in keep$key) {
 match
 
 match %>% group_by(key, subclass) %>% arrange(key, subclass, desc(case)) %>% filter(abs(test.Day-first(test.Day))<=2 & first(ResidentId)!=Roommate)
-match %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_3days-12matching-042224.csv")
+match %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-12matching-notimematch-042324.csv")
 

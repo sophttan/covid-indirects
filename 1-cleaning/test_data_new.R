@@ -88,18 +88,6 @@ infections <- final_tests_labelinf %>% group_by(ResidentId, num_pos) %>% summari
   select(!c(Institution, ReceivedDate)) %>% rename("Day"="CollectionDate") %>% 
 infections %>% write_csv("D:/CCHCS_premium/st/cleaned-data/infection_data022624.csv")
 
-# # overlay testing and infection data
-# inf <- removed_mult_tests %>% 
-#   mutate(week=difftime(CollectionDate, as.Date("2020-03-01"), units="weeks")%>%as.numeric()%>%round()) 
-# 
-# inf_plot_group <- removed_mult_tests %>% group_by(week) %>% 
-#   summarise(CollectionDate=min(CollectionDate), inf=n())
-# inf_plot_group %>% 
-#   ggplot(aes(as.POSIXct(CollectionDate), inf)) + 
-#   geom_line(aes(color="Infections")) + 
-#   geom_line(data = tests_plot_group, aes(y=resident_tests/20, color="Tests")) +
-#   scale_y_continuous(name="Total weekly infections", 
-#                      expand = expansion(mult=c(0, 0)),
-#                      sec.axis = sec_axis(~.*20, name="Total weekly resident-day tests")) + 
-#   scale_x_datetime("Time",date_breaks = "1 month", expand = c(0,0)) + 
-#   theme(axis.text.x = element_text(angle=90), legend.title = element_blank())
+
+study_period <- final_tests_labelinf %>% filter(CollectionDate >= "2021-12-15" & CollectionDate <= "2022-12-15")
+study_period %>% ungroup() %>% filter(pcr) %>% mutate(time=(ReceivedDate-CollectionDate)%>%as.numeric())
