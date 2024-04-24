@@ -35,7 +35,7 @@ inf <- ggplot(grouped) +
   geom_histogram(aes(inf_diff, y=..density..)) + 
   scale_x_continuous("Difference between matched case and control", expand=c(0, 0)) + 
   scale_y_continuous("Density", expand=c(0, 0)) + 
-  labs(subtitle="D. Days since SARS-CoV-2 infection") + 
+  labs(subtitle="") + 
   theme(panel.background = element_blank(),
         panel.border= element_rect(fill=NA),
         strip.text.x = element_text(face="bold", size=12),
