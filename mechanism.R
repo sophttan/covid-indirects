@@ -86,7 +86,7 @@ inf_overall <- matched_infvacc_roommate %>% ggplot(aes(time_since_inf, group=fac
   scale_fill_discrete("") + 
   scale_x_continuous("Days", expand=c(0, 0)) + 
   scale_y_continuous("Density", expand=c(0, 0)) + 
-  labs(subtitle="D. Days") +
+  labs(subtitle="D. Days since last SARS-CoV-2 infection") +
   theme(legend.position = "bottom",
         panel.background = element_blank(),
         panel.border= element_rect(fill=NA),
@@ -98,9 +98,9 @@ inf_overall <- matched_infvacc_roommate %>% ggplot(aes(time_since_inf, group=fac
 vacc_overall <- matched_infvacc_roommate %>% ggplot(aes(time_since_vacc, group=factor(case), fill=factor(case))) +
   geom_histogram(aes(y = ..density..), position="identity", alpha=0.5) + 
   scale_fill_discrete("") + 
-  scale_x_continuous("Days since COVID-19 vaccination", expand=c(0, 0)) + 
+  scale_x_continuous("Days", expand=c(0, 0)) + 
   scale_y_continuous("Density", expand=c(0, 0)) + 
-  labs(subtitle="C. Days") +
+  labs(subtitle="C. Days since COVID-19 vaccination") +
   theme(legend.position = "none",
         panel.background = element_blank(),
         panel.border= element_rect(fill=NA),
