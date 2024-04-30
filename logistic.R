@@ -11,7 +11,7 @@ high <- exp(dose_model[1]*1:4+1.96*dose_model[2])
 dose_results <- cbind(or, low, high)
 rownames(dose_results) <- c("dose.1", "dose.2", "dose.3", "dose.4")
 
-dose_results <- ((1-dose_results)*100) %>% as.data.frame()
+dose_results <- dose_results %>% as.data.frame()
 dose_results <- dose_results %>% mutate(x=rownames(dose_results))
 names(dose_results) <- c("point", "lb", "ub", "x")
 

@@ -1,28 +1,35 @@
-results <- rbind(read_csv(here::here("results/match2/main-results-binary.csv"))[1:2,],
+results <- rbind(results[3,], 
+                 read_csv(here::here("results/match2/main-results-binary.csv"))[1:2,],
                  read_csv(here::here("results/match2/main-results-dose.csv"))[1:4,],
                  (read_csv(here::here("results/match2/main-results-time.csv"))[c(1:4, 10:13, 19:22),])%>%select(!inf_vacc),
                  read_csv(here::here("results/match2/vacc-results-3months.csv"))[1:3,])
 
 
-results <- results %>% mutate(inf_vacc=case_when(grepl("infvacc", x)~"Most recent vaccination or infection",
+results <- results %>% mutate(inf_vacc=case_when(grepl("both", x)~"Hybrid immunity",
+                                                 grepl("infvacc", x)~"Most recent vaccination or infection",
                                                  grepl("vacc|dose", x)~"Vaccine-derived immunity",
                                                  T~"Infection-acquired\nimmunity"), 
-                              group=case_when(grepl("binary|prior.inf", x)~"Binary",
+                              group=case_when(grepl("binary|prior.inf|both", x)~"Binary",
                                               grepl("dose", x)~"By dose",
                                               T~"By time")) %>%
-  mutate(time=c("Any","Any","1","2","3","4",rep(c("<3", "3-6", "6-12", "12+"), 3), "<1", "1-2", "2-3"),
+  mutate(time=c("Both", "Any","Any","1","2","3","4",rep(c("<3", "3-6", "6-12", "12+"), 3), "<1", "1-2", "2-3"),
          time=factor(time, 
-                     levels=c("Any","1","2","3","4","<3", "3-6", "6-12", "12+",  "<1", "1-2", "2-3"),
-                     labels=c("Any","Partially\nvaccinated","Primary\nseries only","1 booster","2+ boosters","<3", "3-6", "6-12", "12+", "<1", "1-2", "2-3"))) %>%
-  mutate(value=if_else(inf_vacc=="Vaccination"&group!="By time", 1.5, NA))
+                     levels=c("Any","Both","1","2","3","4","<3", "3-6", "6-12", "12+",  "<1", "1-2", "2-3"),
+                     labels=c("Any","Both","Partially\nvaccinated","Primary\nseries only","1 booster","2+ boosters","<3", "3-6", "6-12", "12+", "<1", "1-2", "2-3"))) %>%
+  mutate(value=if_else(inf_vacc=="Vaccine-derived immunity"&group!="By time", 1.5, NA))
 
-results <- results %>% mutate(inf_vacc=if_else(group=="By time"&grepl("30|60",x), "First three months of vaccination", inf_vacc) %>%
-                                factor(levels=c("Vaccine-derived immunity", "Infection-acquired\nimmunity", "Most recent vaccination or infection", "First three months of vaccination")))
+results <- results %>% mutate(inf_vacc=if_else(group=="By time"&grepl("30|60",x), 
+                                               "First three months of vaccination", inf_vacc) %>%
+                                factor(levels=c("Vaccine-derived immunity", "Infection-acquired\nimmunity", "Hybrid immunity", "Most recent vaccination or infection", "First three months of vaccination")))
+
+results <- results %>% mutate(point=(1-point)*100, 
+                              lb=(1-lb)*100, 
+                              ub=(1-ub)*100)
 
 library(ggh4x)
 library(RColorBrewer)
 p1 <- ggplot(results%>%filter(group!="By time"), aes(x=time, y=point, color=inf_vacc)) + geom_point() + 
-  geom_errorbar(aes(ymin=ub, ymax=lb), width=0.2) + 
+  geom_errorbar(aes(ymin=lb, ymax=ub), width=0.2) + 
   geom_hline(yintercept=0, linetype=2) +   
   geom_vline(aes(xintercept=value)) + 
   facet_grid2(~inf_vacc, space="free_x", scales="free_x", render_empty = F, switch = "y") + 
@@ -36,7 +43,7 @@ p1 <- ggplot(results%>%filter(group!="By time"), aes(x=time, y=point, color=inf_
         strip.background = element_rect(fill=NA,colour="black"),
         text=element_text(size=12, family="sans")) 
 p1
-ggsave("D:/CCHCS_premium/st/covid-indirects/figures/figure2.jpg", width=9, height=4, dpi=300)
+ggsave("D:/CCHCS_premium/st/covid-indirects/figures/figure2.jpg", width=10, height=4, dpi=300)
 
 p2 <- ggplot(results%>%filter(group=="By time"&inf_vacc!="First three months of vaccination")%>%
                mutate(inf_vacc=factor(inf_vacc, labels=c("Vaccine-derived immunity", "Infection-acquired immunity", "Most recent vaccination or infection"))), 
