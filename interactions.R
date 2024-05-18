@@ -62,7 +62,7 @@ matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(infvacc=case_whe
 
 model <- clogit(case ~ infvacc + 
                   age + age.roommate + risk + risk.roommate + strata(group), data=matched_infvacc_roommate)
-format_results(model)
+results <- format_results(model)
 
 matched_infvacc_roommate <- matched_infvacc_roommate %>% 
   mutate(variant=case_when(last.inf.roommate<"2021-12-15"~"preomicron",
@@ -76,4 +76,5 @@ matched_infvacc_roommate <- matched_infvacc_roommate %>%
 model <- clogit(case ~ time_inf + has.vacc.roommate.binary + 
                   age + age.roommate + risk + risk.roommate + strata(group), data=matched_infvacc_roommate)
 format_results(model)
+matched_infvacc_roommate$time_inf%>%table()
 

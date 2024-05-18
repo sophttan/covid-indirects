@@ -83,12 +83,15 @@ ggsave("D:/CCHCS_premium/st/covid-indirects/figures/figure4.jpg", width=4, heigh
 
 # bivalent
 results <- read_csv(here::here("results/match2/main-results-bivalent.csv"))[1:3,]
+results <- results %>% mutate(point=(1-point)*100, 
+                              lb=(1-lb)*100, 
+                              ub=(1-ub)*100)
 
 colors <- RColorBrewer::brewer.pal(11, "BrBG")[c(10,8)]
 ggplot(results[1:3,]%>%mutate(bivalent=c("Monovalent", "Monovalent","Bivalent"), 
                               time=c("<3", "3+", "<3")%>%factor(levels=c("<3", "3+"))), 
        aes(x=time, y=point, group=bivalent, color=bivalent)) + geom_point(position = position_dodge(width=0.1)) + 
-  geom_errorbar(aes(ymin=lb, ymax=ub), position=position_dodge(width=0.1), width=0.2) + 
+  geom_errorbar(aes(ymin=ub, ymax=lb), position=position_dodge(width=0.1), width=0.2) + 
   geom_hline(yintercept=0, linetype=2) + 
   scale_x_discrete("Months") + 
   scale_y_continuous("Indirect protection (%)") + 

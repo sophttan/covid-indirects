@@ -1,0 +1,10 @@
+ ,Odds ratio (OR) (95% CI)
+Vaccine-derived immunity (by dose) Partial vaccination,"0.921 (0.886, 0.956)"
+Primary series alone,"0.848 (0.816, 0.88)"
+One booster,"0.78 (0.751, 0.811)"
+Two or more boosters,"0.718 (0.692, 0.746)"
+Infection-acquired immunity (any),"0.821 (0.754, 0.896)"
+Age Case or control,"0.991 (0.986, 0.997)"
+Age Roommate,"1.01 (1, 1.01)"
+Severe COVID-19 risk score Case or control,"1.08 (1.04, 1.11)"
+Severe COVID-19 risk score Roommate,"1.09 (1.05, 1.12)"

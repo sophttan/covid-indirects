@@ -59,6 +59,7 @@ covid_vacc_cleaned <- covid_vacc_cleaned %>%
 # offset doses of covid vaccines to account for delay in protection 
 covid_vacc_cleaned <- covid_vacc_cleaned %>% mutate(Date_offset = Date + 14)
 
+
 write_csv(covid_vacc_cleaned, "D:/CCHCS_premium/st/leaky/cleaned-data/complete_vaccine_data121523.csv")
 
 
