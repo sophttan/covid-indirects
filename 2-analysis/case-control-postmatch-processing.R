@@ -8,8 +8,12 @@ library(tidyverse)
 library(readr)
 library(lubridate)
 
-# change file path for different study criteria/matching specifications
-matched <- read_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-12matching-051724.csv") 
+# change file path for different matched datasets with different study criteria/matching specifications
+matched <- read_csv("D:/CCHCS_premium/st/indirects/matched_building_6-9days-12matching-042324.csv") 
+
+matched_keys <- matched %>% 
+  group_by(key, subclass) %>% group_keys() %>% mutate(group = 1:n())
+matched <- matched %>% left_join(matched_keys) %>% mutate(id=1:n())
 
 inf <- read_csv("D:/CCHCS_premium/st/cleaned-data/infection_data051324.csv") %>% filter(Day <= "2022-12-15") %>%
   select(ResidentId, Day) %>% rename(last.inf.roommate=Day)
@@ -73,4 +77,4 @@ levels(matched_infvacc_roommate$time_since_infvacc_cut.roommate)<-c(levels(match
 matched_infvacc_roommate$time_since_infvacc_cut.roommate[is.na(matched_infvacc_roommate$time_since_infvacc_cut.roommate)] <- "None"
 
 
-write_csv(matched_infvacc_roommate, "D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing.csv")
+write_csv(matched_infvacc_roommate, "D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing_6-9days.csv")
