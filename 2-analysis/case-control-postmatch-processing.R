@@ -8,6 +8,7 @@ library(tidyverse)
 library(readr)
 library(lubridate)
 
+# change file path for different study criteria/matching specifications
 matched <- read_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-12matching-051724.csv") 
 
 inf <- read_csv("D:/CCHCS_premium/st/cleaned-data/infection_data051324.csv") %>% filter(Day <= "2022-12-15") %>%
@@ -53,11 +54,9 @@ matched_infvacc_roommate <- matched_infvacc_roommate %>%
 
 levels(matched_infvacc_roommate$time_since_vacc_cut)<-c(levels(matched_infvacc_roommate$time_since_vacc_cut), "None") 
 matched_infvacc_roommate$time_since_vacc_cut[is.na(matched_infvacc_roommate$time_since_vacc_cut)] <- "None"
-matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_vacc_cut = factor(time_since_vacc_cut, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf")))
 
 levels(matched_infvacc_roommate$time_since_vacc_cut.roommate)<-c(levels(matched_infvacc_roommate$time_since_vacc_cut.roommate), "None") 
 matched_infvacc_roommate$time_since_vacc_cut.roommate[is.na(matched_infvacc_roommate$time_since_vacc_cut.roommate)] <- "None"
-matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_vacc_cut.roommate = factor(time_since_vacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 
 matched_infvacc_roommate <- matched_infvacc_roommate %>% 
   mutate(time_since_inf.roommate = (test.Day-(last.inf.roommate-14)) %>% as.numeric()) %>%
@@ -65,7 +64,6 @@ matched_infvacc_roommate <- matched_infvacc_roommate %>%
 
 levels(matched_infvacc_roommate$time_since_inf_cut.roommate)<-c(levels(matched_infvacc_roommate$time_since_inf_cut.roommate), "None") 
 matched_infvacc_roommate$time_since_inf_cut.roommate[is.na(matched_infvacc_roommate$time_since_inf_cut.roommate)] <- "None"
-matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_inf_cut.roommate = factor(time_since_inf_cut.roommate, levels=c("None","[0,90)", "[90,182)","[182,365)","[365,Inf)")))
 
 matched_infvacc_roommate <- matched_infvacc_roommate %>% 
   mutate(latest=pmax(last.inf.roommate-14, last.vacc.roommate, na.rm=T)) %>%
@@ -73,7 +71,6 @@ matched_infvacc_roommate <- matched_infvacc_roommate %>%
   mutate(time_since_infvacc_cut.roommate=cut(time_since_infvacc.roommate, breaks=c(0, 90, 182, 365, Inf), right = F)) 
 levels(matched_infvacc_roommate$time_since_infvacc_cut.roommate)<-c(levels(matched_infvacc_roommate$time_since_infvacc_cut.roommate), "None") 
 matched_infvacc_roommate$time_since_infvacc_cut.roommate[is.na(matched_infvacc_roommate$time_since_infvacc_cut.roommate)] <- "None"
-matched_infvacc_roommate <- matched_infvacc_roommate %>% mutate(time_since_infvacc_cut.roommate = factor(time_since_infvacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 
 
 write_csv(matched_infvacc_roommate, "D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing.csv")
