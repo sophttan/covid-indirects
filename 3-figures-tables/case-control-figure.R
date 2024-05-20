@@ -1,10 +1,22 @@
-results <- rbind(results[3,], 
-                 read_csv(here::here("results/match2/main-results-binary.csv"))[1:2,],
-                 read_csv(here::here("results/match2/main-results-dose.csv"))[1:4,],
-                 (read_csv(here::here("results/match2/main-results-time.csv"))[c(1:4, 10:13, 19:22),])%>%select(!inf_vacc),
-                 read_csv(here::here("results/match2/vacc-results-3months.csv"))[1:3,])
+# Sophia Tan
+# Code for making figures
+rm(list=ls())
+gc() 
 
+library(tidyverse)
+library(ggplot2)
+library(cowplot)
+library(ggh4x)
+library(RColorBrewer)
 
+# load all results for plotting
+results <- rbind(read_csv(here::here("results/main/hybrid-results.csv"))[3,], 
+                 read_csv(here::here("results/main/binary-results.csv"))[1:2,],
+                 read_csv(here::here("results/main/dose-results.csv"))[1:4,],
+                 (read_csv(here::here("results/main/time-results.csv"))[c(1:4, 10:13, 19:22),])%>%select(!inf_vacc),
+                 read_csv(here::here("results/main/3months-results.csv"))[1:3,])
+
+# label groups and categories
 results <- results %>% mutate(inf_vacc=case_when(grepl("both", x)~"Hybrid immunity",
                                                  grepl("infvacc", x)~"Most recent vaccination or infection",
                                                  grepl("vacc|dose", x)~"Vaccine-derived immunity",
@@ -22,13 +34,14 @@ results <- results %>% mutate(inf_vacc=if_else(group=="By time"&grepl("30|60",x)
                                                "First three months of vaccination", inf_vacc) %>%
                                 factor(levels=c("Vaccine-derived immunity", "Infection-acquired\nimmunity", "Hybrid immunity", "Most recent vaccination or infection", "First three months of vaccination")))
 
+# convert OR to indirect protection
 results <- results %>% mutate(point=(1-point)*100, 
                               lb=(1-lb)*100, 
                               ub=(1-ub)*100)
 
-library(ggh4x)
-library(RColorBrewer)
-p1 <- ggplot(results%>%filter(group!="By time"), aes(x=time, y=point, color=inf_vacc)) + geom_point() + 
+
+# plot binary and hybrid immunity indirect protection
+ggplot(results%>%filter(group!="By time"), aes(x=time, y=point, color=inf_vacc)) + geom_point() + 
   geom_errorbar(aes(ymin=lb, ymax=ub), width=0.2) + 
   geom_hline(yintercept=0, linetype=2) +   
   geom_vline(aes(xintercept=value)) + 
@@ -42,12 +55,13 @@ p1 <- ggplot(results%>%filter(group!="By time"), aes(x=time, y=point, color=inf_
         strip.text.x = element_text(face="bold", size=12),
         strip.background = element_rect(fill=NA,colour="black"),
         text=element_text(size=12, family="sans")) 
-p1
-ggsave("D:/CCHCS_premium/st/covid-indirects/figures/figure2.jpg", width=10.5, height=4, dpi=300)
+ggsave("D:/CCHCS_premium/st/covid-indirects/figures/binary-hybrid-figure.jpg", width=10.5, height=4, dpi=300)
 
-p2 <- ggplot(results%>%filter(group=="By time"&inf_vacc!="First three months of vaccination")%>%
-               mutate(inf_vacc=factor(inf_vacc, labels=c("Vaccine-derived immunity", "Infection-acquired immunity", "Most recent vaccination or infection"))), 
-             aes(x=time, y=point, color=inf_vacc)) + geom_point() + 
+
+# plot strength and durability of indirect protection
+ggplot(results%>%filter(group=="By time"&inf_vacc!="First three months of vaccination")%>%
+         mutate(inf_vacc=factor(inf_vacc, labels=c("Vaccine-derived immunity", "Infection-acquired immunity", "Most recent vaccination or infection"))), 
+       aes(x=time, y=point, color=inf_vacc)) + geom_point() + 
   geom_errorbar(aes(ymin=ub, ymax=lb), width=0.2) + 
   geom_hline(yintercept=0, linetype=2) + 
   facet_grid2(~inf_vacc, scale="free_x", independent = "x", render_empty = F, switch = "y") + 
@@ -60,11 +74,12 @@ p2 <- ggplot(results%>%filter(group=="By time"&inf_vacc!="First three months of 
         strip.text.x = element_text(face="bold", size=12),
         strip.background = element_rect(fill=NA,colour="black"),
         text=element_text(size=12, family="sans")) 
-p2
-ggsave("D:/CCHCS_premium/st/covid-indirects/figures/figure3.jpg", width=11, height=4, dpi=300)
+ggsave("D:/CCHCS_premium/st/covid-indirects/figures/durability-figure.jpg", width=11, height=4, dpi=300)
 
-p3 <- ggplot(results%>%filter(inf_vacc=="First three months of vaccination"),
-             aes(x=time, y=point, color=inf_vacc)) + geom_point() + 
+
+# plot durability over first 3 months of vaccination
+ggplot(results%>%filter(inf_vacc=="First three months of vaccination"),
+       aes(x=time, y=point, color=inf_vacc)) + geom_point() + 
   geom_errorbar(aes(ymin=ub, ymax=lb), width=0.2) + 
   geom_hline(yintercept=0, linetype=2) + 
   facet_grid2(~inf_vacc, scale="free_x", independent = "x", render_empty = F, switch = "y") + 
@@ -77,12 +92,11 @@ p3 <- ggplot(results%>%filter(inf_vacc=="First three months of vaccination"),
         strip.text.x = element_text(face="bold", size=12),
         strip.background = element_rect(fill=NA,colour="black"),
         text=element_text(size=12, family="sans")) 
-p3
-ggsave("D:/CCHCS_premium/st/covid-indirects/figures/figure4.jpg", width=4, height=4, dpi=300)
+ggsave("D:/CCHCS_premium/st/covid-indirects/figures/three-month-vacc-durability-figure.jpg", width=4, height=4, dpi=300)
 
 
 # bivalent
-results <- read_csv(here::here("results/match2/main-results-bivalent.csv"))[1:3,]
+results <- read_csv(here::here("results/main/bivalent-results.csv"))[1:3,]
 results <- results %>% mutate(point=(1-point)*100, 
                               lb=(1-lb)*100, 
                               ub=(1-ub)*100)
@@ -102,6 +116,6 @@ ggplot(results[1:3,]%>%mutate(bivalent=c("Monovalent", "Monovalent","Bivalent"),
         strip.text.x = element_text(face="bold", size=12),
         strip.background = element_rect(fill=NA,colour="black"),
         text=element_text(size=12, family="sans")) 
-ggsave("D:/CCHCS_premium/st/covid-indirects/figures/bivalent.jpg", width=4, height=4, dpi=300)
+ggsave("D:/CCHCS_premium/st/covid-indirects/figures/bivalent-figure.jpg", width=4, height=4, dpi=300)
 
 

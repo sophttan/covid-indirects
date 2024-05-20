@@ -1,5 +1,11 @@
 # Sophia Tan
 # Code for making results tables
+rm(list=ls())
+gc()
+
+library(tidyverse)
+library(readr)
+library(lubridate)
 
 make_tbl <- function(res, names, include_age_risk=T) {
   res <- res %>% mutate(`Odds ratio (OR) (95% CI)` = paste0(signif(point,3), " (", signif(lb,3), ", ", signif(ub,3), ")"))
