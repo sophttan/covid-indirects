@@ -1,14 +1,20 @@
-inf <- read_csv("D:/CCHCS_premium/st/cleaned-data/infection_data022624.csv")
-testing <- read_csv("D:/CCHCS_premium/st/cleaned-data/complete_testing_data022624.csv") 
+# Sophia Tan 3/4/24
+# Plot figure 1
 
+rm(list=ls())
+gc() 
+
+library(tidyverse)
+
+inf <- read_csv("D:/CCHCS_premium/st/cleaned-data/infection_data051324.csv")
+testing <- read_csv("D:/CCHCS_premium/st/cleaned-data/complete_testing_data051324.csv") 
 
 # overlay testing and infection data
 inf <- inf %>% 
-  mutate(week=difftime(CollectionDate, as.Date("2020-03-01"), units="weeks")%>%as.numeric()%>%round()) 
+  mutate(week=difftime(Day, as.Date("2020-03-01"), units="weeks")%>%as.numeric()%>%round()) 
 
 inf_plot_group <- inf %>% group_by(week) %>% 
-  summarise(CollectionDate=min(CollectionDate), inf=n()) %>% 
-  rename("Day"="CollectionDate")
+  summarise(Day=min(Day), inf=n()) 
 
 tests_plot <- testing %>% 
   mutate(week=difftime(Day, as.Date("2020-03-01"), units="weeks")%>%as.numeric()%>%round()) 
