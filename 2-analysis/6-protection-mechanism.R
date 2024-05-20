@@ -8,7 +8,8 @@ library(tidyverse)
 library(readr)
 library(survival)
 
-data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing_6-9days.csv") %>% 
+
+data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing.csv") %>% 
   select(id, group, ResidentId, num_dose_adjusted, test.Day, case, Roommate, 
          last.inf.roommate, last.vacc.roommate, dose.roommate.adjusted, has.prior.inf, 
          has.vacc.roommate.binary, has.prior.inf.roommate)
@@ -18,7 +19,6 @@ check_test <- data %>% left_join(test_data, by=c("ResidentId"="ResidentId")) %>%
 
 infection <- read_csv("D:/CCHCS_premium/st/cleaned-data/infection_data051324.csv")
 
-data %>% group_by(case, has.vacc.roommate.binary) %>% summarise(n=n())
 
 # fill in
 num_days <- 4
@@ -40,16 +40,4 @@ check_test_summary %>% mutate(has_either = if_else(num_dose_adjusted>0|has.prior
   group_by(id) %>% 
   summarise_all(first) %>% 
   group_by(case, has_either) %>% summarise(n=n(), n2=sum(has_test), has_test=mean(has_test))
-
-
-data %>%
-  mutate(has_either = if_else(has.vacc.roommate.binary==1|has.prior.inf.roommate==1, 1, 0)) %>%
-  group_by(case, has_either) %>% summarise(n=n())
-
-data %>% left_join(infection %>% select(ResidentId, Day), by=c("Roommate"="ResidentId")) %>% 
-  filter(test.Day-Day<=4 & test.Day-Day>0) %>% 
-  mutate(has_either = if_else(has.vacc.roommate.binary==1|has.prior.inf.roommate==1, 1, 0)) %>%
-  group_by(case, has_either) %>% summarise(n=n()) %>%
-  ungroup() %>%
-  mutate(prop=n/c(471, 7340, 382, 4217))
 
