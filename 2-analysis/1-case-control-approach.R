@@ -121,16 +121,12 @@ total_excluded_group <- 0
 total_excluded_movement <- 0
 total_excluded_roommate <- 0
 
-for(i in seq(1:floor(nrow(testing_eligible)/25000))) {
-  print(total_excluded_housing)
-  print(total_excluded_isolation)
-  print(total_excluded_group)
-  print(total_excluded_movement)
-  print(total_excluded_roommate)
+for(i in 0:floor(nrow(testing_eligible)/25000)) {
+  print(nrow(test_final)/num_days)
   
   gc()
   
-  testing_sub <- testing_eligible[(i*25000):min(((i+1)*25000-1), nrow(testing_eligible)),]
+  testing_sub <- testing_eligible[max(1,(i*25000)):min(((i+1)*25000-1),nrow(testing_eligible)),]
   n_total <- testing_sub %>% nrow()
   test_housing_full <- testing_sub %>% full_join(housing_relevant, by=c("ResidentId")) 
   
@@ -164,6 +160,7 @@ for(i in seq(1:floor(nrow(testing_eligible)/25000))) {
   tests <- tests %>% filter(first(Roommate) %in% included)
 
   test_final <- test_final %>% rbind(tests)
+  
 }
 
 
