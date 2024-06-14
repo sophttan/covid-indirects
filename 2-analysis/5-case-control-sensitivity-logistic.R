@@ -1,16 +1,22 @@
+# Sophia Tan
 # use logistic regression for main model results instead of conditional logistic regression
-rm(list=ls())
-gc() 
 
-library(tidyverse)
-library(readr)
-library(survival)
+source(here::here("config.R"))
 
-data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing.csv")
+data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing061324.csv")
 data <- data %>% mutate(time_since_inf_cut.roommate = factor(time_since_inf_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 data <- data %>% mutate(time_since_vacc_cut.roommate = factor(time_since_vacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 data <- data %>% mutate(time_since_infvacc_cut.roommate = factor(time_since_infvacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 
+# function to clean results 
+format_results <- function(model) {
+  res <- (exp(coef(model))%>%cbind(exp(confint(model))) %>% as.data.frame())
+  
+  res <- res %>% mutate(x=rownames(res))
+  names(res) <- c("point", "lb", "ub", "x")
+  
+  res %>% select(x, point, lb, ub)
+}
 
 binary_model <- glm(case ~ has.vacc.roommate.binary + has.prior.inf.roommate + 
                       age + age.roommate + risk + risk.roommate, 
@@ -44,5 +50,5 @@ vacc_model <- glm(case ~ time_since_vacc_cut.roommate + has.prior.inf.roommate +
 infvacc_model <- glm(case ~ time_since_infvacc_cut.roommate + 
                        age + age.roommate + risk + risk.roommate, data=data, family="binomial")
 
-rbind(format_results(model)[2:3,], dose_results, format_results(inf_model)[2:5,], format_results(vacc_model)[2:5,], format_results(infvacc_model)[2:5,]) %>%
+rbind(format_results(binary_model)[2:3,], dose_results, format_results(inf_model)[2:5,], format_results(vacc_model)[2:5,], format_results(infvacc_model)[2:5,]) %>%
   write_csv(here::here("results/logistic/full_results.csv"))

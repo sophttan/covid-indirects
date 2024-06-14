@@ -1,15 +1,10 @@
 # Sophia Tan 3/4/24
 # Evaluate plausibility of mechanism of indirect protection
 
-rm(list=ls())
-gc() 
-
-library(tidyverse)
-library(readr)
-library(survival)
+source(here::here("config.R"))
 
 
-data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing.csv") %>% 
+data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing061324.csv") %>% 
   select(id, group, ResidentId, num_dose_adjusted, test.Day, case, Roommate, 
          last.inf.roommate, last.vacc.roommate, dose.roommate.adjusted, has.prior.inf, 
          has.vacc.roommate.binary, has.prior.inf.roommate)
@@ -40,4 +35,4 @@ check_test_summary %>% mutate(has_either = if_else(num_dose_adjusted>0|has.prior
   group_by(id) %>% 
   summarise_all(first) %>% 
   group_by(case, has_either) %>% summarise(n=n(), n2=sum(has_test), has_test=mean(has_test))
-
+  

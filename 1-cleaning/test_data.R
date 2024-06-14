@@ -2,12 +2,7 @@
 # Combining CDCR COVID Infection and Testing Data through 5/26/23 
 # Analysis uses testing and infection data 3/1/20-12/15/22 
 
-rm(list=ls())
-gc() 
-
-library(tidyverse)
-library(readr)
-library(lubridate)
+source(here::here("config.R"))
 
 setwd("D:/CCHCS_premium/CDCR Data/May 26 2023 Data/")
 

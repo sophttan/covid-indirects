@@ -1,13 +1,7 @@
 # Sophia Tan
 # Code for making figures
-rm(list=ls())
-gc() 
 
-library(tidyverse)
-library(ggplot2)
-library(cowplot)
-library(ggh4x)
-library(RColorBrewer)
+source(here::here("config.R"))
 
 # load all results for plotting
 results <- rbind(read_csv(here::here("results/main/hybrid-results.csv"))[3,], 

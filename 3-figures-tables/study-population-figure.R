@@ -1,10 +1,7 @@
 # Sophia Tan 3/4/24
 # Plot figure 1
 
-rm(list=ls())
-gc() 
-
-library(tidyverse)
+source(here::here("config.R"))
 
 inf <- read_csv("D:/CCHCS_premium/st/cleaned-data/infection_data051324.csv")
 testing <- read_csv("D:/CCHCS_premium/st/cleaned-data/complete_testing_data051324.csv") 

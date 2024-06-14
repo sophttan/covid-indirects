@@ -12,7 +12,7 @@ library(readr)
 library(lubridate)
 library(MatchIt)
 
-data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_prematch.csv")
+data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_prematch061324.csv")
 
 # function that generates pairwise distance matrix for cases and controls
 # final distance matrix is n x n where n is number of rows of tbl (1 row per case/control)
@@ -143,5 +143,5 @@ match <- match %>% left_join(matched_keys) %>% mutate(id=1:n())
 
 # change file path based on matching specifications
 # primary analysis saves as matched_building_3_7days-12matching-[date].csv
-match %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-12matching-051724.csv")
+match %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-12matching-061324.csv")
 

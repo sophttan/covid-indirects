@@ -1,14 +1,9 @@
 # Sophia Tan 3/4/24
 # Plot descriptive data on match quality
 
-rm(list=ls())
-gc() 
+source(here::here("config.R"))
 
-library(tidyverse)
-library(readr)
-library(survival)
-
-data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing_6-9days.csv")
+data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing061324.csv")
 
 # summarise difference between cases and controls on covariates that were matched on
 grouped <- data %>% group_by(group) %>% arrange(desc(case)) %>% 
@@ -72,7 +67,7 @@ vacc <- ggplot(grouped) +
 data <- data %>% mutate(case=factor(case, levels=c(1,0), labels=c("Case", "Control")))
 
 # plot overall distributions 
-age_overall <- matched_infvacc_roommate %>% ggplot(aes(age, group=case, fill=case)) + 
+age_overall <- data %>% ggplot(aes(age, group=case, fill=case)) + 
   geom_histogram(aes(y = ..density..), binwidth=5, position="identity", alpha=0.5) + 
   scale_fill_discrete("") + 
   scale_x_continuous("Age", expand=c(0, 0)) + 
@@ -85,7 +80,7 @@ age_overall <- matched_infvacc_roommate %>% ggplot(aes(age, group=case, fill=cas
         strip.background = element_rect(fill=NA,colour="black"),
         text=element_text(size=12, family="sans")) 
 
-risk_overall <- matched_infvacc_roommate %>% ggplot(aes(risk, group=factor(case), fill=factor(case))) + 
+risk_overall <- data %>% ggplot(aes(risk, group=factor(case), fill=factor(case))) + 
   geom_histogram(aes(y = ..density..), binwidth=1, position="identity", alpha=0.5) + 
   scale_fill_discrete("") + 
   scale_x_continuous("Risk for severe COVID-19", expand=c(0, 0)) + 
@@ -98,7 +93,7 @@ risk_overall <- matched_infvacc_roommate %>% ggplot(aes(risk, group=factor(case)
         strip.background = element_rect(fill=NA,colour="black"),
         text=element_text(size=12, family="sans")) 
 
-inf_overall <- matched_infvacc_roommate %>% ggplot(aes(time_since_inf, group=factor(case), fill=factor(case))) + 
+inf_overall <- data %>% ggplot(aes(time_since_inf, group=factor(case), fill=factor(case))) + 
   geom_histogram(aes(y = ..density..), position="identity", alpha=0.5) + 
   scale_fill_discrete("") + 
   scale_x_continuous("Days", expand=c(0, 0)) + 
@@ -112,7 +107,7 @@ inf_overall <- matched_infvacc_roommate %>% ggplot(aes(time_since_inf, group=fac
         text=element_text(size=12, family="sans")) 
 
 
-vacc_overall <- matched_infvacc_roommate %>% ggplot(aes(time_since_vacc, group=factor(case), fill=factor(case))) +
+vacc_overall <- data %>% ggplot(aes(time_since_vacc, group=factor(case), fill=factor(case))) +
   geom_histogram(aes(y = ..density..), position="identity", alpha=0.5) + 
   scale_fill_discrete("") + 
   scale_x_continuous("Days", expand=c(0, 0)) + 
@@ -126,6 +121,5 @@ vacc_overall <- matched_infvacc_roommate %>% ggplot(aes(time_since_vacc, group=f
         text=element_text(size=12, family="sans")) 
 
 
-library(patchwork)
 (age_overall + age)/(risk_overall + risk)/(vacc_overall + vacc)/(inf_overall + inf)
 ggsave(here::here("figures/match_quality.jpg"), height=10, width=9, dpi=300)

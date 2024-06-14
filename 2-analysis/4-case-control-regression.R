@@ -1,23 +1,18 @@
 # Sophia Tan 3/4/24
 # Main regression results
 
-rm(list=ls())
-gc() 
+source(here::here("config.R"))
 
-library(tidyverse)
-library(readr)
-library(survival)
-
-data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing_6-9days.csv")
+data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing061324.csv")
 data <- data %>% mutate(time_since_inf_cut.roommate = factor(time_since_inf_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 data <- data %>% mutate(time_since_vacc_cut.roommate = factor(time_since_vacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 data <- data %>% mutate(time_since_infvacc_cut.roommate = factor(time_since_infvacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 
 # TO FILL IN
 # change to reflect analysis being run (results folder name)
-analysis <- "roommate-6-9day"
+analysis <- "main"
 # uncomment if adjusting for time since infection and time since vaccine in case/control
-data <- data %>% replace_na(list(time_since_inf=1000, time_since_vacc=1000))
+# data <- data %>% replace_na(list(time_since_inf=1000, time_since_vacc=1000))
 
 
 # function to clean results 
@@ -159,6 +154,6 @@ model <- clogit(case ~ time_inf + has.vacc.roommate.binary +
                   age + age.roommate + risk + risk.roommate +
                   strata(group), data=data)
 
-matched_infvacc_roommate$time_inf%>%table()
+data$time_inf%>%table()
 
 write_csv(format_results(model), here::here(paste0("results/", analysis, "/preomicron-omicron-results.csv")))

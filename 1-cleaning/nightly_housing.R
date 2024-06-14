@@ -1,9 +1,6 @@
 # Sophia Tan 12/15/23
 # Clean nightly housing data 5/26/23
 
-rm(list=ls())
-gc()
-
 source(here::here("config.R"))
 
 setwd("D:/CCHCS_premium/CDCR Data/May 26 2023 Data/")

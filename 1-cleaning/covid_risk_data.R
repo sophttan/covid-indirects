@@ -3,9 +3,6 @@
 # Clean risk data 
 # risk data is only available through 12/16/2022
 
-rm(list=ls())
-gc()
-
 source(here::here("config.R"))
 
 setwd("D:/CCHCS_premium/CDCR Data/Dec 16 2022 Data/")

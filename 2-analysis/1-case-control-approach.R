@@ -1,13 +1,7 @@
 # Sophia Tan 2/26/24
 # Identify infections and controls that meet study criteria
 
-rm(list=ls())
-gc() 
-
-library(tidyverse)
-library(readr)
-library(lubridate)
-
+source(here::here("config.R"))
 
 # load testing and infection data
 inf_full <- read_csv("D:/CCHCS_premium/st/cleaned-data/infection_data051324.csv")
@@ -164,7 +158,7 @@ for(i in 0:floor(nrow(testing_eligible)/25000)) {
 }
 
 
-write_csv(test_final, "D:/CCHCS_premium/st/indirects/control3-7daysame-roommate-041624.csv")
+write_csv(test_final, "D:/CCHCS_premium/st/indirects/control3-7daysame-roommate-061324.csv")
 
 
 
@@ -262,4 +256,4 @@ total_vacc_security_demo_risk <- total_vacc_security_demo_risk %>% ungroup() %>%
 total_vacc_security_demo_risk <- total_vacc_security_demo_risk %>% replace_na(list(time_since_vacc.scale=0, time_since_inf.scale=0))
 
 
-write_csv(total_vacc_security_demo_risk, "D:/CCHCS_premium/st/indirects/case_control_prematch.csv")
+write_csv(total_vacc_security_demo_risk, "D:/CCHCS_premium/st/indirects/case_control_prematch061324.csv")
