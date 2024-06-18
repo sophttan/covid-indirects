@@ -36,8 +36,8 @@ gc()
 # fill in days for roommate definitions
 # in the main analysis, we require that cases and controls co-reside with one person for the entire preceding period 3-6 days prior to test collection
 # we conduct sensitivity analyses with 3 day, 0-6 days, and 6-9 days windows
-min_days <- 3
-max_days <- 6
+min_days <- 6
+max_days <- 9
 num_days <- max_days-min_days+1
 
 
@@ -79,7 +79,7 @@ cases_final <- inf_2 %>%
 
 cases_final <- cases_final %>% filter(first(Roommate) %in% included) # make sure roommate meets incarceration requirement
 
-write_csv(cases_final, "D:/CCHCS_premium/st/indirects/cases3-7daysame.csv")
+write_csv(cases_final, "D:/CCHCS_premium/st/indirects/cases6-9daysame-roommate-061324.csv")
 
 
 
@@ -158,7 +158,7 @@ for(i in 0:floor(nrow(testing_eligible)/25000)) {
 }
 
 
-write_csv(test_final, "D:/CCHCS_premium/st/indirects/control3-7daysame-roommate-061324.csv")
+write_csv(test_final, "D:/CCHCS_premium/st/indirects/control6-9daysame-roommate-061324.csv")
 
 
 
@@ -256,4 +256,4 @@ total_vacc_security_demo_risk <- total_vacc_security_demo_risk %>% ungroup() %>%
 total_vacc_security_demo_risk <- total_vacc_security_demo_risk %>% replace_na(list(time_since_vacc.scale=0, time_since_inf.scale=0))
 
 
-write_csv(total_vacc_security_demo_risk, "D:/CCHCS_premium/st/indirects/case_control_prematch061324.csv")
+write_csv(total_vacc_security_demo_risk, "D:/CCHCS_premium/st/indirects/case_control_prematch_6-9day061324.csv")

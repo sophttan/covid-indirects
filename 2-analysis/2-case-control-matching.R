@@ -4,15 +4,9 @@
 # Exact matching on building and security level, time, infection and vaccine status (cases and controls only)
 # Distance matching on age (case and control and roommates), risk (case and control and roommates), time since last infection and last vaccine (cases and controls only)
 
-rm(list=ls())
-gc() 
+source(here::here("config.R"))
 
-library(tidyverse)
-library(readr)
-library(lubridate)
-library(MatchIt)
-
-data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_prematch061324.csv")
+data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_prematch_6-9day061324.csv")
 
 # function that generates pairwise distance matrix for cases and controls
 # final distance matrix is n x n where n is number of rows of tbl (1 row per case/control)
@@ -73,7 +67,7 @@ data <- data %>% left_join(keep %>% select(!c(control, case)))
 
 # matching ratio (can be changed)
 # cases and control are matched 1:2 in primary analysis, matched 1:1 in sensitivity analysis
-ratio <- 2 
+ratio <- 2
 
 
 # iterate to conduct distance based matching for each exact strata
@@ -83,7 +77,7 @@ for (i in keep$key) {
   for_matching_inst <- for_matching_inst %>% arrange(desc(case))
   
   # get distance matrix
-  distance_matrix <- get_distance(for_matching_inst)
+  distance_matrix <- get_distance(for_matching_inst, include_time = T)
   
   # check for number of cases and number of controls
   num_cases <- sum(for_matching_inst$case==1)
@@ -143,5 +137,5 @@ match <- match %>% left_join(matched_keys) %>% mutate(id=1:n())
 
 # change file path based on matching specifications
 # primary analysis saves as matched_building_3_7days-12matching-[date].csv
-match %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-12matching-061324.csv")
+match %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_6-9days-12matching-061324.csv")
 
