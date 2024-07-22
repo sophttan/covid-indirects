@@ -3,16 +3,16 @@
 
 source(here::here("config.R"))
 
-data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing_3day_061324.csv")
+data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing072224.csv")
 data <- data %>% mutate(time_since_inf_cut.roommate = factor(time_since_inf_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 data <- data %>% mutate(time_since_vacc_cut.roommate = factor(time_since_vacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 data <- data %>% mutate(time_since_infvacc_cut.roommate = factor(time_since_infvacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 
 # TO FILL IN
 # change to reflect analysis being run (results folder name)
-analysis <- "roommate-3day"
+analysis <- "timeadj"
 # uncomment if adjusting for time since infection and time since vaccine in case/control
-# data <- data %>% replace_na(list(time_since_inf=1000, time_since_vacc=1000))
+data <- data %>% replace_na(list(time_since_inf=1000, time_since_vacc=1000))
 
 
 # function to clean results 
@@ -29,7 +29,7 @@ format_results <- function(model) {
 # main model - binary vaccine and binary infection status
 model <- clogit(case ~ has.vacc.roommate.binary + has.prior.inf.roommate + 
                   age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
-                  # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
+                  time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
                   strata(group), data=data)
 write_csv(format_results(model), here::here(paste0("results/", analysis, "/binary-results.csv")))
 
@@ -37,7 +37,7 @@ write_csv(format_results(model), here::here(paste0("results/", analysis, "/binar
 # dose dependent model
 model <- clogit(case ~ dose.roommate.adjusted + has.prior.inf.roommate + 
                   age + age.roommate + risk + risk.roommate +
-                  # time_since_inf + time_since_vacc + 
+                  time_since_inf + time_since_vacc +
                   strata(group), data=data)
 
 main <- format_results(model)[2:6,]
@@ -60,17 +60,17 @@ write_csv(rbind(dose_results, main), here::here(paste0("results/", analysis, "/d
 # time since models
 inf_model <- clogit(case ~ time_since_inf_cut.roommate + has.vacc.roommate.binary + 
                       age + age.roommate + risk + risk.roommate +
-                      # time_since_inf + time_since_vacc + 
+                      time_since_inf + time_since_vacc +
                       strata(group), data=data)
 
 vacc_model <- clogit(case ~ time_since_vacc_cut.roommate + has.prior.inf.roommate + 
                        age + age.roommate + risk + risk.roommate +
-                       # time_since_inf + time_since_vacc + 
+                       time_since_inf + time_since_vacc +
                        strata(group), data=data)
 
 infvacc_model <- clogit(case ~ time_since_infvacc_cut.roommate + 
                           age + age.roommate + risk + risk.roommate +
-                          # time_since_inf + time_since_vacc + 
+                          time_since_inf + time_since_vacc +
                           strata(group), data=data)
 
 results <- rbind(format_results(inf_model) %>% mutate(inf_vacc="inf"),
@@ -89,7 +89,7 @@ data <- data %>% mutate(time_since_vacc_cut2.roommate = factor(time_since_vacc_c
 
 model <- clogit(case ~ time_since_vacc_cut2.roommate + has.prior.inf.roommate + 
                   age + age.roommate + risk + risk.roommate +
-                  # time_since_inf + time_since_vacc + 
+                  time_since_inf + time_since_vacc +
                   strata(group), data=data)
 write_csv(format_results(model), here::here(paste0("results/", analysis, "/3months-results.csv")))
 
@@ -103,7 +103,7 @@ data <- data %>%
 
 model <- clogit(case ~ bivalent_time + has.prior.inf.roommate + 
                   age + age.roommate + risk + risk.roommate +
-                  # time_since_inf + time_since_vacc +
+                  time_since_inf + time_since_vacc +
                   strata(group), data=data)
 write_csv(format_results(model), here::here(paste0("results/", analysis, "/bivalent-results.csv")))
 
@@ -113,7 +113,7 @@ data$bivalent_time %>% table()
 # check interaction
 model <- clogit(case ~ has.vacc.roommate.binary*has.prior.inf.roommate + 
                   age + age.roommate + risk + risk.roommate +
-                  # time_since_inf + time_since_vacc +
+                  time_since_inf + time_since_vacc +
                   strata(group), data=data)
 summary(model) # interaction insignificant
 
@@ -126,7 +126,7 @@ data <- data %>% mutate(infvacc=case_when(has.vacc.roommate.binary==0&has.prior.
 
 model <- clogit(case ~ infvacc + 
                   age + age.roommate + risk + risk.roommate +
-                  # time_since_inf + time_since_vacc +
+                  time_since_inf + time_since_vacc +
                   strata(group), data=data)
 write_csv(format_results(model), here::here(paste0("results/", analysis, "/hybrid-results.csv")))
 

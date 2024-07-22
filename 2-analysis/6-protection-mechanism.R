@@ -26,6 +26,7 @@ check_test_summary %>% group_by(id) %>% summarise_all(first) %>% group_by(case, 
 check_test_summary %>% group_by(id) %>% mutate(has_pos=any(Result=="Positive", na.rm=T)) %>% 
   summarise_all(first) %>% group_by(case, has.vacc.roommate.binary) %>% summarise(n=n(), npos=sum(has_pos), has_pos=mean(has_pos))
 
+
 check_test_summary %>% mutate(has_either = if_else(has.vacc.roommate.binary==1|has.prior.inf.roommate==1, 1, 0)) %>%
   group_by(id) %>% 
   summarise_all(first) %>% 

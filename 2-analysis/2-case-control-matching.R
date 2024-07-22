@@ -6,7 +6,7 @@
 
 source(here::here("config.R"))
 
-data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_prematch_6-9day061324.csv")
+data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_prematch061324.csv")
 
 # function that generates pairwise distance matrix for cases and controls
 # final distance matrix is n x n where n is number of rows of tbl (1 row per case/control)
@@ -67,7 +67,7 @@ data <- data %>% left_join(keep %>% select(!c(control, case)))
 
 # matching ratio (can be changed)
 # cases and control are matched 1:2 in primary analysis, matched 1:1 in sensitivity analysis
-ratio <- 2
+ratio <- 1
 
 
 # iterate to conduct distance based matching for each exact strata
@@ -92,10 +92,10 @@ for (i in keep$key) {
   if(num_cases==1) {
     for_matching_inst$distance <- distance_matrix[,1]
     
-    num_match <- min(nrow(for_matching_inst%>%filter(!distance%>%is.infinite())), ratio+1)
-    for_matching_inst <- (for_matching_inst %>% arrange(distance))[1:num_match,] %>% select(!distance)
+    num_match <- min(nrow(for_matching_inst%>%filter(case==0&!distance%>%is.infinite())), ratio) 
+    for_matching_inst <- (for_matching_inst %>% arrange(desc(case), distance))[1:(num_match+1),] %>% select(!distance)
     
-    match <- rbind(match, cbind(id=1:num_match, subclass=rep(1, num_match), for_matching_inst))
+    match <- rbind(match, cbind(id=1:(num_match+1), subclass=rep(1,num_match+1), for_matching_inst))
     next
   }
   
@@ -137,5 +137,5 @@ match <- match %>% left_join(matched_keys) %>% mutate(id=1:n())
 
 # change file path based on matching specifications
 # primary analysis saves as matched_building_3_7days-12matching-[date].csv
-match %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_6-9days-12matching-061324.csv")
+match %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-11matching-072224.csv")
 
