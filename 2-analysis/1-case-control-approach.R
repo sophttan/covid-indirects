@@ -36,8 +36,8 @@ gc()
 # fill in days for roommate definitions
 # in the main analysis, we require that cases and controls co-reside with one person for the entire preceding period 3-6 days prior to test collection
 # we conduct sensitivity analyses with 3 day, 0-6 days, and 6-9 days windows
-min_days <- 6
-max_days <- 9
+min_days <- 3
+max_days <- 6
 num_days <- max_days-min_days+1
 
 
@@ -116,8 +116,6 @@ total_excluded_movement <- 0
 total_excluded_roommate <- 0
 
 for(i in 0:floor(nrow(testing_eligible)/25000)) {
-  print(nrow(test_final)/num_days)
-  
   gc()
   
   testing_sub <- testing_eligible[max(1,(i*25000)):min(((i+1)*25000-1),nrow(testing_eligible)),]
