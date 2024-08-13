@@ -67,7 +67,7 @@ data <- data %>% left_join(keep %>% select(!c(control, case)))
 
 # matching ratio (can be changed)
 # cases and control are matched 1:2 in primary analysis, matched 1:1 in sensitivity analysis
-ratio <- 1
+ratio <- 2
 
 
 # iterate to conduct distance based matching for each exact strata
@@ -101,7 +101,7 @@ for (i in keep$key) {
   
   # if there is only 1 control, match control to closest case
   if(num_controls==1) {
-    for_matching_inst$distance <- distance_matrix[,1]
+    for_matching_inst$distance <- distance_matrix[,num_cases+1]
     
     for_matching_inst <- (for_matching_inst %>% arrange(case, distance))[1:2,] %>% select(!distance)
     
