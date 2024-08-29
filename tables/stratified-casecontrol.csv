@@ -1,0 +1,9 @@
+Immunity of matched case and controls, ,Odds ratio (OR) (95% CI)
+No immunity,Vaccine-derived immunity (any),"0.755 (0.548, 1.04)"
+No immunity,Infection-acquired immunity (any),"0.835 (0.581, 1.2)"
+Only vaccine-derived immunity,Vaccine-derived immunity (any),"0.755 (0.639, 0.892)"
+Only vaccine-derived immunity,Infection-acquired immunity (any),"0.795 (0.704, 0.897)"
+Only infection-acquired immunity,Vaccine-derived immunity (any),"0.979 (0.629, 1.52)"
+Only infection-acquired immunity,Infection-acquired immunity (any),"0.82 (0.554, 1.21)"
+Both vaccine- and infection-acquired immunity (hybrid),Vaccine-derived immunity (any),"0.752 (0.614, 0.922)"
+Both vaccine- and infection-acquired immunity (hybrid),Infection-acquired immunity (any),"0.879 (0.765, 1.01)"

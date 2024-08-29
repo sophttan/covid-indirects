@@ -3,7 +3,7 @@
 
 source(here::here("config.R"))
 
-data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing061324.csv")
+data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing072224.csv")
 data <- data %>% mutate(time_since_inf_cut.roommate = factor(time_since_inf_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 data <- data %>% mutate(time_since_vacc_cut.roommate = factor(time_since_vacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 data <- data %>% mutate(time_since_infvacc_cut.roommate = factor(time_since_infvacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
@@ -19,12 +19,16 @@ format_results <- function(model) {
 }
 
 binary_model <- glm(case ~ has.vacc.roommate.binary + has.prior.inf.roommate + 
-                      age + age.roommate + risk + risk.roommate, 
+                      num_dose_adjusted + has.prior.inf + 
+                      age + age.roommate + risk + risk.roommate + 
+                      factor(Institution) +  factor(BuildingId) + factor(level), 
                     data=data,  family = "binomial")
 
 
 dose_model <- glm(case ~ dose.roommate.adjusted + has.prior.inf.roommate + 
-                    age + age.roommate + risk + risk.roommate, 
+                    num_dose_adjusted + has.prior.inf + 
+                    age + age.roommate + risk + risk.roommate +
+                    factor(Institution) +  factor(BuildingId) + factor(level), 
                   data=data, family="binomial")
 
 dose_model <- (summary(dose_model)$coefficients)[2,]
@@ -40,15 +44,21 @@ names(dose_results) <- c("point", "lb", "ub", "x")
 
 
 inf_model <- glm(case ~ time_since_inf_cut.roommate + has.vacc.roommate.binary + 
+                   num_dose_adjusted + has.prior.inf + 
                    age + age.roommate + risk + risk.roommate, 
                  data=data, family="binomial")
 
 vacc_model <- glm(case ~ time_since_vacc_cut.roommate + has.prior.inf.roommate + 
-                    age + age.roommate + risk + risk.roommate, 
+                    num_dose_adjusted + has.prior.inf + 
+                    age + age.roommate + risk + risk.roommate +                     
+                    factor(Institution) +  factor(BuildingId) + factor(level), 
                   data=data, family="binomial")
 
 infvacc_model <- glm(case ~ time_since_infvacc_cut.roommate + 
-                       age + age.roommate + risk + risk.roommate, data=data, family="binomial")
+                       num_dose_adjusted + has.prior.inf + 
+                       age + age.roommate + risk + risk.roommate +
+                       factor(Institution) +  factor(BuildingId) + factor(level), 
+                     data=data, family="binomial")
 
 rbind(format_results(binary_model)[2:3,], dose_results, format_results(inf_model)[2:5,], format_results(vacc_model)[2:5,], format_results(infvacc_model)[2:5,]) %>%
   write_csv(here::here("results/logistic/full_results.csv"))

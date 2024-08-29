@@ -69,3 +69,17 @@ res <- res[1:3,]
 make_tbl(res, c("Ancestral monovalent vaccine <3 months",
                 "Ancestral monovalent vaccine 3+ months",
                 "Bivalent vaccine <3 months"), F) %>% write_csv("tables/bivalent.csv")
+
+
+
+
+# binary results
+res <- read_csv(here::here("results/main/stratified-casecontrolimmunity-results.csv"))
+res                 
+
+cbind("Immunity of matched case and controls" = rep(c("No immunity",
+                                                      "Only vaccine-derived immunity",
+                                                      "Only infection-acquired immunity",
+                                                      "Both vaccine- and infection-acquired immunity (hybrid)"), each=2),
+  make_tbl(res, rep(c("Vaccine-derived immunity (any)", "Infection-acquired immunity (any)"), 4), include_age_risk = F)) %>%
+  write_csv("tables/stratified-casecontrol.csv")
