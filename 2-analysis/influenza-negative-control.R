@@ -1,0 +1,49 @@
+vaccine <- read_csv("D:/CCHCS_premium/st/leaky/cleaned-data/complete_vaccine_data121523.csv") 
+vaccine 
+vaccine %>% group_by(ResidentId) %>% summarise(full_vacc=first(full_vacc))%>%filter(full_vacc==2)
+
+
+
+source(here::here("config.R"))
+
+setwd("D:/CCHCS_premium/CDCR Data/May 26 2023 Data/")
+
+###### COVID Infection Data ######
+vacc <-  read_delim("Immunization_20230526.csv", delim=";")
+vacc$Vaccine%>%unique()
+
+vacc_influenza <- vacc %>% filter(grepl("influenza", Vaccine))
+vacc_influenza <- vacc_influenza %>% filter(Result=="Received")
+vacc_influenza %>% filter(Date>="2020-01-01") %>% ggplot(aes(Date)) + geom_histogram()
+
+vacc_influenza_period <- vacc_influenza %>% filter(Date <= "2022-12-15") %>% rename(flu.date=Date) %>% select(ResidentId, flu.date)
+
+data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing072224.csv")
+
+data <- data %>% left_join(vacc_influenza_period, by=c("Roommate"="ResidentId"))
+
+data <- data %>% group_by(id) %>% mutate(has.flu.roommate=any(!flu.date%>%is.na()) & any(flu.date<=test.Day)) %>% 
+  filter(has.flu.roommate==F|flu.date<test.Day) %>%
+  arrange(id, desc(flu.date)) %>% summarise_all(first)
+
+data
+
+
+# function to clean results 
+format_results <- function(model) {
+  res <- (exp(coef(model))%>%cbind(exp(confint(model))) %>% as.data.frame())
+  
+  res <- res %>% mutate(x=rownames(res))
+  names(res) <- c("point", "lb", "ub", "x")
+  
+  res %>% select(x, point, lb, ub)
+}
+
+
+# main model - binary vaccine and binary infection status
+model <- clogit(case ~ has.flu.roommate + 
+                  age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
+                  # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
+                  strata(group), data=data)
+write_csv(format_results(model), here::here("results/main/flu-results.csv"))
+
