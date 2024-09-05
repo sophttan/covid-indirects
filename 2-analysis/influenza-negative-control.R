@@ -66,7 +66,7 @@ write_csv(rbind(format_results(model)[1,],
                 format_results(one_year_model)[1,]), 
           here::here("results/main/flu-results.csv"))
 
-data %>% group_by(case) %>% summarise(has.flu.roommate=mean(has.prior.inf.roommate), 
+data %>% group_by(case) %>% summarise(has.flu.roommate=mean(has.flu.roommate), 
                                       flu.twoyears=mean(flu.twoyears),
                                       flu.oneyear=mean(flu.oneyear))
 
@@ -75,3 +75,16 @@ data %>% filter(test.Day-flu.date<=735&test.Day-flu.date>=0) %>%
   ggplot(aes(test.Day-flu.date, group=case, fill=factor(case))) + geom_histogram(aes(y=..density..), position="identity", alpha=0.5)
 data %>% filter(test.Day-flu.date<=360&test.Day-flu.date>=0) %>%
   ggplot(aes(test.Day-flu.date, group=case, fill=factor(case))) + geom_histogram(aes(y=..density..), position="identity", alpha=0.5)
+
+
+data <- data %>% mutate(time_since_flu = if_else(test.Day-flu.date<0, 0, ((test.Day-flu.date)%>%as.numeric())/30.412))
+time_model <- clogit(case ~ time_since_flu + 
+                           age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
+                           # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
+                           strata(group), data=data)
+
+write_csv(rbind(format_results(model)[1,],
+                format_results(two_year_model)[1,],
+                format_results(one_year_model)[1,],
+                format_results(time_model)[1,]), 
+          here::here("results/main/flu-results.csv"))
