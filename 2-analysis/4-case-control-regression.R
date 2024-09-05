@@ -8,6 +8,10 @@ data <- data %>% mutate(time_since_inf_cut.roommate = factor(time_since_inf_cut.
 data <- data %>% mutate(time_since_vacc_cut.roommate = factor(time_since_vacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 data <- data %>% mutate(time_since_infvacc_cut.roommate = factor(time_since_infvacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 
+
+data <- data %>% mutate(time_since_vacc_cut = factor(time_since_vacc_cut, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
+# data <- data %>% mutate(time_since_inf_cute = factor(time_since_inf_cut, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
+
 # TO FILL IN
 # change to reflect analysis being run (results folder name)
 analysis <- "main"
@@ -133,6 +137,17 @@ write_csv(format_results(model), here::here(paste0("results/", analysis, "/hybri
 
 
 ## other sensitivity analyses (run for main analysis only)
+# dose dependent (categorical) model
+data <- data %>% mutate(dose.roommate.cat = factor(dose.roommate.adjusted, levels=c(0,1,2,3,4)))
+data$dose.roommate.cat %>% table()
+model <- clogit(case ~ dose.roommate.cat + has.prior.inf.roommate + 
+                  age + age.roommate + risk + risk.roommate +
+                  # time_since_inf + time_since_vacc +
+                  strata(group), data=data)
+format_results(model)
+
+write_csv(format_results(model), here::here(paste0("results/", analysis, "/dose-results-categorical.csv")))
+
 # adjust for time since inf and time since vacc of roommates together
 model <- clogit(case ~ time_since_vacc_cut.roommate + time_since_inf_cut.roommate + 
                   age + age.roommate + risk + risk.roommate + 
@@ -176,7 +191,7 @@ write_csv(format_results(model), here::here(paste0("results/", analysis, "/6mont
 
 
 
-# main model - binary vaccine and binary infection status
+# main model - stratified
 no_immunity <- data %>% filter(num_dose_adjusted==0&has.prior.inf==0)
 no_immunity_model <- clogit(case ~ has.vacc.roommate.binary + has.prior.inf.roommate + 
                   age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
@@ -196,6 +211,12 @@ inf_model <- clogit(case ~ has.vacc.roommate.binary + has.prior.inf.roommate +
                   age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
                   # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
                   strata(group), data=inf_immunity)
+format_results(inf_model)
+
+inf_model <- clogit(case ~ has.vacc.roommate.binary + time_since_inf_cut.roommate + 
+                      age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
+                      # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
+                      strata(group), data=inf_immunity)
 format_results(inf_model)
 
 hybrid_immunity <- data %>% filter(num_dose_adjusted>0&has.prior.inf==1)

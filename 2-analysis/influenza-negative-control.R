@@ -45,5 +45,33 @@ model <- clogit(case ~ has.flu.roommate +
                   age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
                   # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
                   strata(group), data=data)
-write_csv(format_results(model), here::here("results/main/flu-results.csv"))
 
+
+# within 2 years
+data <- data %>% mutate(flu.twoyears = if_else(has.flu.roommate&(test.Day-flu.date<=730&test.Day-flu.date>=0), T, F),
+                        flu.oneyear = if_else(has.flu.roommate&(test.Day-flu.date<=365&test.Day-flu.date>=0), T, F))
+data
+two_year_model <- clogit(case ~ flu.twoyears + 
+                  age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
+                  # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
+                  strata(group), data=data)
+
+
+one_year_model <- clogit(case ~ flu.oneyear + 
+                           age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
+                           # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
+                           strata(group), data=data)
+write_csv(rbind(format_results(model)[1,],
+                format_results(two_year_model)[1,],
+                format_results(one_year_model)[1,]), 
+          here::here("results/main/flu-results.csv"))
+
+data %>% group_by(case) %>% summarise(has.flu.roommate=mean(has.prior.inf.roommate), 
+                                      flu.twoyears=mean(flu.twoyears),
+                                      flu.oneyear=mean(flu.oneyear))
+
+data %>% ggplot(aes(test.Day-flu.date, group=case, fill=factor(case))) + geom_histogram(aes(y=..density..), position="identity", alpha=0.5)
+data %>% filter(test.Day-flu.date<=735&test.Day-flu.date>=0) %>%
+  ggplot(aes(test.Day-flu.date, group=case, fill=factor(case))) + geom_histogram(aes(y=..density..), position="identity", alpha=0.5)
+data %>% filter(test.Day-flu.date<=360&test.Day-flu.date>=0) %>%
+  ggplot(aes(test.Day-flu.date, group=case, fill=factor(case))) + geom_histogram(aes(y=..density..), position="identity", alpha=0.5)
