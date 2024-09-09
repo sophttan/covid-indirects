@@ -287,6 +287,58 @@ write_csv(rbind(format_results(no_immunity_model_timeinf)[2:5,]%>%mutate(label="
           here::here(paste0("results/", analysis, "/stratified-casecontrolimmunity-results-inf.csv")))
 
 
+no_immunity_model_dose <- clogit(case ~ dose.roommate.adjusted + has.prior.inf.roommate + 
+                  age + age.roommate + risk + risk.roommate +
+                  # time_since_inf + time_since_vacc +
+                  strata(group), data=no_immunity)
+
+vacc_immunity_model_dose <- clogit(case ~ dose.roommate.adjusted + has.prior.inf.roommate + 
+                  age + age.roommate + risk + risk.roommate +
+                  # time_since_inf + time_since_vacc +
+                  strata(group), data=vacc_immunity)
+
+inf_immunity_model_dose <- clogit(case ~ dose.roommate.adjusted + has.prior.inf.roommate + 
+                                     age + age.roommate + risk + risk.roommate +
+                                     # time_since_inf + time_since_vacc +
+                                     strata(group), data=inf_immunity)
+
+hybrid_immunity_model_dose <- clogit(case ~ dose.roommate.adjusted + has.prior.inf.roommate + 
+                                     age + age.roommate + risk + risk.roommate +
+                                     # time_since_inf + time_since_vacc +
+                                     strata(group), data=hybrid_immunity)
+
+no_immunity_model_dose <- (summary(no_immunity_model_dose)$coefficients)[1,]
+or <- exp(no_immunity_model_dose[1]*1:4)
+low <- exp(no_immunity_model_dose[1]*1:4-1.96*no_immunity_model_dose[3])
+high <- exp(no_immunity_model_dose[1]*1:4+1.96*no_immunity_model_dose[3])
+dose_results <- cbind(or, low, high) %>% as.data.frame() %>% mutate(label="no_immunity")
+
+vacc_immunity_model_dose <- (summary(vacc_immunity_model_dose)$coefficients)[1,]
+or <- exp(vacc_immunity_model_dose[1]*1:4)
+low <- exp(vacc_immunity_model_dose[1]*1:4-1.96*vacc_immunity_model_dose[3])
+high <- exp(vacc_immunity_model_dose[1]*1:4+1.96*vacc_immunity_model_dose[3])
+dose_results <- rbind(dose_results, cbind(or, low, high) %>% as.data.frame() %>% mutate(label="vacc_immunity"))
+
+inf_immunity_model_dose <- (summary(inf_immunity_model_dose)$coefficients)[1,]
+or <- exp(inf_immunity_model_dose[1]*1:4)
+low <- exp(inf_immunity_model_dose[1]*1:4-1.96*inf_immunity_model_dose[3])
+high <- exp(inf_immunity_model_dose[1]*1:4+1.96*inf_immunity_model_dose[3])
+dose_results <- rbind(dose_results, cbind(or, low, high) %>% as.data.frame() %>% mutate(label="inf_immunity"))
+
+hybrid_immunity_model_dose <- (summary(hybrid_immunity_model_dose)$coefficients)[1,]
+or <- exp(hybrid_immunity_model_dose[1]*1:4)
+low <- exp(hybrid_immunity_model_dose[1]*1:4-1.96*hybrid_immunity_model_dose[3])
+high <- exp(hybrid_immunity_model_dose[1]*1:4+1.96*hybrid_immunity_model_dose[3])
+dose_results <- rbind(dose_results, cbind(or, low, high) %>% as.data.frame() %>% mutate(label="hybrid_immunity"))
+
+dose_results <- dose_results %>% as.data.frame()
+dose_results <- dose_results %>% mutate(x=rep(c("dose.1", "dose.2", "dose.3", "dose.4"), 4))
+names(dose_results) <- c("point", "lb", "ub", "label", "x")  
+dose_results <- dose_results %>% select(x, point, lb, ub, label)
+
+write_csv(dose_results, here::here(paste0("results/", analysis, "/stratified-casecontrolimmunity-results-dose.csv")))
+
+
 data %>% ggplot(aes(time_since_inf)) + geom_histogram(aes(y=..density..)) + scale_x_continuous(limits=c(0,1000)) + scale_y_continuous(limits=c(0,0.005))
 inf_immunity %>% ggplot(aes(time_since_inf)) + geom_histogram(aes(y=..density..)) + scale_x_continuous(limits=c(0, 1000)) + scale_y_continuous(limits=c(0,0.005))
 hybrid_immunity %>% ggplot(aes(time_since_inf)) + geom_histogram(aes(y=..density..)) + scale_x_continuous(limits=c(0, 1000)) + scale_y_continuous(limits=c(0,0.005))
