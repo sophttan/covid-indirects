@@ -1,8 +1,11 @@
 vaccine <- read_csv("D:/CCHCS_premium/st/leaky/cleaned-data/complete_vaccine_data121523.csv") 
 vaccine 
-vaccine %>% group_by(ResidentId) %>% summarise(full_vacc=first(full_vacc))%>%filter(full_vacc==2)
+(vaccine %>% group_by(ResidentId) %>% filter(num_dose==1))%>% group_by(Vaccine, full_vacc) %>% summarise(n=n())
+(vaccine %>% group_by(ResidentId) %>% filter(num_dose==1))$full_vacc %>% table()
+(vaccine %>% group_by(ResidentId) %>% filter(num_dose==1)) %>% filter(grepl("Ad26", Vaccine)&grepl("mRNA", Vaccine))
+c(20561, 78894, 22619)/122184
 
-
+(vaccine %>% filter(num_dose==1) %>% filter(ResidentId %in% data$ResidentId))$Vaccine %>% table()
 
 source(here::here("config.R"))
 

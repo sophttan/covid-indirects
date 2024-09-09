@@ -3,14 +3,14 @@
 
 source(here::here("config.R"))
 
-data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing072224.csv")
+data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing061324.csv")
 data <- data %>% mutate(time_since_inf_cut.roommate = factor(time_since_inf_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 data <- data %>% mutate(time_since_vacc_cut.roommate = factor(time_since_vacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 data <- data %>% mutate(time_since_infvacc_cut.roommate = factor(time_since_infvacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 
 
 data <- data %>% mutate(time_since_vacc_cut = factor(time_since_vacc_cut, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
-# data <- data %>% mutate(time_since_inf_cute = factor(time_since_inf_cut, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
+# data <- data %>% mutate(time_since_inf_cut = factor(time_since_inf_cut, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 
 # TO FILL IN
 # change to reflect analysis being run (results folder name)
@@ -199,12 +199,36 @@ no_immunity_model <- clogit(case ~ has.vacc.roommate.binary + has.prior.inf.room
                   strata(group), data=no_immunity)
 format_results(no_immunity_model)
 
+no_immunity_model_timevacc <- clogit(case ~ time_since_vacc_cut.roommate + has.prior.inf.roommate + 
+                                age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
+                                # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
+                                strata(group), data=no_immunity)
+format_results(no_immunity_model_timevacc)
+
+no_immunity_model_timeinf <- clogit(case ~ has.vacc.roommate.binary + time_since_inf_cut.roommate + 
+                               age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
+                               # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
+                               strata(group), data=no_immunity)
+format_results(no_immunity_model_timeinf)
+
 vacc_immunity <- data %>% filter(num_dose_adjusted>0&has.prior.inf==0)
 vacc_model <- clogit(case ~ has.vacc.roommate.binary + has.prior.inf.roommate + 
                   age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
                   # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
                   strata(group), data=data %>% filter(num_dose_adjusted>0&has.prior.inf==0))
 format_results(vacc_model)
+
+vacc_model_timevacc <- clogit(case ~ time_since_vacc_cut.roommate + has.prior.inf.roommate + 
+                       age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
+                       # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
+                       strata(group), data=vacc_immunity)
+format_results(vacc_model_timevacc)
+
+vacc_model_timeinf <- clogit(case ~ has.vacc.roommate.binary + time_since_inf_cut.roommate + 
+                       age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
+                       # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
+                       strata(group), data=vacc_immunity)
+format_results(vacc_model_timeinf)
 
 inf_immunity <- data %>% filter(num_dose_adjusted==0&has.prior.inf==1)
 inf_model <- clogit(case ~ has.vacc.roommate.binary + has.prior.inf.roommate + 
@@ -213,18 +237,36 @@ inf_model <- clogit(case ~ has.vacc.roommate.binary + has.prior.inf.roommate +
                   strata(group), data=inf_immunity)
 format_results(inf_model)
 
-inf_model <- clogit(case ~ has.vacc.roommate.binary + time_since_inf_cut.roommate + 
-                      age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
-                      # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
-                      strata(group), data=inf_immunity)
-format_results(inf_model)
+inf_model_timevacc <- clogit(case ~ time_since_vacc_cut.roommate + has.prior.inf.roommate + 
+                                age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
+                                # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
+                                strata(group), data=inf_immunity)
+format_results(inf_model_timevacc)
+
+inf_model_timeinf <- clogit(case ~ has.vacc.roommate.binary + time_since_inf_cut.roommate + 
+                               age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
+                               # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
+                               strata(group), data=inf_immunity)
+format_results(inf_model_timeinf)
 
 hybrid_immunity <- data %>% filter(num_dose_adjusted>0&has.prior.inf==1)
 hybrid_model <- clogit(case ~ has.vacc.roommate.binary + has.prior.inf.roommate + 
                   age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
                   # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
-                  strata(group), data=data %>% filter(num_dose_adjusted>0&has.prior.inf==1))
+                  strata(group), data=hybrid_immunity)
 format_results(hybrid_model)
+
+hybrid_model_timevacc <- clogit(case ~ time_since_vacc_cut.roommate + has.prior.inf.roommate + 
+                               age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
+                               # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
+                               strata(group), data=hybrid_immunity)
+format_results(hybrid_model_timevacc)
+
+hybrid_model_timeinf <- clogit(case ~ has.vacc.roommate.binary + time_since_inf_cut.roommate + 
+                              age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
+                              # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
+                              strata(group), data=hybrid_immunity)
+format_results(hybrid_model_timeinf)
 
 write_csv(rbind(format_results(no_immunity_model)[1:2,]%>%mutate(label="no_immunity", n=no_immunity%>%nrow()),
                 format_results(vacc_model)[1:2,]%>%mutate(label="vacc_immunity", n=vacc_immunity%>%nrow()),
@@ -232,4 +274,34 @@ write_csv(rbind(format_results(no_immunity_model)[1:2,]%>%mutate(label="no_immun
                 format_results(hybrid_model)[1:2,]%>%mutate(label="hybrid_immunity", n=hybrid_immunity%>%nrow())),
           here::here(paste0("results/", analysis, "/stratified-casecontrolimmunity-results.csv")))
 
-          
+write_csv(rbind(format_results(no_immunity_model_timevacc)[1:4,]%>%mutate(label="no_immunity", n=(no_immunity$time_since_vacc_cut.roommate%>%table())[2:5]),
+                format_results(vacc_model_timevacc)[1:4,]%>%mutate(label="vacc_immunity", n=(vacc_immunity$time_since_vacc_cut.roommate%>%table())[2:5]),
+                format_results(inf_model_timevacc)[1:4,]%>%mutate(label="inf_immunity", n=(inf_immunity$time_since_vacc_cut.roommate%>%table())[2:5]),
+                format_results(hybrid_model_timevacc)[1:4,]%>%mutate(label="hybrid_immunity", n=(hybrid_immunity$time_since_vacc_cut.roommate%>%table())[2:5])),
+          here::here(paste0("results/", analysis, "/stratified-casecontrolimmunity-results-vacc.csv")))
+
+write_csv(rbind(format_results(no_immunity_model_timeinf)[2:5,]%>%mutate(label="no_immunity", n=(no_immunity$time_since_inf_cut.roommate%>%table())[2:5]),
+                format_results(vacc_model_timeinf)[2:5,]%>%mutate(label="vacc_immunity", n=(vacc_immunity$time_since_inf_cut.roommate%>%table())[2:5]),
+                format_results(inf_model_timeinf)[2:5,]%>%mutate(label="inf_immunity", n=(inf_immunity$time_since_inf_cut.roommate%>%table())[2:5]),
+                format_results(hybrid_model_timeinf)[2:5,]%>%mutate(label="hybrid_immunity", n=(hybrid_immunity$time_since_inf_cut.roommate%>%table())[2:5])),
+          here::here(paste0("results/", analysis, "/stratified-casecontrolimmunity-results-inf.csv")))
+
+
+data %>% ggplot(aes(time_since_inf)) + geom_histogram(aes(y=..density..)) + scale_x_continuous(limits=c(0,1000)) + scale_y_continuous(limits=c(0,0.005))
+inf_immunity %>% ggplot(aes(time_since_inf)) + geom_histogram(aes(y=..density..)) + scale_x_continuous(limits=c(0, 1000)) + scale_y_continuous(limits=c(0,0.005))
+hybrid_immunity %>% ggplot(aes(time_since_inf)) + geom_histogram(aes(y=..density..)) + scale_x_continuous(limits=c(0, 1000)) + scale_y_continuous(limits=c(0,0.005))
+
+data %>% ggplot(aes(time_since_inf, group=factor(case), fill=factor(case))) + geom_histogram(aes(y=..density..), position="identity", alpha=0.5) + scale_x_continuous(limits=c(0,1000)) + scale_y_continuous(limits=c(0,0.005))
+inf_immunity %>% ggplot(aes(time_since_inf, group=factor(case), fill=factor(case))) + geom_histogram(aes(y=..density..), position="identity", alpha=0.5) + scale_x_continuous(limits=c(0,1000)) + scale_y_continuous(limits=c(0,0.005))
+
+
+data %>% ggplot(aes(time_since_vacc)) + geom_histogram(aes(y=..density..)) + scale_x_continuous(limits=c(0,1000)) + scale_y_continuous(limits=c(0,0.005))
+vacc_immunity %>% ggplot(aes(time_since_vacc)) + geom_histogram(aes(y=..density..)) + scale_x_continuous(limits=c(0, 1000)) + scale_y_continuous(limits=c(0,0.005))
+
+
+data <- data %>% 
+  mutate(time_since_inf_cut=cut(time_since_inf, breaks=c(0, 90, 182, 365, Inf), right = F)) 
+
+levels(data$time_since_inf_cut)<-c(levels(data$time_since_inf_cut), "None") 
+data$time_since_inf_cut[is.na(data$time_since_inf_cut)] <- "None"
+data <- data %>% mutate(time_since_inf_cut = factor(time_since_inf_cut, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
