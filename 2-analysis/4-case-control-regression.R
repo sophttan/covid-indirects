@@ -12,9 +12,16 @@ data <- data %>% mutate(time_since_infvacc_cut.roommate = factor(time_since_infv
 data <- data %>% mutate(time_since_vacc_cut = factor(time_since_vacc_cut, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 # data <- data %>% mutate(time_since_inf_cut = factor(time_since_inf_cut, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 
+data <- data %>% group_by(group) %>% 
+  mutate(size=n()) %>%
+  group_by(ResidentId) %>% 
+  mutate(keep=n()==1|(sum(case==1)==1&case==1)|(sum(case==1)>1&case==1)|(sum(case==1)==0&n()>1))
+
+data <- data %>% filter(keep) %>% filter(test.Day==min(test.Day))
+
 # TO FILL IN
 # change to reflect analysis being run (results folder name)
-analysis <- "main"
+analysis <- "no-repeat"
 # uncomment if adjusting for time since infection and time since vaccine in case/control
 # data <- data %>% replace_na(list(time_since_inf=1000, time_since_vacc=1000))
 
