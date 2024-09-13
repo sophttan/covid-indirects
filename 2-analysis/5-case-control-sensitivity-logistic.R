@@ -3,7 +3,7 @@
 
 source(here::here("config.R"))
 
-data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing061324.csv")
+data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing091224.csv")
 data <- data %>% mutate(time_since_inf_cut.roommate = factor(time_since_inf_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 data <- data %>% mutate(time_since_vacc_cut.roommate = factor(time_since_vacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 data <- data %>% mutate(time_since_infvacc_cut.roommate = factor(time_since_infvacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
@@ -89,21 +89,7 @@ coef_inf_robust <- coeftest(inf_model, vcov. = vcovCL(inf_model, cluster = data$
 coef_vacc_robust <- coeftest(vacc_model, vcov. = vcovCL(vacc_model, cluster = data$ResidentId))
 coef_infvacc_robust <- coeftest(infvacc_model, vcov. = vcovCL(infvacc_model, cluster = data$ResidentId))
 
-rbind(format_results(coef_binary_robust)[2:3,], 
-      dose_robust, 
-      format_results(coef_inf_robust)[2:5,], 
-      format_results(coef_vacc_robust)[2:5,], 
-      format_results(coef_infvacc_robust)[2:5,]) %>%
+rbind(format_results(coef_binary_robust)[2:3,], dose_robust, format_results(inf_model)[2:5,], format_results(vacc_model)[2:5,], format_results(infvacc_model)[2:5,]) %>%
   write_csv(here::here("results/logistic/full_results_robust.csv"))
 
 
-library(lme4)
-data_repeated <- data %>% group_by(ResidentId) %>% filter(n()>1) %>% ungroup()
-binary_model_person <- glmer(case ~ has.vacc.roommate.binary + has.prior.inf.roommate + 
-                               num_dose_adjusted + has.prior.inf + 
-                               age + age.roommate + risk + risk.roommate + 
-                               # factor(Institution) +  factor(BuildingId) + factor(level) + 
-                               (1|ResidentId), 
-                             data=data_repeated %>% mutate(ResidentId=factor(ResidentId)),  family = "binomial")
-fixef(binary_model_person)
-getME(binary_model_person, "X")

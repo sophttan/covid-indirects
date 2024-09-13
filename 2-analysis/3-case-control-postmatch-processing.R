@@ -4,7 +4,7 @@
 source(here::here("config.R"))
 
 # change file path for different matched datasets with different study criteria/matching specifications
-matched <- read_csv("D:/CCHCS_premium/st/indirects/matched_building_6-9days-12matching-061324.csv") 
+matched <- read_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-12matching-notimematch-091224.csv") 
 
 inf <- read_csv("D:/CCHCS_premium/st/cleaned-data/infection_data051324.csv") %>% filter(Day <= "2022-12-15") %>%
   select(ResidentId, Day) %>% rename(last.inf.roommate=Day)
@@ -68,4 +68,5 @@ levels(matched_infvacc_roommate$time_since_infvacc_cut.roommate)<-c(levels(match
 matched_infvacc_roommate$time_since_infvacc_cut.roommate[is.na(matched_infvacc_roommate$time_since_infvacc_cut.roommate)] <- "None"
 
 
-write_csv(matched_infvacc_roommate, "D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing_6-9days_072224.csv")
+write_csv(matched_infvacc_roommate, "D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing_notimematch_091224.csv")
+

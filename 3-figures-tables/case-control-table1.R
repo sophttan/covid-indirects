@@ -32,6 +32,12 @@ data_multiple_controls %>% group_by(case) %>% mutate(sum_weights=sum(weights)) %
   group_by(case, num_dose_adjusted) %>% summarise(n=unique(group)%>%length(), perc=sum(weights)/first(sum_weights))
 
 data_multiple_controls %>% group_by(case) %>% mutate(sum_weights=sum(weights)) %>%
+  group_by(case, dose.roommate.adjusted) %>% summarise(n=sum(weights), perc=sum(weights)/first(sum_weights))
+
+data_multiple_controls %>% group_by(case) %>% mutate(sum_weights=sum(weights)) %>%
+  group_by(case, has.prior.inf.roommate) %>% summarise(n=sum(weights), perc=sum(weights)/first(sum_weights))
+
+data_multiple_controls %>% group_by(case) %>% mutate(sum_weights=sum(weights)) %>%
   group_by(case, Sex) %>% summarise(n=sum(weights), perc=sum(weights)/first(sum_weights))
 
 data_multiple_controls %>% group_by(case) %>% mutate(sum_weights=sum(weights)) %>%

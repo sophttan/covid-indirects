@@ -21,7 +21,7 @@ vacc_influenza %>% filter(Date>="2020-01-01") %>% ggplot(aes(Date)) + geom_histo
 
 vacc_influenza_period <- vacc_influenza %>% filter(Date <= "2022-12-15") %>% rename(flu.date=Date) %>% select(ResidentId, flu.date)
 
-data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing072224.csv")
+data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing091224.csv")
 
 data <- data %>% left_join(vacc_influenza_period, by=c("Roommate"="ResidentId"))
 
@@ -44,7 +44,7 @@ format_results <- function(model) {
 
 
 # main model - binary vaccine and binary infection status
-model <- clogit(case ~ has.flu.roommate + 
+model <- clogit(case ~ has.flu.roommate + has.prior.inf.roommate +
                   age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
                   # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
                   strata(group), data=data)
@@ -54,20 +54,16 @@ model <- clogit(case ~ has.flu.roommate +
 data <- data %>% mutate(flu.twoyears = if_else(has.flu.roommate&(test.Day-flu.date<=730&test.Day-flu.date>=0), T, F),
                         flu.oneyear = if_else(has.flu.roommate&(test.Day-flu.date<=365&test.Day-flu.date>=0), T, F))
 data
-two_year_model <- clogit(case ~ flu.twoyears + 
+two_year_model <- clogit(case ~ flu.twoyears + has.prior.inf.roommate +
                   age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
                   # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
                   strata(group), data=data)
 
 
-one_year_model <- clogit(case ~ flu.oneyear + 
+one_year_model <- clogit(case ~ flu.oneyear + has.prior.inf.roommate +
                            age + age.roommate + risk + risk.roommate + # commented if running analysis with no adjustments for additional covariates
                            # time_since_inf + time_since_vacc + # commented unless running analysis with adjustment for time since vacc and/or inf of case/control
                            strata(group), data=data)
-write_csv(rbind(format_results(model)[1,],
-                format_results(two_year_model)[1,],
-                format_results(one_year_model)[1,]), 
-          here::here("results/main/flu-results.csv"))
 
 data %>% group_by(case) %>% summarise(has.flu.roommate=mean(has.flu.roommate), 
                                       flu.twoyears=mean(flu.twoyears),
