@@ -3,7 +3,7 @@
 
 source(here::here("config.R"))
 
-data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing061324.csv")
+data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing091224.csv")
 
 demo <- read_csv("D:/CCHCS_premium/st/leaky/cleaned-data/demographic121523.csv")
 demo
