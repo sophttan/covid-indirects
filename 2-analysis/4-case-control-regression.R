@@ -3,7 +3,7 @@
 
 source(here::here("config.R"))
 
-data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing_notimematch_091224.csv")
+data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing091224.csv")
 data <- data %>% mutate(time_since_inf_cut.roommate = factor(time_since_inf_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 data <- data %>% mutate(time_since_vacc_cut.roommate = factor(time_since_vacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 data <- data %>% mutate(time_since_infvacc_cut.roommate = factor(time_since_infvacc_cut.roommate, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
@@ -12,16 +12,15 @@ data <- data %>% mutate(time_since_infvacc_cut.roommate = factor(time_since_infv
 data <- data %>% mutate(time_since_vacc_cut = factor(time_since_vacc_cut, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 # data <- data %>% mutate(time_since_inf_cut = factor(time_since_inf_cut, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 
-# set.seed(88)
-# data <- data %>% group_by(group) %>% 
-#   mutate(size=n()) %>%
-#   group_by(ResidentId) %>% 
-#   sample_n(size = 1)
-# data <- data %>% group_by(group) %>% filter(n()>1&any(case==1)&any(case==0))
+set.seed(88)
+data <- data %>% group_by(group) %>%
+  group_by(ResidentId) %>%
+  sample_n(size = 1)
+data <- data %>% group_by(group) %>% filter(n()>1&any(case==1)&any(case==0))
   
 # TO FILL IN
 # change to reflect analysis being run (results folder name)
-analysis <- "no-time-match"
+analysis <- "no-repeat"
 # uncomment if adjusting for time since infection and time since vaccine in case/control
 # data <- data %>% replace_na(list(time_since_inf=1000, time_since_vacc=1000))
 

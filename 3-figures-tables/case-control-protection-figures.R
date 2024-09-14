@@ -40,7 +40,7 @@ ggplot(results%>%filter(group!="By time"), aes(x=time, y=point, color=inf_vacc))
   geom_hline(yintercept=0, linetype=2) +   
   geom_vline(aes(xintercept=value)) + 
   facet_grid2(~inf_vacc, space="free_x", scales="free_x", render_empty = F, switch = "y") + 
-  scale_y_continuous(position = "left", "Indirect protection (%)", limits=c(0, 50), breaks = seq(0,50,10)) + 
+  scale_y_continuous(position = "left", "Indirect protection (%)", limits=c(-1, 50), breaks = seq(0,50,10)) + 
   scale_color_brewer(palette = "Dark2") + 
   theme(axis.title.x = element_blank(),
         legend.position = "none",
@@ -60,7 +60,7 @@ ggplot(results%>%filter(group=="By time"&inf_vacc!="First three months of vaccin
   geom_hline(yintercept=0, linetype=2) + 
   facet_grid2(~inf_vacc, scale="free_x", independent = "x", render_empty = F, switch = "y") + 
   scale_x_discrete("Months") + 
-  scale_y_continuous("Indirect protection (%)", limits=c(0, 60), breaks = seq(0,60,10)) + 
+  scale_y_continuous("Indirect protection (%)", limits=c(-3, 60), breaks = seq(0,60,10)) + 
   scale_color_brewer(palette = "Dark2") + 
   theme(legend.position = "none",
         panel.background = element_blank(),
@@ -78,7 +78,7 @@ ggplot(results%>%filter(inf_vacc=="First three months of vaccination"),
   geom_hline(yintercept=0, linetype=2) + 
   facet_grid2(~inf_vacc, scale="free_x", independent = "x", render_empty = F, switch = "y") + 
   scale_x_discrete("Months") + 
-  scale_y_continuous("Indirect protection (%)", limits=c(0, 50), breaks = seq(0,50,10)) + 
+  scale_y_continuous("Indirect protection (%)", limits=c(-1, 50), breaks = seq(0,50,10)) + 
   scale_color_brewer(palette = "Dark2") + 
   theme(legend.position = "none",
         panel.background = element_blank(),
@@ -102,7 +102,7 @@ ggplot(results[1:3,]%>%mutate(bivalent=c("Monovalent", "Monovalent","Bivalent"),
   geom_errorbar(aes(ymin=ub, ymax=lb), position=position_dodge(width=0.1), width=0.2) + 
   geom_hline(yintercept=0, linetype=2) + 
   scale_x_discrete("Months") + 
-  scale_y_continuous("Indirect protection (%)", limits=c(0, 75), breaks = seq(0,75,10)) + 
+  scale_y_continuous("Indirect protection (%)", limits=c(-1, 75), breaks = seq(0,75,10)) + 
   scale_color_manual(values=colors) + 
   theme(legend.title=element_blank(),
         panel.background = element_blank(),

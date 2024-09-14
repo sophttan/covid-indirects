@@ -6,6 +6,7 @@ vaccine
 c(20561, 78894, 22619)/122184
 
 (vaccine %>% filter(num_dose==1) %>% filter(ResidentId %in% data$ResidentId))$Vaccine %>% table()
+(vaccine %>% filter(num_dose==1) %>% filter(ResidentId %in% data$Roommate))$Vaccine %>% table()
 
 source(here::here("config.R"))
 

@@ -4,7 +4,7 @@
 source(here::here("config.R"))
 
 
-data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing061324.csv") %>% 
+data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_postmatchprocessing091224.csv") %>% 
   select(id, group, ResidentId, num_dose_adjusted, test.Day, case, Roommate, 
          last.inf.roommate, last.vacc.roommate, dose.roommate.adjusted, has.prior.inf, 
          has.vacc.roommate.binary, has.prior.inf.roommate)
@@ -17,7 +17,7 @@ infection <- read_csv("D:/CCHCS_premium/st/cleaned-data/infection_data051324.csv
 
 
 # fill in
-num_days <- 4
+num_days <- 90
 
 check_test_filtered <- check_test_resident %>% mutate(has_test=any(test.Day-Day <= num_days & test.Day-Day>0,na.rm=T))
 check_test_roommate_filtered <- check_test_resident %>% mutate(has_test=any(test.Day-Day <= num_days & test.Day-Day>0,na.rm=T))
@@ -49,3 +49,4 @@ check_test_roommate_summary %>% mutate(has_either = if_else(has.vacc.roommate.bi
   summarise_all(first) %>%
   group_by(case, has_either) %>% summarise(n=sum(has_test), n2=sum(has_inf)) %>% mutate(prop=n2/n) %>%
   arrange(desc(case), has_either)
+
