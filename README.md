@@ -10,6 +10,7 @@ The paper is in preprint [here](https://doi.org/10.1101/2024.07.23.24310889). Th
 - `1-cleaning`: contains all code needed for initial cleaning of data 
 - `2-analysis`: contains all code for primary and sensitivity analyses
 - `3-figures-tables`: contains all code for generating figures and tables
+- `results`: contains all results for primary and sensitivity analyses
 - `figures`: contains figure outputs (jpg)
 - `tables`: contains table outputs (csv) 
 - `archive`: contains old scripts used for testing and data exploration
