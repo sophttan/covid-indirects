@@ -1,0 +1,8 @@
+ ,Odds ratio (OR) (95% CI)
+Immunity Only vaccine-derived immunity,"0.752 (0.646, 0.876)"
+Only infection-acquired immunity,"0.787 (0.634, 0.977)"
+Both vaccine- and infection-acquired immunity (hybrid),"0.638 (0.544, 0.749)"
+Age Case or control,"0.995 (0.99, 1)"
+Age Roommate,"1 (1, 1.01)"
+Severe COVID-19 risk score Case or control,"1.08 (1.04, 1.11)"
+Severe COVID-19 risk score Roommate,"1.08 (1.04, 1.11)"

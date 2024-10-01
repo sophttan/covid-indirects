@@ -10,6 +10,7 @@ make_tbl <- function(res, names, include_age_risk=T) {
     res$x <- c(names, "Age Case or control", "Age Roommate", 
                "Severe COVID-19 risk score Case or control", "Severe COVID-19 risk score Roommate")
   } else{
+    res <- res[1:(nrow(res)-4),]
     res$x <- names
   }
   
@@ -24,14 +25,24 @@ res
 make_tbl(res, c("Vaccine-derived immunity (any)", "Infection-acquired immunity (any)")) %>% write_csv("tables/binary.csv")
 
 # dose results
-res <- read_csv(here::here("results/main/dose-results.csv"))
-res                 
+names <- c("Vaccine-derived immunity (by dose) Partial vaccination",
+           "Primary series alone",
+           "One booster",
+           "Two or more boosters",
+           "Infection-acquired immunity (any)") 
+num <- make_tbl(read_csv(here::here("results/main/dose-results.csv")), names) 
+cat <- make_tbl(read_csv(here::here("results/main/dose-results-categorical.csv")), names)
+rbind(c(" ", "Doses (numeric)", "Doses (categorical)"), cbind(num[,1],num[,2],cat[,2])) %>% 
+  write_csv("tables/dose.csv")
 
-make_tbl(res, c("Vaccine-derived immunity (by dose) Partial vaccination",
-                "Primary series alone",
-                "One booster",
-                "Two or more boosters",
-                "Infection-acquired immunity (any)")) %>% write_csv("tables/dose.csv")
+
+# hybrid results
+res <- read_csv(here::here("results/main/hybrid-results.csv"))
+res
+names <- c("Immunity Only vaccine-derived immunity", 
+           "Only infection-acquired immunity",
+           "Both vaccine- and infection-acquired immunity (hybrid)")
+make_tbl(res, names) %>% write_csv("hybrid.csv")
 
 
 # waning results
@@ -51,6 +62,13 @@ tbl <- vacc %>% cbind(inf) %>% cbind(infvacc)
 names(tbl) <- paste(c("","Vaccine", "Infection", "Vaccine or infection"), names(tbl))
 tbl %>% write_csv("tables/time.csv")
 
+# waning adjustment for both
+res <- read_csv(here::here("results/main/time-bothinfvacc-results.csv"))
+res                 
+
+column <- c("Vaccine-derived immunity (time) <3 months", "3 to <6 months", "6 to <12 months", "12+ months",
+            "Infection-acquired immunity (time) <3 months", "3 to <6 months", "6 to <12 months", "12+ months")
+make_tbl(res, column, include_age_risk = F) %>% write_csv("tables/waning_bothinfvacc.csv")
 
 # 3 month vaccine
 res <- read_csv(here::here("results/main/3months-results.csv"))
@@ -83,3 +101,6 @@ cbind("Immunity of matched case and controls" = rep(c("No immunity",
                                                       "Both vaccine- and infection-acquired immunity (hybrid)"), each=2),
   make_tbl(res, rep(c("Vaccine-derived immunity (any)", "Infection-acquired immunity (any)"), 4), include_age_risk = F)) %>%
   write_csv("tables/stratified-casecontrol.csv")
+
+
+

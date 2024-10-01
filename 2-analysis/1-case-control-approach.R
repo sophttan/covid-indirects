@@ -1,13 +1,14 @@
-# Sophia Tan 2/26/24
+# Sophia Tan 2/26/24 - last updated 9/24/24
 # Identify infections and controls that meet study criteria
 
 source(here::here("config.R"))
 
-# load testing and infection data
+#### load testing and infection data ####
 inf_full <- read_csv("D:/CCHCS_premium/st/cleaned-data/infection_data051324.csv")
 testing <- read_csv("D:/CCHCS_premium/st/cleaned-data/complete_testing_data051324.csv") 
 
-# load housing data
+
+#### load housing data ####
 housing <- NULL
 for(i in 1:4){
   housing <- rbind(housing, read_csv(paste0("D:/CCHCS_premium/st/leaky/raw-data/housing_subset", i,".csv")))
@@ -31,60 +32,16 @@ housing_relevant <- housing_relevant %>% ungroup() %>% mutate(Day=Night+1) # hou
 gc()
 
 
-
-#### housing requirements #### 
-# fill in days for roommate definitions
-# in the main analysis, we require that cases and controls co-reside with one person for the entire preceding period 3-6 days prior to test collection
-# we conduct sensitivity analyses with 3 day, 0-6 days, and 6-9 days windows
-min_days <- 3
-max_days <- 6
-num_days <- max_days-min_days+1
-
-
-
-#### identify cases ####
+#### identify eligible cases ####
 # filter infections so only include confirmed infections during study period
 inf <- inf_full %>% filter(Day>="2021-12-15" & Day<="2022-12-15") %>%
   select(ResidentId, num_pos, Day)
-inf
 
 # cases must have been incarcerated before 4/1/2020
 inf_eligible <- inf %>% filter(ResidentId %in% included) # 23,307 eligible cases 
 
-# join with housing data to check roommate requirements
-inf_housing_full <- inf_eligible %>% full_join(housing_relevant, by=c("ResidentId")) %>% 
-  rename("Day"="Day.y", "inf.Day"="Day.x") %>% 
-  filter(inf.Day-Day<=max_days & inf.Day-Day>=min_days) %>% # filter for days within specified preceding period (i.e. 3-6 days)
-  select(!c(Night)) %>% 
-  group_by(ResidentId, num_pos) %>% 
-  filter(n()==num_days) # make sure resident has housing data for all days in preceding period (125 missing any/all housing data)
 
-# find nightly roommate(s) for each case
-inf_housing_full_withroommate <- inf_housing_full %>% left_join(housing_relevant %>% rename("Roommate"="ResidentId"))
-inf_housing_full_withroommate <- inf_housing_full_withroommate %>% filter(n==1 | Roommate != ResidentId) # keep row if resident is living alone, otherwise keep only roommates
-
-inf_housing_full_withroommate <- inf_housing_full_withroommate %>% group_by(ResidentId, num_pos) %>%
-  arrange(ResidentId, num_pos, Day)
-
-inf_housing_full_withroommate %>% filter(any(n>2)) # 9693 excluded because they stay in rooms with more than 2 residents
-inf_housing_full_withroommate %>% filter(all(n<=2)&any(n==1)) # 5493 excluded because they are in quarantine/isolation at any point during preceding period
-  
-inf_2 <- inf_housing_full_withroommate %>% 
-  filter(all(n==2)) # case living with 1 other person over entire preceding period
-
-cases_final <- inf_2 %>%
-  filter(all(Roommate==first(Roommate))) %>% # make sure case lives with the same period over preceding period
-  filter(all(Institution==first(Institution))) %>% # make sure case doesnt move buildings during preceding period since case/controls will be matched by building
-  filter(all(BuildingId==first(BuildingId)))
-
-cases_final <- cases_final %>% filter(first(Roommate) %in% included) # make sure roommate meets incarceration requirement
-
-write_csv(cases_final, "D:/CCHCS_premium/st/indirects/cases6-9daysame-roommate-061324.csv")
-
-
-
-
-#### identify controls ####
+#### identify eligible controls ####
 # tests during study period (includes positive and negative)
 testing <- testing %>% group_by(ResidentId, num_pos) %>% mutate(last_inf=if_else(num_pos==0, NA, min(Day))) # new column for when most recent infection was
 testing <- testing %>% filter(Day >= "2021-12-15" & Day <= "2022-12-15") 
@@ -97,73 +54,138 @@ testing_eligible <- testing_eligible %>% filter(Result=="Negative") %>%
   filter(num_pos==0|Day-last_inf>90) # no prior infection or infection > 90 days ago
 
 # control also cannot have a new infection in the following 14 days after test collection
-inf_full <- inf_full %>%
+inf_new <- inf_full %>%
   select(ResidentId, Day) %>% rename(new.inf=Day)
-remove <- testing_eligible %>% left_join(inf_full, "ResidentId") %>%
+remove <- testing_eligible %>% left_join(inf_new, "ResidentId") %>%
   filter(new.inf>Day & new.inf-Day<14) %>%
   select(ResidentId, Day) %>% mutate(remove=1)
 testing_eligible <- testing_eligible %>% left_join(remove) %>% filter(remove%>%is.na()) %>% select(!remove)
 
 testing_eligible  <- testing_eligible  %>% select(!c(Result, pcr, antigen, unknown, last_inf))
 
-# data is too big to test all at once, so loop through tests in groups of 25000 negative tests
-# keep track of reasons why controls are excluded for different study criteria
-test_final <- NULL # has controls that meet all inclusion criteria
-total_excluded_housing <- 0
-total_excluded_isolation <- 0
-total_excluded_group <- 0
-total_excluded_movement <- 0
-total_excluded_roommate <- 0
 
-for(i in 0:floor(nrow(testing_eligible)/25000)) {
-  gc()
-  
-  testing_sub <- testing_eligible[max(1,(i*25000)):min(((i+1)*25000-1),nrow(testing_eligible)),]
-  n_total <- testing_sub %>% nrow()
-  test_housing_full <- testing_sub %>% full_join(housing_relevant, by=c("ResidentId")) 
-  
-  test_housing_full <- test_housing_full %>% 
-    rename("Day"="Day.y", "test.Day"="Day.x") %>%
-    filter(test.Day-Day<=max_days & test.Day-Day>=min_days) %>% 
-    group_by(ResidentId, test.Day) %>%
-    filter(n()==num_days) %>%
-    select(!c(Night)) 
+#### housing requirements #### 
+# FILL IN DAYS FOR ROOMMATE DEFINITONS
+# in the main analysis, we require that cases and controls co-reside with one person for the entire preceding period 3-6 days prior to test collection
+# we conduct sensitivity analyses with 3 day, 0-6 days, and 6-9 days windows
+min_days <- 3
+max_days <- 6
+num_days <- max_days-min_days+1
 
-  total_excluded_housing <- total_excluded_housing + n_total-(test_housing_full%>%group_keys()%>%nrow())
-  test_housing_full_withroommate <- test_housing_full %>% left_join(housing_relevant %>% rename("Roommate"="ResidentId"))
-  test_housing_full_withroommate <- test_housing_full_withroommate %>% filter(n==1 | Roommate != ResidentId)
+identify_cases <- function(min_days, max_days, num_days){
+  ## function checks that cases meet all housing and roommate requirements
+  ## prints the number of cases that are excluded because of various criteria
   
-  total_excluded_group <- total_excluded_group + (test_housing_full_withroommate %>%filter(any(n>2))%>%group_keys()%>%nrow())
-  total_excluded_isolation <- total_excluded_isolation + (test_housing_full_withroommate %>%filter(all(n<=2)&any(n==1))%>%group_keys()%>%nrow())
+  # join with housing data to check roommate requirements
+  inf_housing_full <- inf_eligible %>% full_join(housing_relevant, by=c("ResidentId")) %>% 
+    rename("Day"="Day.y", "inf.Day"="Day.x") %>% 
+    filter(inf.Day-Day<=max_days & inf.Day-Day>=min_days) %>% # filter for days within specified preceding period (i.e. 3-6 days)
+    select(!c(Night)) %>% 
+    group_by(ResidentId, num_pos) %>% 
+    filter(n()==num_days) # make sure resident has housing data for all days in preceding period (125 missing any/all housing data)
   
-  test_2 <- test_housing_full_withroommate %>% group_by(ResidentId, test.Day) %>% 
-    filter(all(n==2)) %>% 
-    arrange(ResidentId, test.Day, Day) 
+  print("Missing housing: ", (inf_eligible %>% group_keys() %>% nrow())-(inf_housing_full %>% group_keys() %>% nrow()))
   
-  tests <- test_2 %>%
-    filter(all(Roommate==first(Roommate))) %>%
-    filter(all(Institution==first(Institution))) %>%
+  # find nightly roommate(s) for each case
+  inf_housing_full_withroommate <- inf_housing_full %>% left_join(housing_relevant %>% rename("Roommate"="ResidentId"))
+  inf_housing_full_withroommate <- inf_housing_full_withroommate %>% filter(n==1 | Roommate != ResidentId) # keep row if resident is living alone, otherwise keep only roommates
+  
+  inf_housing_full_withroommate <- inf_housing_full_withroommate %>% group_by(ResidentId, num_pos) %>%
+    arrange(ResidentId, num_pos, Day)
+  
+  print("In dorms: ", inf_housing_full_withroommate %>% filter(any(n>2)) %>% group_keys() %>% nrow()) # 9693 excluded because they stay in rooms with more than 2 residents
+  print("In isolation: ", inf_housing_full_withroommate %>% filter(all(n<=2)&any(n==1)) %>% group_keys() %>% nrow()) # 5493 excluded because they are in quarantine/isolation at any point during preceding period
+  
+  inf_2 <- inf_housing_full_withroommate %>% 
+    filter(all(n==2)) # case living with 1 other person over entire preceding period
+  
+  cases_nomovement <- inf_2 %>%
+    filter(all(Roommate==first(Roommate))) %>% # make sure case lives with the same period over preceding period
+    filter(all(Institution==first(Institution))) %>% # make sure case doesnt move buildings during preceding period since case/controls will be matched by building
     filter(all(BuildingId==first(BuildingId)))
   
-  total_excluded_movement <- total_excluded_movement + (test_2%>%group_keys()%>%nrow()) - (tests%>%group_keys()%>%nrow())
+  print("Moves: ", (inf_2 %>% group_keys() %>% nrow())-(cases_nomovement %>% group_keys() %>% nrow())) # 9693 excluded because they stay in rooms with more than 2 residents
   
-  total_excluded_roommate <- total_excluded_roommate + (tests %>%filter(!first(Roommate) %in% included)%>%group_keys()%>%nrow())
+  cases_final <- cases_nomovement %>% filter(first(Roommate) %in% included) # make sure roommate meets incarceration requirement
   
-  tests <- tests %>% filter(first(Roommate) %in% included)
+  print("Roommate incarceration: ", (cases_nomovement %>% group_keys() %>% nrow())-(cases_final %>% group_keys() %>% nrow())) 
+  
+  cases_final
+}
 
-  test_final <- test_final %>% rbind(tests)
+identify_controls <- function(min_days, max_days, num_days){
+  ## function checks that controls meet all housing and roommate requirements
+  ## prints the number of controls that are excluded because of various criteria
   
+  # data is too big to test all at once, so loop through tests in groups of 25000 negative tests
+  # keep track of reasons why controls are excluded for different study criteria
+  test_final <- NULL # has controls that meet all inclusion criteria
+  total_excluded_housing <- 0
+  total_excluded_isolation <- 0
+  total_excluded_group <- 0
+  total_excluded_movement <- 0
+  total_excluded_roommate <- 0
+  
+  for(i in 0:floor(nrow(testing_eligible)/25000)) {
+    gc()
+    
+    testing_sub <- testing_eligible[max(1,(i*25000)):min(((i+1)*25000-1),nrow(testing_eligible)),]
+    n_total <- testing_sub %>% nrow()
+    test_housing_full <- testing_sub %>% full_join(housing_relevant, by=c("ResidentId")) 
+    
+    test_housing_full <- test_housing_full %>% 
+      rename("Day"="Day.y", "test.Day"="Day.x") %>%
+      filter(test.Day-Day<=max_days & test.Day-Day>=min_days) %>% 
+      group_by(ResidentId, test.Day) %>%
+      filter(n()==num_days) %>%
+      select(!c(Night)) 
+    
+    total_excluded_housing <- total_excluded_housing + n_total-(test_housing_full%>%group_keys()%>%nrow())
+    test_housing_full_withroommate <- test_housing_full %>% left_join(housing_relevant %>% rename("Roommate"="ResidentId"))
+    test_housing_full_withroommate <- test_housing_full_withroommate %>% filter(n==1 | Roommate != ResidentId)
+    
+    total_excluded_group <- total_excluded_group + (test_housing_full_withroommate %>%filter(any(n>2))%>%group_keys()%>%nrow())
+    total_excluded_isolation <- total_excluded_isolation + (test_housing_full_withroommate %>%filter(all(n<=2)&any(n==1))%>%group_keys()%>%nrow())
+    
+    test_2 <- test_housing_full_withroommate %>% group_by(ResidentId, test.Day) %>% 
+      filter(all(n==2)) %>% 
+      arrange(ResidentId, test.Day, Day) 
+    
+    tests <- test_2 %>%
+      filter(all(Roommate==first(Roommate))) %>%
+      filter(all(Institution==first(Institution))) %>%
+      filter(all(BuildingId==first(BuildingId)))
+    
+    total_excluded_movement <- total_excluded_movement + (test_2%>%group_keys()%>%nrow()) - (tests%>%group_keys()%>%nrow())
+    
+    total_excluded_roommate <- total_excluded_roommate + (tests %>%filter(!first(Roommate) %in% included)%>%group_keys()%>%nrow())
+    
+    tests <- tests %>% filter(first(Roommate) %in% included)
+    
+    test_final <- test_final %>% rbind(tests)
+  }
+  
+  print("Missing housing: ", total_excluded_housing)
+  print("In dorms: ", total_excluded_group)
+  print("In isolation: ", total_excluded_isolation)
+  print("Moves: ", total_excluded_movement)
+  print("Roommate incarceration: ", total_excluded_roommate)
+  
+  test_final
 }
 
 
-write_csv(test_final, "D:/CCHCS_premium/st/indirects/control6-9daysame-roommate-061324.csv")
+# CHANGE FILE PATH DEPENDING ON ANALYSIS
+# save intermediate data
+cases <- identify_cases(min_days, max_days, num_days)
+controls <- identify_controls(min_days, max_days, num_days)
+write_csv(cases, "D:/CCHCS_premium/st/indirects/cases6-9daysame-roommate-061324.csv")
+write_csv(controls, "D:/CCHCS_premium/st/indirects/control6-9daysame-roommate-061324.csv")
 
 
-
-
-#### combine case and control data ####
-total <- rbind(cases_final %>% mutate(case=1) %>% rename("test.Day"="inf.Day"), 
-               test_final %>% mutate(case=0))
+#### combine case and control data and add covariates ####
+total <- rbind(cases %>% mutate(case=1) %>% rename("test.Day"="inf.Day"), 
+               controls %>% mutate(case=0))
 total
 
 total <- total %>% group_by(ResidentId, test.Day) 
@@ -253,5 +275,5 @@ total_vacc_security_demo_risk <- total_vacc_security_demo_risk %>% ungroup() %>%
 
 total_vacc_security_demo_risk <- total_vacc_security_demo_risk %>% replace_na(list(time_since_vacc.scale=0, time_since_inf.scale=0))
 
-
+# CHANGE FILE PATH DEPENDING ON ANALYSIS
 write_csv(total_vacc_security_demo_risk, "D:/CCHCS_premium/st/indirects/case_control_prematch_6-9day061324.csv")

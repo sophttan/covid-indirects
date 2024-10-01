@@ -1,4 +1,4 @@
-# Sophia Tan 2/27/24
+# Sophia Tan 2/27/24 - last updated 9/24/24
 # Match infections and controls
 # Primary analysis
 # Exact matching on building and security level, time, infection and vaccine status (cases and controls only)
@@ -49,78 +49,81 @@ get_distance <- function(tbl, include_time=T) {
 #### run matching #### 
 # matching takes place iteratively for memory
 # distance based matching takes place within exact matching strata (building and security level, vaccine status, prior infection)
-
-# empty matched data
-match <- NULL
-
-# group data by exact strata
-# summarise with number of controls and number of cases, give unique label (key) to strata
-keys <- data %>% group_by(Institution, BuildingId, num_dose_adjusted, has.prior.inf, level) %>%
-  summarise(control=sum(case!=1), case=sum(case==1)) %>% 
-  ungroup() %>%
-  mutate(key=1:n())
-
-# remove strata where there are no controls or no cases (no matching possible)
-keep <- keys %>% filter(control>0&case>0)
-data <- data %>% left_join(keep %>% select(!c(control, case))) 
+# ratio is maximum number of matches allowed for each case
+# include_time should be T for main analyses to adjust for time since last vaccine or last infection - F in sensitivity analyses
+run_main_matching <- function(data, ratio, include_time) {
+  # empty matched data
+  match <- NULL
+  
+  # group data by exact strata
+  # summarise with number of controls and number of cases, give unique label (key) to strata
+  keys <- data %>% group_by(Institution, BuildingId, num_dose_adjusted, has.prior.inf, level) %>%
+    summarise(control=sum(case!=1), case=sum(case==1)) %>% 
+    ungroup() %>%
+    mutate(key=1:n())
+  
+  # remove strata where there are no controls or no cases (no matching possible)
+  keep <- keys %>% filter(control>0&case>0)
+  data <- data %>% left_join(keep %>% select(!c(control, case))) 
+  
+  # iterate to conduct distance based matching for each exact strata
+  for (i in keep$key) {
+    gc()
+    for_matching_inst <- data %>% filter(key==i) %>% ungroup()
+    for_matching_inst <- for_matching_inst %>% arrange(desc(case))
+    
+    # get distance matrix
+    distance_matrix <- get_distance(for_matching_inst, include_time = include_time)
+    
+    # check for number of cases and number of controls
+    num_cases <- sum(for_matching_inst$case==1)
+    num_controls <- sum(for_matching_inst$case==0)
+    
+    # check if there are any valid matches (any distance that is not Inf) and skip to next strata if no possible matches
+    no_valid_matches <- all(distance_matrix[(num_cases+1):nrow(for_matching_inst),1:num_cases]%>%is.infinite())
+    if(no_valid_matches) {next}
+    
+    ## edge cases that break matchit package function
+    # if there is only 1 case, match all possible controls in order of distance (number of matches can be anywhere from 1 to ratio)
+    if(num_cases==1) {
+      for_matching_inst$distance <- distance_matrix[,1]
+      
+      num_match <- min(nrow(for_matching_inst%>%filter(case==0&!distance%>%is.infinite())), ratio) 
+      for_matching_inst <- (for_matching_inst %>% arrange(desc(case), distance))[1:(num_match+1),] %>% select(!distance)
+      
+      match <- rbind(match, cbind(id=1:(num_match+1), subclass=rep(1,num_match+1), for_matching_inst))
+      next
+    }
+    
+    # if there is only 1 control, match control to closest case
+    if(num_controls==1) {
+      for_matching_inst$distance <- distance_matrix[,num_cases+1]
+      
+      for_matching_inst <- (for_matching_inst %>% arrange(case, distance))[1:2,] %>% select(!distance)
+      
+      match <- rbind(match, cbind(id=1:2, subclass=c(1,1), for_matching_inst))
+      next
+    }
+    
+    # if >1 case and >1 control, use matchit function
+    matched_data <- matchit(case ~ Institution + BuildingId + num_dose_adjusted + has.prior.inf + level,
+                            data = for_matching_inst, 
+                            distance = distance_matrix,
+                            exact = case ~ Institution + BuildingId + num_dose_adjusted + has.prior.inf + level, 
+                            ratio=ratio)
+    
+    print(matched_data %>% summary())
+    match <- rbind(match, matched_data %>% get_matches() %>% select(!weights))
+  }
+  
+  match
+}
 
 
 # matching ratio (can be changed)
 # cases and control are matched 1:2 in primary analysis, matched 1:1 in sensitivity analysis
 ratio <- 2
-
-
-# iterate to conduct distance based matching for each exact strata
-for (i in keep$key) {
-  gc()
-  for_matching_inst <- data %>% filter(key==i) %>% ungroup()
-  for_matching_inst <- for_matching_inst %>% arrange(desc(case))
-  
-  # get distance matrix
-  distance_matrix <- get_distance(for_matching_inst, include_time = F)
-  
-  # check for number of cases and number of controls
-  num_cases <- sum(for_matching_inst$case==1)
-  num_controls <- sum(for_matching_inst$case==0)
-  
-  # check if there are any valid matches (any distance that is not Inf) and skip to next strata if no possible matches
-  no_valid_matches <- all(distance_matrix[(num_cases+1):nrow(for_matching_inst),1:num_cases]%>%is.infinite())
-  if(no_valid_matches) {next}
-  
-  ## edge cases that break matchit package function
-  # if there is only 1 case, match all possible controls in order of distance (number of matches can be anywhere from 1 to ratio)
-  if(num_cases==1) {
-    for_matching_inst$distance <- distance_matrix[,1]
-    
-    num_match <- min(nrow(for_matching_inst%>%filter(case==0&!distance%>%is.infinite())), ratio) 
-    for_matching_inst <- (for_matching_inst %>% arrange(desc(case), distance))[1:(num_match+1),] %>% select(!distance)
-    
-    match <- rbind(match, cbind(id=1:(num_match+1), subclass=rep(1,num_match+1), for_matching_inst))
-    next
-  }
-  
-  # if there is only 1 control, match control to closest case
-  if(num_controls==1) {
-    for_matching_inst$distance <- distance_matrix[,num_cases+1]
-    
-    for_matching_inst <- (for_matching_inst %>% arrange(case, distance))[1:2,] %>% select(!distance)
-    
-    match <- rbind(match, cbind(id=1:2, subclass=c(1,1), for_matching_inst))
-    next
-  }
-  
-  # if >1 case and >1 control, use matchit function
-  matched_data <- matchit(case ~ Institution + BuildingId + num_dose_adjusted + has.prior.inf + level,
-                          data = for_matching_inst, 
-                          distance = distance_matrix,
-                          exact = case ~ Institution + BuildingId + num_dose_adjusted + has.prior.inf + level, 
-                          ratio=ratio)
-  
-  print(matched_data %>% summary())
-  match <- rbind(match, matched_data %>% get_matches() %>% select(!weights))
-}
-
-match
+match <- run_main_matching(data, ratio, include_time)
 
 
 # check that case and controls have test within 2 days and case and controls are not roommates
@@ -128,6 +131,7 @@ match %>% group_by(key, subclass) %>% arrange(key, subclass, desc(case)) %>%
   filter(any(abs(test.Day-first(test.Day))>2) | any(first(ResidentId)==Roommate))
 
 
+#### duplicate residents in matches ####
 # some cases are matched to the same resident multiple times
 # if the resident has multiple negative tests that meet matching criteria
 duplicate_controls <- match %>% group_by(key, subclass) %>% 
