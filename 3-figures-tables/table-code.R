@@ -10,7 +10,7 @@ make_tbl <- function(res, names, include_age_risk=T) {
     res$x <- c(names, "Age Case or control", "Age Roommate", 
                "Severe COVID-19 risk score Case or control", "Severe COVID-19 risk score Roommate")
   } else{
-    res <- res[1:(nrow(res)-4),]
+    res <- res %>% filter(!grepl("(age|risk)", x))
     res$x <- names
   }
   
@@ -88,8 +88,19 @@ make_tbl(res, c("Ancestral monovalent vaccine <3 months",
                 "Ancestral monovalent vaccine 3+ months",
                 "Bivalent vaccine <3 months"), F) %>% write_csv("tables/bivalent.csv")
 
+# interaction
+res <- read_csv(here::here("results/main/interaction-results.csv"))
+res
 
-
+tbl <- make_tbl(res, c(rep("Any vaccine",5), 
+                       rep(c("<3 months", "3 to <6 months", "6 to <12 months", "12+ months"), 5)), 
+                include_age_risk = F)
+tbl$inf <- c("Any infection", 
+             c("<3 months", "3 to <6 months", "6 to <12 months", "12+ months"),
+             rep("Any infection", 4),
+             rep(c("<3 months", "3 to <6 months", "6 to <12 months", "12+ months"), each=4))
+tbl <- tbl %>% pivot_wider(id_cols=` `, names_from = "inf", values_from = `Odds ratio (OR) (95% CI)`)
+tbl %>% write_csv("tables/interaction.csv")
 
 # binary results
 res <- read_csv(here::here("results/main/stratified-casecontrolimmunity-results.csv"))

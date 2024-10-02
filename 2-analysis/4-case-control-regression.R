@@ -13,14 +13,14 @@ data <- data %>% mutate(time_since_vacc_cut = factor(time_since_vacc_cut, levels
 # data <- data %>% mutate(time_since_inf_cut = factor(time_since_inf_cut, levels=c("None","[0,90)","[90,182)","[182,365)","[365,Inf)")))
 
 set.seed(88)
-data <- data %>% group_by(group) %>%
-  group_by(ResidentId) %>%
-  sample_n(size = 1)
-data <- data %>% group_by(group) %>% filter(n()>1&any(case==1)&any(case==0))
+# data <- data %>% group_by(group) %>%
+#   group_by(ResidentId) %>%
+#   sample_n(size = 1)
+# data <- data %>% group_by(group) %>% filter(n()>1&any(case==1)&any(case==0))
   
 # TO FILL IN
 # change to reflect analysis being run (results folder name)
-analysis <- "no-repeat"
+analysis <- "main"
 # uncomment if adjusting for time since infection and time since vaccine in case/control
 # data <- data %>% replace_na(list(time_since_inf=1000, time_since_vacc=1000))
 
@@ -118,6 +118,7 @@ model <- clogit(case ~ bivalent_time + time_since_inf_cut.roommate +
 write_csv(format_results(model), here::here(paste0("results/", analysis, "/bivalent-results.csv")))
 
 data$bivalent_time %>% table()
+data %>% group_by(bivalent_time) %>% summarise(mean=mean(time_since_vacc.roommate, na.rm=T))
 
 
 # check interaction
@@ -125,7 +126,27 @@ model <- clogit(case ~ has.vacc.roommate.binary*has.prior.inf.roommate +
                   age + age.roommate + risk + risk.roommate +
                   # time_since_inf + time_since_vacc +
                   strata(group), data=data)
-summary(model) # interaction insignificant
+int1 <- format_results(model) %>% filter(grepl(":", x))
+
+model <- clogit(case ~ has.vacc.roommate.binary*time_since_inf_cut.roommate + 
+                  age + age.roommate + risk + risk.roommate +
+                  # time_since_inf + time_since_vacc +
+                  strata(group), data=data)
+int2 <- format_results(model) %>% filter(grepl(":", x))
+
+model <- clogit(case ~ time_since_vacc_cut.roommate*has.prior.inf.roommate + 
+                  age + age.roommate + risk + risk.roommate +
+                  # time_since_inf + time_since_vacc +
+                  strata(group), data=data)
+int3 <- format_results(model) %>% filter(grepl(":", x))
+
+model <- clogit(case ~ time_since_vacc_cut.roommate*time_since_inf_cut.roommate + 
+                  age + age.roommate + risk + risk.roommate +
+                  # time_since_inf + time_since_vacc +
+                  strata(group), data=data)
+int4 <- format_results(model) %>% filter(grepl(":", x))
+rbind(int1, int2, int3, int4) %>% write_csv(here::here(paste0("results/", analysis, "/interaction-results.csv")))
+
 
 # hybrid immunity model
 data <- data %>% mutate(infvacc=case_when(has.vacc.roommate.binary==0&has.prior.inf.roommate==0~"none",
