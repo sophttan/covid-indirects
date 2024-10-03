@@ -42,7 +42,7 @@ res
 names <- c("Immunity Only vaccine-derived immunity", 
            "Only infection-acquired immunity",
            "Both vaccine- and infection-acquired immunity (hybrid)")
-make_tbl(res, names) %>% write_csv("hybrid.csv")
+make_tbl(res, names) %>% write_csv("tables/hybrid.csv")
 
 
 # waning results

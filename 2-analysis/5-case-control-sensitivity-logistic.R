@@ -45,7 +45,8 @@ names(dose_results) <- c("point", "lb", "ub", "x")
 
 inf_model <- glm(case ~ time_since_inf_cut.roommate + has.vacc.roommate.binary + 
                    num_dose_adjusted + has.prior.inf + 
-                   age + age.roommate + risk + risk.roommate, 
+                   age + age.roommate + risk + risk.roommate + 
+                   factor(Institution) +  factor(BuildingId) + factor(level), 
                  data=data, family="binomial")
 
 vacc_model <- glm(case ~ time_since_vacc_cut.roommate + has.prior.inf.roommate + 
@@ -66,12 +67,8 @@ rbind(format_results(binary_model)[2:3,], dose_results, format_results(inf_model
 
 library(sandwich)
 library(lmtest)
-binary_model_person <- glm(case ~ has.vacc.roommate.binary + has.prior.inf.roommate + 
-                             num_dose_adjusted + has.prior.inf + 
-                             age + age.roommate + risk + risk.roommate + 
-                             factor(Institution) +  factor(BuildingId) + factor(level), 
-                           data=data,  family = "binomial")
-coef_binary_robust <- coeftest(binary_model_person, vcov. = vcovCL(binary_model_person, cluster = data$ResidentId))
+
+coef_binary_robust <- coeftest(binary_model, vcov. = vcovCL(binary_model, cluster = data$ResidentId))
 
 coef_dose <- coeftest(dose_model_fit, vcov. = vcovCL(dose_model_fit, cluster = data$ResidentId))
 coef_dose_robust <- coef_dose[2,]
