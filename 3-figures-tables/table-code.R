@@ -115,3 +115,22 @@ cbind("Immunity of matched case and controls" = rep(c("No immunity",
 
 
 
+
+# full results
+res <- read_csv("results/logistic/full_results.csv")
+res <- res %>% mutate(name=if_else(grepl("vacc|dose", x), "vacc", "inf")) %>% arrange(desc(name))
+res <- res %>% filter(!grepl("infvacc", x)) %>% select(!name)
+column <- c("Vaccine-derived immunity Any", "By dose Partial vaccination",
+            "Primary series alone",
+            "One booster",
+            "Two or more boosters",
+            "By time <3 months", "3 to <6 months", "6 to <12 months", "12+ months",
+            "Infection-acquired immunity Any",
+            "By time <3 months", "3 to <6 months", "6 to <12 months", "12+ months")
+make_tbl(res, column, F) %>% write_csv("tables/logistic.csv")
+
+res <- read_csv("results/logistic/full_results_robust.csv")
+res <- res %>% mutate(name=if_else(grepl("vacc|dose", x), "vacc", "inf")) %>% arrange(desc(name))
+res <- res %>% filter(!grepl("infvacc", x)) %>% select(!name)
+make_tbl(res, column, F) %>% write_csv("tables/logistic_robust.csv")
+

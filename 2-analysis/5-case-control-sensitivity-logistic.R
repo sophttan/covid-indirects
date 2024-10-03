@@ -86,7 +86,11 @@ coef_inf_robust <- coeftest(inf_model, vcov. = vcovCL(inf_model, cluster = data$
 coef_vacc_robust <- coeftest(vacc_model, vcov. = vcovCL(vacc_model, cluster = data$ResidentId))
 coef_infvacc_robust <- coeftest(infvacc_model, vcov. = vcovCL(infvacc_model, cluster = data$ResidentId))
 
-rbind(format_results(coef_binary_robust)[2:3,], dose_robust, format_results(inf_model)[2:5,], format_results(vacc_model)[2:5,], format_results(infvacc_model)[2:5,]) %>%
+rbind(format_results(coef_binary_robust)[2:3,], 
+      dose_robust, 
+      format_results(coef_inf_robust)[2:5,], 
+      format_results(coef_vacc_robust)[2:5,], 
+      format_results(coef_infvacc_robust)[2:5,]) %>%
   write_csv(here::here("results/logistic/full_results_robust.csv"))
 
 
