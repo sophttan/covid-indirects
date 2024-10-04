@@ -6,7 +6,7 @@
 
 source(here::here("config.R"))
 
-data <- read_csv("D:/CCHCS_premium/st/indirects/case_control_prematch061324.csv")
+data <- read_csv("D:/CCHCS_premium/st/indirects/___")
 
 # function that generates pairwise distance matrix for cases and controls
 # final distance matrix is n x n where n is number of rows of tbl (1 row per case/control)
@@ -122,8 +122,7 @@ run_main_matching <- function(data, ratio, include_time) {
 
 # matching ratio (can be changed)
 # cases and control are matched 1:2 in primary analysis, matched 1:1 in sensitivity analysis
-ratio <- 2
-match <- run_main_matching(data, ratio, include_time)
+match <- run_main_matching(data, 2, T)
 
 
 # check that case and controls have test within 2 days and case and controls are not roommates
@@ -138,10 +137,23 @@ duplicate_controls <- match %>% group_by(key, subclass) %>%
   filter(length(unique(ResidentId))!=n()) 
 duplicate_controls
 
+
+# group data by exact strata
+# summarise with number of controls and number of cases, give unique label (key) to strata
+keys <- data %>% group_by(Institution, BuildingId, num_dose_adjusted, has.prior.inf, level) %>%
+  summarise(control=sum(case!=1), case=sum(case==1)) %>% 
+  ungroup() %>%
+  mutate(key=1:n())
+
+# remove strata where there are no controls or no cases (no matching possible)
+keep <- keys %>% filter(control>0&case>0)
+data <- data %>% left_join(keep %>% select(!c(control, case))) 
+
 unmatched <- data %>% 
   left_join(match %>% select(key, ResidentId, test.Day) %>% mutate(matched=1)) %>% 
   filter(matched%>%is.na()) %>%
   ungroup() %>% select(!matched)
+
 
 no_duplicates <- NULL
 for (i in duplicate_controls$key%>%unique()) {
@@ -155,7 +167,7 @@ for (i in duplicate_controls$key%>%unique()) {
   for_matching_inst <- for_matching_inst %>% arrange(desc(case))
   
   # get distance matrix
-  distance_matrix <- get_distance(for_matching_inst, include_time = F)
+  distance_matrix <- get_distance(for_matching_inst, include_time = T)
   
   # check for number of cases and number of controls
   num_cases <- sum(for_matching_inst$case==1)
@@ -163,18 +175,18 @@ for (i in duplicate_controls$key%>%unique()) {
 
   # check for multiple eligible tests from same control
   # check distance matrix between cases and controls (ignore part of distance matrix that compares controls to each other)
-  distance_matrix_cases_res <- cbind(code=1:nrow(for_matching_inst), ResidentId=for_matching_inst$ResidentId, distance_matrix[,1:num_cases]) %>% as.data.frame()
+  distance_matrix_cases_res <- cbind(ResidentId=for_matching_inst[(num_cases+1):nrow(for_matching_inst),]$ResidentId, distance_matrix[(num_cases+1):nrow(for_matching_inst),1:num_cases]) %>% as.data.frame()
   distance_matrix_cases_res <- distance_matrix_cases_res %>% 
     group_by(ResidentId) %>% 
-    mutate_at(3:ncol(.),
+    mutate_at(2:ncol(.),
               # change distance to inf if resident is eligible as control for a single case multiple times
               # if eligible multiple times, keep the test that is the best match
               function(x){if_else(1:n()==which.min(x),x,Inf)}) 
   
   # update distance in full matrix
-  distance_matrix[,1:num_cases] <- distance_matrix_cases_res[,3:ncol(distance_matrix_cases_res)]%>%as.matrix()
-  distance_matrix[1:num_cases,] <- t(distance_matrix_cases_res[,3:ncol(distance_matrix_cases_res)]%>%as.matrix())
-
+  distance_matrix[(num_cases+1):nrow(for_matching_inst),1:num_cases] <- distance_matrix_cases_res[,2:ncol(distance_matrix_cases_res)]%>%as.matrix()
+  distance_matrix[1:num_cases,(num_cases+1):nrow(for_matching_inst)] <- t(distance_matrix_cases_res[,2:ncol(distance_matrix_cases_res)]%>%as.matrix())
+  
   ## edge cases that break matchit package function
   # if there is only 1 case, match all possible controls in order of distance (number of matches can be anywhere from 1 to ratio)
   if(num_cases==1) {
@@ -213,5 +225,5 @@ full_match <- full_match %>% left_join(matched_keys) %>% mutate(id=1:n())
 
 # change file path based on matching specifications
 # primary analysis saves as matched_building_3_7days-12matching-[date].csv
-full_match %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building_3_7days-12matching-notimematch-091224.csv")
+full_match %>% select(!c(n, Day, Night)) %>% write_csv("D:/CCHCS_premium/st/indirects/matched_building___")
 
