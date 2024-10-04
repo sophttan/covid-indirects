@@ -23,10 +23,11 @@ colors <- c(RColorBrewer::brewer.pal(3, "Paired")[2], RColorBrewer::brewer.pal(8
 inf <- inf_plot_group %>% 
   ggplot(aes(as.POSIXct(Day), inf)) + 
   geom_rect(xmin=as.POSIXct("2021-12-15"), xmax=as.POSIXct("2022-12-15"), ymin=0, ymax=6000, fill="grey93", alpha=0.1) + 
-  annotate("text", x=as.POSIXct("2022-06-15"), y=5300, label="Study period", size=4) + 
+  annotate("text", x=as.POSIXct("2022-06-15"), y=5800, label="Study period", size=4) + 
   geom_line(aes(color="Infections")) + 
   geom_line(data = tests_plot_group, aes(y=resident_tests/20, color="Tests")) +
   scale_y_continuous(name="Total weekly infections", 
+                     limits=c(0,6000),
                      expand = expansion(mult=c(0, 0.01)),
                      sec.axis = sec_axis(~.*20, name="Total weekly tests", breaks=seq(0, 100000, 25000))) + 
   scale_x_datetime("Time", date_labels = "%b %y", 
