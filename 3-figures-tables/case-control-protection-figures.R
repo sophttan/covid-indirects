@@ -50,7 +50,7 @@ ggplot(results%>%filter(group!="By time"), aes(x=time, y=point, color=inf_vacc))
         strip.background = element_rect(fill=NA,colour="black"),
         text=element_text(size=7, family="Helvetica")) 
 ggsave("D:/CCHCS_premium/st/covid-indirects/figures/binary-hybrid-figure.jpg", width=10.5, height=4, dpi=300)
-ggsave("D:/CCHCS_premium/st/covid-indirects/figures/binary-hybrid-figure.eps", units="mm", width=180, height=185)
+ggsave("D:/CCHCS_premium/st/covid-indirects/figures/binary-hybrid-figure.eps", units="mm", width=180, height=140)
 
 # plot strength and durability of indirect protection
 ggplot(results%>%filter(group=="By time"&inf_vacc!="First three months of vaccination")%>%
@@ -69,7 +69,7 @@ ggplot(results%>%filter(group=="By time"&inf_vacc!="First three months of vaccin
         strip.background = element_rect(fill=NA,colour="black"),
         text=element_text(size=7, family="Helvetica")) 
 ggsave("D:/CCHCS_premium/st/covid-indirects/figures/durability-figure.jpg", width=11, height=4, dpi=300)
-ggsave("D:/CCHCS_premium/st/covid-indirects/figures/durability-figure.eps", units="mm", width=180, height=185)
+ggsave("D:/CCHCS_premium/st/covid-indirects/figures/durability-figure.eps", units="mm", width=180, height=140)
 
 
 # plot durability over first 3 months of vaccination
