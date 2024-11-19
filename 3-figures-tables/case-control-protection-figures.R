@@ -67,7 +67,7 @@ ggplot(results%>%filter(group=="By time"&inf_vacc!="First three months of vaccin
         panel.border= element_rect(fill=NA),
         strip.text.x = element_text(face="bold", size=7),
         strip.background = element_rect(fill=NA,colour="black"),
-        text=element_text(size=7, family="sans")) 
+        text=element_text(size=7, family="Helvetica")) 
 ggsave("D:/CCHCS_premium/st/covid-indirects/figures/durability-figure.jpg", width=11, height=4, dpi=300)
 ggsave("D:/CCHCS_premium/st/covid-indirects/figures/durability-figure.eps", units="mm", width=180, height=185)
 
