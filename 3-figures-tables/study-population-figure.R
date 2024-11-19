@@ -22,8 +22,8 @@ tests_plot_group <- tests_plot %>% group_by(week) %>%
 colors <- c(RColorBrewer::brewer.pal(3, "Paired")[2], RColorBrewer::brewer.pal(8, "Dark2")[8])
 inf <- inf_plot_group %>% 
   ggplot(aes(as.POSIXct(Day), inf)) + 
-  geom_rect(xmin=as.POSIXct("2021-12-15"), xmax=as.POSIXct("2022-12-15"), ymin=0, ymax=6000, fill="grey93", alpha=0.1) + 
-  annotate("text", x=as.POSIXct("2022-06-15"), y=5800, label="Study period", size=4) + 
+  geom_rect(xmin=as.POSIXct("2021-12-15"), xmax=as.POSIXct("2022-12-15"), ymin=0, ymax=6300, fill="grey93", alpha=0.1) + 
+  annotate("text", x=as.POSIXct("2022-06-15"), y=5800, label="Study period", size=2) + 
   geom_line(aes(color="Infections")) + 
   geom_line(data = tests_plot_group, aes(y=resident_tests/20, color="Tests")) +
   scale_y_continuous(name="Total weekly infections", 
@@ -46,7 +46,7 @@ inf <- inf_plot_group %>%
         axis.text.x = element_text(angle=90),
         legend.position="none",
         panel.background = element_blank(),
-        text=element_text(size=12, family="sans")) 
+        text=element_text(size=7, family="Helvetica")) 
 inf
 ggsave("D:/CCHCS_premium/st/covid-indirects/figures/inf_test.jpg", width=10, height=5, dpi=300)
 
@@ -70,7 +70,7 @@ vacc_summary <- vacc_summary %>% mutate(any_cum=cumsum(any)/177319*100,
 colors <- RColorBrewer::brewer.pal(9, "Purples")[c(9, 6, 4,3)]
 vacc <- vacc_summary %>% ggplot(aes(Date, any_cum)) + 
   geom_rect(xmin=as.Date("2021-12-15"), xmax=as.Date("2022-12-15"), ymin=0, ymax=100, fill="grey93", alpha=0.1) + 
-  annotate("text", x=as.Date("2022-06-15"), y=94, label="Study period", size=4) + 
+  annotate("text", x=as.Date("2022-06-15"), y=94, label="Study period", size=2) + 
   geom_line(aes(color="Any vaccine")) + 
   geom_line(aes(y=full_cum, color="Primary series only")) + 
   geom_line(aes(y=one_cum, color="One booster")) + 
@@ -85,8 +85,11 @@ vacc <- vacc_summary %>% ggplot(aes(Date, any_cum)) +
         axis.text.x = element_text(angle=90),
         legend.title=element_blank(),
         panel.background = element_blank(),
-        text=element_text(size=12, family="sans"))  
+        text=element_text(size=7, family="Helvetica"))  
 
 library(patchwork)
 inf/vacc
 ggsave("D:/CCHCS_premium/st/covid-indirects/figures/inf_test_vacc.jpg", width=8, height=7, dpi=300)
+
+ggsave(filename="D:/CCHCS_premium/st/covid-indirects/figures/inf_test_vacc.eps", 
+       units="mm", width=180, height=210)

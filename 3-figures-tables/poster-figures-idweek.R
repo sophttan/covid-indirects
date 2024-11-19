@@ -45,8 +45,8 @@ ggplot(results%>%filter(group=="By dose"), aes(x=time, y=point, color=inf_vacc))
         panel.border= element_rect(fill=NA),
         strip.text.x = element_blank(),
         strip.background = element_rect(fill=NA,colour="black"),
-        text=element_text(size=25, family="sans")) 
-ggsave("figures/dose-poster.jpg", dpi=400, width=7.5, height=5)
+        text=element_text(size=20, family="sans")) 
+ggsave("figures/dose-poster.jpg", dpi=400, width=7.5, height=3.5)
 
 ggplot(results%>%filter(group!="By time"&group=="Binary")%>%
          mutate(inf_vacc=c("Hybrid immunity", "Any vaccine", "Any prior infection")%>%
@@ -84,7 +84,7 @@ ggplot(results%>%filter(group=="By time"&inf_vacc!="First three months of vaccin
         strip.text.x = element_text(size=20),
         strip.background = element_rect(fill=NA,colour="black"),
         text=element_text(size=20, family="sans")) 
-ggsave("figures/time-poster.jpg", dpi=400, width=8.5, height=5)
+ggsave("figures/time-poster.jpg", dpi=400, width=8.5, height=4)
 
 # bivalent
 results <- read_csv(here::here("results/main/bivalent-results.csv"))[1:3,]

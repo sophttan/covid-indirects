@@ -46,11 +46,11 @@ ggplot(results%>%filter(group!="By time"), aes(x=time, y=point, color=inf_vacc))
         legend.position = "none",
         panel.background = element_blank(),
         panel.border= element_rect(fill=NA),
-        strip.text.x = element_text(face="bold", size=12),
+        strip.text.x = element_text(face="bold", size=7),
         strip.background = element_rect(fill=NA,colour="black"),
-        text=element_text(size=12, family="sans")) 
+        text=element_text(size=7, family="Helvetica")) 
 ggsave("D:/CCHCS_premium/st/covid-indirects/figures/binary-hybrid-figure.jpg", width=10.5, height=4, dpi=300)
-
+ggsave("D:/CCHCS_premium/st/covid-indirects/figures/binary-hybrid-figure.eps", units="mm", width=180, height=185)
 
 # plot strength and durability of indirect protection
 ggplot(results%>%filter(group=="By time"&inf_vacc!="First three months of vaccination")%>%
@@ -65,10 +65,11 @@ ggplot(results%>%filter(group=="By time"&inf_vacc!="First three months of vaccin
   theme(legend.position = "none",
         panel.background = element_blank(),
         panel.border= element_rect(fill=NA),
-        strip.text.x = element_text(face="bold", size=12),
+        strip.text.x = element_text(face="bold", size=7),
         strip.background = element_rect(fill=NA,colour="black"),
-        text=element_text(size=12, family="sans")) 
+        text=element_text(size=7, family="sans")) 
 ggsave("D:/CCHCS_premium/st/covid-indirects/figures/durability-figure.jpg", width=11, height=4, dpi=300)
+ggsave("D:/CCHCS_premium/st/covid-indirects/figures/durability-figure.eps", units="mm", width=180, height=185)
 
 
 # plot durability over first 3 months of vaccination
@@ -107,9 +108,10 @@ ggplot(results[1:3,]%>%mutate(bivalent=c("Monovalent", "Monovalent","Bivalent"),
   theme(legend.title=element_blank(),
         panel.background = element_blank(),
         panel.border= element_rect(fill=NA),
-        strip.text.x = element_text(face="bold", size=12),
+        strip.text.x = element_text(face="bold", size=7),
         strip.background = element_rect(fill=NA,colour="black"),
-        text=element_text(size=12, family="sans")) 
+        text=element_text(size=7, family="Helvetica")) 
 ggsave("D:/CCHCS_premium/st/covid-indirects/figures/bivalent-figure.jpg", width=4, height=4, dpi=300)
+ggsave("D:/CCHCS_premium/st/covid-indirects/figures/bivalent-figure.eps", units="mm", width=88, height=130)
 
 
