@@ -199,7 +199,7 @@ res_robust <- res_robust %>% filter(!grepl("infvacc", x)) %>% select(!name)
 tbl <- cbind(make_sensitivity("Conditional logistic regression (main)", "results/main/"), 
              make_tbl(res, column, F)[,2], 
              make_sensitivity("Conditional logistic regression without repeated residents", "results/no-repeat/")[,2], 
-             make_tbl(res, column, F)[,2])
+             make_tbl(res_robust, column, F)[,2])
 names(tbl)[3]<-"Unconditional logistic regression"
 names(tbl)[5]<-"Unconditional logistic regression with person-level clustering"
 tbl %>% write_csv("tables/model-sensitivity.csv")
