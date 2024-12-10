@@ -1,6 +1,6 @@
 # Strength and durability of indirect protection against SARS-CoV-2 infection through vaccine and infection-acquired immunity
 
-This repository contains analytic code for estimating the indirect protection conferred by vaccine-derived and infection-acquired immunity against Omicron SARS-CoV-2 infections. We designed a test-negative case-control observational design from December 15, 2021, to December 15, 2022, among residents in two-person rooms in 35 California state prisons. We leveraged differences in immunity of the roommates of cases and controls to quantify indirect protection to cases and controls. 
+This repository contains analytic code for estimating the indirect protection conferred by vaccine-derived and infection-acquired immunity (from COVID-19 vaccines and prior SARS-CoV-2 infection) against Omicron SARS-CoV-2 infections. We designed a test-negative case-control observational study from December 15, 2021, to December 15, 2022, among residents in two-person rooms in 35 California state prisons. We leveraged differences in vaccine-derived and infection-acquired immunity of the roommates of cases and controls to quantify reduction in infection risk (indirect protection) to cases and controls. 
 
 Data used for this analysis is not publicly available. Data requests may be made to the California Correctional Health Care Services and are subject to controlled access due to requirements to enhance protection of this vulnerable incarcerated population. 
 
