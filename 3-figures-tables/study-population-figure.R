@@ -94,4 +94,4 @@ inf/vacc
 ggsave("D:/CCHCS_premium/st/covid-indirects/figures/inf_test_vacc.jpg", width=8, height=7, dpi=300)
 
 ggsave(filename="D:/CCHCS_premium/st/covid-indirects/figures/inf_test_vacc.eps", 
-       units="mm", width=180, height=210)
+       units="mm", width=180, height=210, device=cairo_ps)
